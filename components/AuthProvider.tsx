@@ -88,9 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     setToken(data.token);
     setTokenState(data.token);
-    setUser(data.user);
+
+    // Fetch complete user (with role) from /me before redirecting
+    const meRes = await fetch(`${API_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${data.token}` },
+    });
+    if (!meRes.ok) throw new Error("Échec de la récupération du profil");
+    const meData = await meRes.json();
+
+    setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(data.user.role === "admin" ? "/admin/dashboard" : "/projets");
+    router.push(meData.user.role === "admin" ? "/admin/dashboard" : "/projets");
   };
 
   const signup = async (
@@ -113,9 +121,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     setToken(data.token);
     setTokenState(data.token);
-    setUser(data.user);
+
+    const meRes = await fetch(`${API_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${data.token}` },
+    });
+    if (!meRes.ok) throw new Error("Échec de la récupération du profil");
+    const meData = await meRes.json();
+
+    setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(data.user.role === "admin" ? "/admin/dashboard" : "/projets");
+    router.push(meData.user.role === "admin" ? "/admin/dashboard" : "/projets");
   };
 
   const logout = async () => {
