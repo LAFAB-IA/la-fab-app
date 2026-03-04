@@ -45,7 +45,7 @@ function AdminNote({ projectId, initialNote }: { projectId: string; initialNote:
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState(false)
-    const timerRef = useRef(null)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     function saveNote(text: string) {
         localStorage.setItem(lsKey, text)
