@@ -88,16 +88,21 @@ export default function Dashboard() {
     const [orderConfirmed, setOrderConfirmed] = useState(false)
     const [orderError, setOrderError] = useState(null)
 
-    const params = new URLSearchParams(window.location.search)
-    const projectId = params.get("project_id")
-    const accountId = params.get("account_id") || localStorage.getItem("account_id") || ""
+    const [projectId, setProjectId] = useState<string | null>(null)
+    const [accountId, setAccountId] = useState("")
 
     useEffect(() => {
-        const token = getToken()
-        if (!projectId) { setError("project_id manquant"); setLoading(false); return }
-        if (!token)     { setError("Non authentifié");    setLoading(false); return }
+        const params = new URLSearchParams(window.location.search)
+        const pid = params.get("project_id")
+        const aid = params.get("account_id") || localStorage.getItem("account_id") || ""
+        setProjectId(pid)
+        setAccountId(aid)
 
-        fetch(`${API_URL}/api/project/${projectId}?account_id=${accountId}`, {
+        const token = getToken()
+        if (!pid) { setError("project_id manquant"); setLoading(false); return }
+        if (!token) { setError("Non authentifié");   setLoading(false); return }
+
+        fetch(`${API_URL}/api/project/${pid}?account_id=${aid}`, {
             headers: { Authorization: "Bearer " + token },
         })
             .then((r) => r.json())
