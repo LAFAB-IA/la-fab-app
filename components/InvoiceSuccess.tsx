@@ -1,16 +1,17 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 
 export default function InvoiceSuccess() {
+    const searchParams = useSearchParams()
     const [status, setStatus] = useState("loading") // loading | confirmed | error
     const [invoice, setInvoice] = useState(null)
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search)
-        const invoiceId = params.get("invoice_id")
+        const invoiceId = searchParams.get("invoice_id")
         const token = getToken()
 
         if (!invoiceId || !token) { setStatus("error"); return }

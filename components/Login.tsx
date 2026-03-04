@@ -1,12 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { API_URL, C } from "@/lib/constants"
-import { setToken } from "@/lib/utils"
+import { C } from "@/lib/constants"
+import { useAuth } from "@/components/AuthProvider"
 
 const { useState } = React
 
 export default function Login() {
+    const { login, signup } = useAuth()
     const [mode, setMode] = useState<"login" | "signup">("login")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -15,40 +16,22 @@ export default function Login() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
 
-    function handleSubmit() {
+    async function handleSubmit() {
         setError("")
         if (!email || !password) { setError("Email et mot de passe obligatoires"); return }
         if (mode === "signup" && (!firstName || !lastName)) { setError("Prénom et nom obligatoires"); return }
 
         setLoading(true)
-
-        const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup"
-        const body = mode === "login"
-            ? { email, password }
-            : { email, password, firstName, lastName }
-
-        fetch(API_URL + endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok && data.session?.access_token) {
-                    setToken(data.session.access_token)
-                    // Redirection selon le rôle — admin ou client
-                    const email = data.user?.email || ""
-                    if (email.includes("admin") || email.endsWith("@lafab.fr")) {
-                        window.location.href = "/admin/dashboard"
-                    } else {
-                        window.location.href = "/dashboard"
-                    }
-                } else {
-                    setError(data.message || "Identifiants incorrects")
-                    setLoading(false)
-                }
-            })
-            .catch(() => { setError("Erreur réseau"); setLoading(false) })
+        try {
+            if (mode === "login") {
+                await login(email, password)
+            } else {
+                await signup(email, password, firstName, lastName)
+            }
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Erreur inattendue")
+            setLoading(false)
+        }
     }
 
     function handleKeyDown(e: React.KeyboardEvent) {

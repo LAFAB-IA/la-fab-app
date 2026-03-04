@@ -1,3 +1,11 @@
 "use client"
 import InvoiceCancel from "@/components/InvoiceCancel"
-export default function Page() { return <InvoiceCancel /> }
+import AuthGuard from "@/components/AuthGuard"
+
+export default function Page() {
+    return (
+        <AuthGuard>
+            <InvoiceCancel />
+        </AuthGuard>
+    )
+}

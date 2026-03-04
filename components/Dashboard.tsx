@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 
@@ -88,15 +89,13 @@ export default function Dashboard() {
     const [orderConfirmed, setOrderConfirmed] = useState(false)
     const [orderError, setOrderError] = useState(null)
 
-    const [projectId, setProjectId] = useState<string | null>(null)
-    const [accountId, setAccountId] = useState("")
+    const searchParams = useSearchParams()
+    const projectId = searchParams.get("project_id")
+    const accountId = searchParams.get("account_id") || (typeof window !== "undefined" ? localStorage.getItem("account_id") : "") || ""
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search)
-        const pid = params.get("project_id")
-        const aid = params.get("account_id") || localStorage.getItem("account_id") || ""
-        setProjectId(pid)
-        setAccountId(aid)
+        const pid = projectId
+        const aid = accountId
 
         const token = getToken()
         if (!pid) { setError("project_id manquant"); setLoading(false); return }
