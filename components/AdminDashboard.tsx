@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/auth"
+import { useAuth } from "@/components/AuthProvider"
 import { exportCSV } from "@/lib/utils"
 
 const { useEffect, useState, useRef } = React
@@ -41,6 +41,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── AdminNote ────────────────────────────────────────────────────────────────
 
 function AdminNote({ projectId, initialNote }: { projectId: string; initialNote: string }) {
+    const { token } = useAuth()
     const lsKey = "admin_note_" + projectId
     const [note, setNote] = useState(initialNote || (typeof window !== "undefined" ? localStorage.getItem(lsKey) : "") || "")
     const [saving, setSaving] = useState(false)
@@ -50,7 +51,6 @@ function AdminNote({ projectId, initialNote }: { projectId: string; initialNote:
 
     function saveNote(text: string) {
         localStorage.setItem(lsKey, text)
-        const token = getToken()
         if (!token) return
         setSaving(true)
         setSaved(false)
@@ -117,6 +117,7 @@ function AdminNote({ projectId, initialNote }: { projectId: string; initialNote:
 // ─── AdminInvoiceForm ─────────────────────────────────────────────────────────
 
 function AdminInvoiceForm({ projectId }: { projectId: string }) {
+    const { token } = useAuth()
     const [lines, setLines] = useState([{ description: "", quantity: 1, unit_price: 0 }])
     const [notes, setNotes] = useState("Merci pour votre confiance.")
     const [dueDays, setDueDays] = useState(30)
@@ -145,7 +146,6 @@ function AdminInvoiceForm({ projectId }: { projectId: string }) {
     const total    = Math.round((subtotal + tax) * 100) / 100
 
     function handleGenerate() {
-        const token = getToken()
         if (!token) return
         const invalid = lines.some((l) => !l.description.trim() || l.quantity <= 0 || l.unit_price <= 0)
         if (invalid) { setError("Tous les champs de ligne sont obligatoires"); return }
@@ -286,6 +286,7 @@ function AdminInvoiceForm({ projectId }: { projectId: string }) {
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -301,8 +302,8 @@ export default function AdminDashboard() {
     const uploadTargetRef = useRef(null)
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) { setError("Non authentifié"); setLoading(false); return }
+        if (authLoading) return
+        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
         fetch(API_URL + "/api/admin/projects", { headers: { Authorization: "Bearer " + token } })
             .then((r) => r.json())
             .then((data) => {
@@ -311,11 +312,10 @@ export default function AdminDashboard() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [])
+    }, [token, isAuthenticated, authLoading])
 
     function loadClientInfo(projectId: string) {
         if (clientInfo[projectId]) return
-        const token = getToken()
         if (!token) return
         setLoadingClient(projectId)
         fetch(`${API_URL}/api/admin/projects/${projectId}`, { headers: { Authorization: "Bearer " + token } })
@@ -328,7 +328,6 @@ export default function AdminDashboard() {
     }
 
     function handleStatusChange(projectId: string, newStatus: string) {
-        const token = getToken()
         if (!token) return
         setStatusChanging(projectId)
         fetch(`${API_URL}/api/project/${projectId}/status`, {
@@ -352,9 +351,7 @@ export default function AdminDashboard() {
     function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
         const projectId = uploadTargetRef.current
-        if (!file || !projectId) return
-        const token = getToken()
-        if (!token) return
+        if (!file || !projectId || !token) return
         setUploadingId(projectId)
         const formData = new FormData()
         formData.append("file", file)

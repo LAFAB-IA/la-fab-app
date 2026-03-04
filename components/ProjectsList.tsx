@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/auth"
+import { useAuth } from "@/components/AuthProvider"
 
 const STATUS_CONFIG = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -24,17 +24,18 @@ function StatusBadge({ status }) {
 }
 
 export default function ProjectsList() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [accountId, setAccountId] = useState("")
 
     useEffect(() => {
-        const token = getToken()
+        if (authLoading) return
+        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+
         const storedAccountId = localStorage.getItem("account_id") || ""
         setAccountId(storedAccountId)
-
-        if (!token) { setError("Non authentifié"); setLoading(false); return }
 
         fetch(`${API_URL}/api/project`, {
             headers: { Authorization: "Bearer " + token },
@@ -46,7 +47,7 @@ export default function ProjectsList() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [])
+    }, [token, isAuthenticated, authLoading])
 
     if (loading) return (
         <div style={{ width: "100%", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, fontFamily: "Inter, sans-serif" }}>

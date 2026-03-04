@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/auth"
+import { useAuth } from "@/components/AuthProvider"
 
 // ─── ProjectTimeline ─────────────────────────────────────────────────────────
 
@@ -78,6 +78,7 @@ function ProjectTimeline({ status }) {
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [project, setProject] = useState(null)
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -94,14 +95,11 @@ export default function Dashboard() {
     const accountId = searchParams.get("account_id") || (typeof window !== "undefined" ? localStorage.getItem("account_id") : "") || ""
 
     useEffect(() => {
-        const pid = projectId
-        const aid = accountId
+        if (authLoading) return
+        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+        if (!projectId) { setError("project_id manquant"); setLoading(false); return }
 
-        const token = getToken()
-        if (!pid) { setError("project_id manquant"); setLoading(false); return }
-        if (!token) { setError("Non authentifié");   setLoading(false); return }
-
-        fetch(`${API_URL}/api/project/${pid}?account_id=${aid}`, {
+        fetch(`${API_URL}/api/project/${projectId}?account_id=${accountId}`, {
             headers: { Authorization: "Bearer " + token },
         })
             .then((r) => r.json())
@@ -116,10 +114,9 @@ export default function Dashboard() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [])
+    }, [token, isAuthenticated, authLoading])
 
     function handleGenerateQuote() {
-        const token = getToken()
         if (!projectId || !token) return
         setQuoteLoading(true)
         setQuoteError(null)
@@ -142,7 +139,6 @@ export default function Dashboard() {
     }
 
     function handleValidateOrder() {
-        const token = getToken()
         if (!projectId || !token) return
         setOrderLoading(true)
         setOrderError(null)

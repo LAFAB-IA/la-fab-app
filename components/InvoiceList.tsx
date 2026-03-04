@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/auth"
+import { useAuth } from "@/components/AuthProvider"
 
 const STATUS_CONFIG = {
     draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
@@ -21,6 +21,7 @@ function StatusBadge({ status }) {
 }
 
 export default function InvoiceList() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [invoices, setInvoices] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -28,8 +29,8 @@ export default function InvoiceList() {
     const [payError, setPayError] = useState("")
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) { setError("Non authentifié"); setLoading(false); return }
+        if (authLoading) return
+        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
 
         fetch(`${API_URL}/api/invoice/list`, {
             headers: { Authorization: "Bearer " + token },
@@ -41,10 +42,9 @@ export default function InvoiceList() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [])
+    }, [token, isAuthenticated, authLoading])
 
     function handlePay(invoiceId) {
-        const token = getToken()
         if (!token) return
         setPayingId(invoiceId)
         setPayError("")

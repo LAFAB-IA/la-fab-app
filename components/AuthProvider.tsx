@@ -64,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearToken();
+        setUser(null);
+        setTokenState(null);
+        setIsAuthenticated(false);
       })
       .finally(() => {
         setIsLoading(false);
