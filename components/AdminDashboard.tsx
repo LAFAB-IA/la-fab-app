@@ -6,7 +6,7 @@ import { getToken, exportCSV } from "@/lib/utils"
 
 const { useEffect, useState, useRef } = React
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     created:      { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
     quoted:       { label: "Devis envoyé",          bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
     validated:    { label: "Commande validée",      bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
