@@ -103,7 +103,7 @@ export default function ProjectsList() {
                         return (
                             <a
                                 key={project.project_id}
-                                href={`/dashboard?project_id=${project.project_id}&account_id=${accountId}`}
+                                href={`/projet/${project.project_id}`}
                                 style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 4px rgba(58,64,64,0.08)", border: "1px solid " + C.border, textDecoration: "none" }}
                             >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
