@@ -408,19 +408,19 @@ export default function AdminDashboard() {
     ).length
 
     if (loading) return (
-        <div style={{ width: "100%", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: C.muted }}>Chargement admin...</p>
         </div>
     )
 
     if (error) return (
-        <div style={{ width: "100%", minHeight: "100vh", padding: 32, background: C.bg, fontFamily: "Inter, sans-serif" }}>
+        <div style={{ fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: "#c0392b" }}>❌ {error}</p>
         </div>
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", overflowY: "auto", padding: 32, fontFamily: "Inter, sans-serif", boxSizing: "border-box", background: C.bg }}>
+        <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
             <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelected} style={{ display: "none" }} />
 
             <div style={{ maxWidth: 960, margin: "0 auto" }}>
@@ -428,7 +428,6 @@ export default function AdminDashboard() {
                 {/* ── Header ── */}
                 <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
                     <div>
-                        <h1 style={{ fontSize: 26, fontWeight: "bold", marginBottom: 4, color: C.dark }}>Admin — La Fab</h1>
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{projects.length} projets au total</p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

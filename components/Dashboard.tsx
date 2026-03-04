@@ -162,7 +162,7 @@ export default function Dashboard() {
 
     // ─── Styles communs ───────────────────────────────────────────────────────
 
-    const cs   = { width: "100%", minHeight: "100%", overflowY: "auto", fontFamily: "Inter, sans-serif", backgroundColor: C.bg, padding: "40px 20px" }
+    const cs   = { fontFamily: "Inter, sans-serif" } as React.CSSProperties
     const card = { maxWidth: 720, margin: "0 auto", backgroundColor: C.white, borderRadius: 16, padding: 32, boxShadow: "0 2px 12px rgba(58,64,64,0.1)" }
     const lbl  = { fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }
     const val  = { fontSize: 16, color: C.dark, fontWeight: 500 }

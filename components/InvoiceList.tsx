@@ -66,19 +66,19 @@ export default function InvoiceList() {
     }
 
     if (loading) return (
-        <div style={{ width: "100%", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: C.muted }}>Chargement de vos factures...</p>
         </div>
     )
 
     if (error) return (
-        <div style={{ width: "100%", minHeight: "100vh", padding: 32, background: C.bg, fontFamily: "Inter, sans-serif" }}>
+        <div style={{ fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: "#c0392b" }}>✗ {error}</p>
         </div>
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", overflowY: "auto", fontFamily: "Inter, sans-serif", backgroundColor: C.bg, padding: "40px 20px", boxSizing: "border-box" }}>
+        <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
                 {/* Header */}
