@@ -99,7 +99,7 @@ export default function Landing() {
                         <div style={{ width: 28, height: 28, backgroundColor: C.yellow, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <span style={{ fontSize: 14, fontWeight: 800, color: C.dark }}>LF</span>
                         </div>
-                        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: C.dark }}>La Fab</span>
+                        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: C.dark }}>LA FAB</span>
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         <a href="/login" style={{ padding: "8px 18px", fontSize: 14, fontWeight: 600, color: C.dark, textDecoration: "none", borderRadius: 8 }}>
@@ -288,9 +288,9 @@ export default function Landing() {
                             <div style={{ width: 24, height: 24, backgroundColor: C.yellow, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
                                 <span style={{ fontSize: 11, fontWeight: 800, color: C.dark }}>LF</span>
                             </div>
-                            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: C.dark }}>La Fab</span>
+                            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: C.dark }}>LA FAB</span>
                         </div>
-                        <div style={{ fontSize: 13, color: C.muted }}>© 2026 La Fab — Impression professionnelle</div>
+                        <div style={{ fontSize: 13, color: C.muted }}>© 2026 LA FAB — Impression professionnelle</div>
                         <div style={{ display: "flex", gap: 20 }}>
                             <a href="/login" style={{ fontSize: 13, color: C.muted, textDecoration: "none" }}>Connexion</a>
                             <a href="mailto:contact@lafab.fr" style={{ fontSize: 13, color: C.muted, textDecoration: "none" }}>Contact</a>

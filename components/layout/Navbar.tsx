@@ -62,7 +62,7 @@ export default function Navbar() {
                 }}>
                     LF
                 </div>
-                <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>La Fab</span>
+                <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
             </Link>
 
             {/* Desktop nav links — center */}

@@ -20,6 +20,14 @@ function StatusBadge({ status }) {
     )
 }
 
+function SplitBadge({ label, color }: { label: string; color: string }) {
+    return (
+        <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: color === "green" ? "#e8f8ee" : "#fef9e0", color: color === "green" ? "#1a7a3c" : "#b89a00", border: "1px solid " + (color === "green" ? "#a8dbb8" : "#f4cf1588"), whiteSpace: "nowrap" }}>
+            {label}
+        </span>
+    )
+}
+
 export default function InvoiceList() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [invoices, setInvoices] = useState([])
@@ -44,12 +52,12 @@ export default function InvoiceList() {
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
     }, [token, isAuthenticated, authLoading])
 
-    function handlePay(invoiceId) {
+    function handlePay(invoiceId: string, step: string) {
         if (!token) return
         setPayingId(invoiceId)
         setPayError("")
 
-        fetch(`${API_URL}/api/stripe/create-checkout/${invoiceId}`, {
+        fetch(`${API_URL}/api/stripe/create-checkout/${invoiceId}?step=${step}`, {
             method: "POST",
             headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
         })
@@ -107,7 +115,8 @@ export default function InvoiceList() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {invoices.map((invoice) => {
                         const isPaying = payingId === invoice.id
-                        const canPay = invoice.status === "pending" || invoice.status === "overdue"
+                        const isSplit = invoice.payment_type === "split"
+                        const step = invoice.payment_step
 
                         return (
                             <div
@@ -122,7 +131,11 @@ export default function InvoiceList() {
                                         </div>
                                         <div style={{ fontSize: 12, color: C.muted }}>{invoice.project_id}</div>
                                     </div>
-                                    <StatusBadge status={invoice.status} />
+                                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                                        <StatusBadge status={invoice.status} />
+                                        {isSplit && step === "deposit_paid" && <SplitBadge label="Acompte payé" color="green" />}
+                                        {isSplit && step === "fully_paid" && <SplitBadge label="Payé intégralement" color="green" />}
+                                    </div>
                                 </div>
 
                                 {/* Infos */}
@@ -149,26 +162,68 @@ export default function InvoiceList() {
                                     )}
                                 </div>
 
+                                {/* Split payment info */}
+                                {isSplit && (
+                                    <div style={{ padding: "12px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, marginBottom: 16, fontSize: 13, color: C.dark }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Paiement en 2 fois</div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                            <span>Acompte 30% : <strong>{invoice.deposit_amount} €</strong></span>
+                                            <span style={{ color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
+                                                {step === "deposit_paid" || step === "fully_paid" ? "✓ Payé" : "En attente"}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span>Solde 70% : <strong>{invoice.balance_amount} €</strong></span>
+                                            <span style={{ color: step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
+                                                {step === "fully_paid" ? "✓ Payé" : "En attente"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Actions */}
                                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                    {invoice.pdf_url && (
-                                        <a
-                                            href={invoice.pdf_url}
-                                            target="_blank"
-                                            style={{ padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
-                                        >
-                                            📄 Voir la facture
-                                        </a>
-                                    )}
-                                    {canPay && (
+                                    <a
+                                        href={`/facture/${invoice.id}`}
+                                        style={{ padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                    >
+                                        📄 Voir la facture
+                                    </a>
+
+                                    {/* Split: deposit pending */}
+                                    {isSplit && step === "pending" && (
                                         <button
-                                            onClick={() => handlePay(invoice.id)}
+                                            onClick={() => handlePay(invoice.id, "deposit")}
                                             disabled={isPaying}
                                             style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
                                         >
-                                            {isPaying ? "⏳ Redirection..." : "💳 Payer"}
+                                            {isPaying ? "⏳ Redirection..." : `💳 Payer l'acompte (${invoice.deposit_amount} €)`}
                                         </button>
                                     )}
+
+                                    {/* Split: balance pending */}
+                                    {isSplit && step === "deposit_paid" && (
+                                        <button
+                                            onClick={() => handlePay(invoice.id, "balance")}
+                                            disabled={isPaying}
+                                            style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                        >
+                                            {isPaying ? "⏳ Redirection..." : `💳 Payer le solde (${invoice.balance_amount} €)`}
+                                        </button>
+                                    )}
+
+                                    {/* Full payment */}
+                                    {!isSplit && invoice.status !== "paid" && (invoice.status === "pending" || invoice.status === "overdue") && (
+                                        <button
+                                            onClick={() => handlePay(invoice.id, "full")}
+                                            disabled={isPaying}
+                                            style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                        >
+                                            {isPaying ? "⏳ Redirection..." : `💳 Payer (${invoice.total} €)`}
+                                        </button>
+                                    )}
+
+                                    {/* Paid badge */}
                                     {invoice.status === "paid" && (
                                         <div style={{ padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
                                             ✅ Paiement reçu

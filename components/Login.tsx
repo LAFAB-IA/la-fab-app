@@ -87,7 +87,7 @@ export default function Login() {
                     }}>
                         🖨
                     </div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 6px" }}>La Fab</h1>
+                    <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 6px" }}>LA FAB</h1>
                     <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
                         {mode === "login" ? "Connectez-vous à votre espace" : "Créez votre compte"}
                     </p>
