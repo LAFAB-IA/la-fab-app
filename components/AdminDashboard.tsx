@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken, exportCSV } from "@/lib/utils"
+import { getToken } from "@/lib/auth"
+import { exportCSV } from "@/lib/utils"
 
 const { useEffect, useState, useRef } = React
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/utils"
+import { getToken } from "@/lib/auth"
 
 const STATUS_CONFIG = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -36,7 +36,7 @@ export default function ProjectsList() {
 
         if (!token) { setError("Non authentifié"); setLoading(false); return }
 
-        fetch(`${API_URL}/api/project?account_id=${storedAccountId}`, {
+        fetch(`${API_URL}/api/project`, {
             headers: { Authorization: "Bearer " + token },
         })
             .then((r) => r.json())

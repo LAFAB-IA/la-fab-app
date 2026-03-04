@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/utils"
+import { getToken } from "@/lib/auth"
 
 const STATUS_CONFIG = {
     draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
-import { getToken } from "@/lib/utils"
+import { getToken } from "@/lib/auth"
 
 export default function InvoiceSuccess() {
     const searchParams = useSearchParams()
