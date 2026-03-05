@@ -1,23 +1,55 @@
 "use client"
 
-import React, { useState, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+
+interface CatalogProduct {
+    id: string
+    catalog_item_id?: string
+    name: string
+    dimensions?: string
+    category?: string
+}
 
 export default function CreateProject() {
     const router = useRouter()
     const { token } = useAuth()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // Catalog
+    const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
+    const [catalogLoading, setCatalogLoading] = useState(true)
+    const [catalogError, setCatalogError] = useState(false)
+
     // Steps
     const [step, setStep] = useState(1)
 
     // Step 1 fields
-    const [productType, setProductType] = useState("")
+    const [selectedProductId, setSelectedProductId] = useState("")
+    const [customProductType, setCustomProductType] = useState("")
     const [quantity, setQuantity] = useState("")
     const [specs, setSpecs] = useState("")
     const [step1Error, setStep1Error] = useState("")
+
+    // Fetch catalog products on mount
+    useEffect(() => {
+        if (!token) return
+        fetch(`${API_URL}/api/catalog/products`, {
+            headers: { Authorization: "Bearer " + token },
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok && Array.isArray(data.products) && data.products.length > 0) {
+                    setCatalogProducts(data.products)
+                } else {
+                    setCatalogError(true)
+                }
+                setCatalogLoading(false)
+            })
+            .catch(() => { setCatalogError(true); setCatalogLoading(false) })
+    }, [token])
 
     // Step 2 fields
     const [file, setFile] = useState<File | null>(null)
@@ -32,13 +64,18 @@ export default function CreateProject() {
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 
+    const useCatalog = catalogProducts.length > 0 && !catalogError
+
     // Step 1 validation
     const handleNext = () => {
         setStep1Error("")
-        if (!productType.trim()) { setStep1Error("Le type de produit est requis."); return }
+        const hasProduct = useCatalog ? !!selectedProductId : !!customProductType.trim()
+        if (!hasProduct) { setStep1Error("Le type de produit est requis."); return }
         if (!quantity || parseInt(quantity) < 1) { setStep1Error("La quantité doit être d'au moins 1."); return }
         setStep(2)
     }
+
+    const resolvedProductId = useCatalog ? selectedProductId : customProductType.trim()
 
     // File handling
     const validateFile = (f: File): boolean => {
@@ -99,7 +136,7 @@ export default function CreateProject() {
                     Authorization: "Bearer " + token,
                 },
                 body: JSON.stringify({
-                    product_id: productType.trim(),
+                    product_id: resolvedProductId,
                     qty: parseInt(quantity),
                     spec: specs.trim() || undefined,
                 }),
@@ -223,13 +260,37 @@ export default function CreateProject() {
 
                         <div style={{ marginBottom: 16 }}>
                             <label style={labelStyle}>Type de produit</label>
-                            <input
-                                type="text"
-                                value={productType}
-                                onChange={(e) => setProductType(e.target.value)}
-                                placeholder='Ex: Roll-up 85x200, Cartes de visite, Kakémono'
-                                style={inputStyle}
-                            />
+                            {catalogLoading ? (
+                                <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: C.muted }}>
+                                    Chargement du catalogue...
+                                </div>
+                            ) : useCatalog ? (
+                                <select
+                                    value={selectedProductId}
+                                    onChange={(e) => setSelectedProductId(e.target.value)}
+                                    style={inputStyle}
+                                >
+                                    <option value="">— Sélectionnez un produit —</option>
+                                    {catalogProducts.map((p) => (
+                                        <option key={p.id || p.catalog_item_id} value={p.id || p.catalog_item_id}>
+                                            {p.name}{p.dimensions ? ` — ${p.dimensions}` : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={customProductType}
+                                        onChange={(e) => setCustomProductType(e.target.value)}
+                                        placeholder="Ex: Roll-up 85x200, Cartes de visite, Kakémono"
+                                        style={inputStyle}
+                                    />
+                                    <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>
+                                        Catalogue indisponible — décrivez votre produit manuellement.
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
