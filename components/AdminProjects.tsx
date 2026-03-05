@@ -4,8 +4,9 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
-import { ArrowLeft, ChevronDown, Search, ExternalLink } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
+import AdminProjectFlow from "@/components/AdminProjectFlow"
 
 const { useEffect, useState } = React
 
@@ -33,6 +34,7 @@ export default function AdminProjects() {
     const [sortKey, setSortKey] = useState<SortKey>("date")
     const [sortDir, setSortDir] = useState<SortDir>("desc")
     const [statusChanging, setStatusChanging] = useState<string | null>(null)
+    const [expandedProject, setExpandedProject] = useState<string | null>(null)
 
     useEffect(() => {
         if (authLoading) return
@@ -257,94 +259,116 @@ export default function AdminProjects() {
                                 const productLabel = project.product?.label || project.brief_analysis?.product_type || "—"
                                 const quantity = project.quantity || project.brief_analysis?.quantity_detected || ""
                                 const total = project.pricing?.total_net ? formatPrice(Number(project.pricing.total_net)) : "—"
+                                const isExpanded = expandedProject === project.project_id
 
                                 return (
-                                    <tr key={project.project_id} style={{ transition: "background 0.15s" }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fafaf8")} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontWeight: 600, color: C.dark, marginBottom: 2 }}>
-                                                {project.brief_analysis?.product_type || "Brief uploade"}
-                                            </div>
-                                            <div style={{ fontSize: 11, color: C.muted }}>
-                                                {project.project_id.slice(0, 12)}...
-                                            </div>
-                                            {total !== "—" && (
-                                                <div style={{ fontSize: 12, color: C.dark, fontWeight: 600, marginTop: 2 }}>
-                                                    {total}
+                                    <React.Fragment key={project.project_id}>
+                                        <tr style={{ transition: "background 0.15s", cursor: "pointer" }} onClick={() => setExpandedProject(isExpanded ? null : project.project_id)} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fafaf8")} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isExpanded ? "#fafaf8" : "transparent")}>
+                                            <td style={tdStyle}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                    {isExpanded ? <ChevronUp size={14} color={C.muted} /> : <ChevronDown size={14} color={C.muted} />}
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, color: C.dark, marginBottom: 2 }}>
+                                                            {project.brief_analysis?.product_type || "Brief uploade"}
+                                                        </div>
+                                                        <div style={{ fontSize: 11, color: C.muted }}>
+                                                            {project.project_id.slice(0, 12)}...
+                                                        </div>
+                                                        {total !== "—" && (
+                                                            <div style={{ fontSize: 12, color: C.dark, fontWeight: 600, marginTop: 2 }}>
+                                                                {total}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontSize: 12, color: C.muted }}>
-                                                {project.account_id.slice(0, 10)}...
-                                            </div>
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontSize: 13, color: C.dark }}>{productLabel}</div>
-                                            {quantity && (
-                                                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                                                    {quantity} ex.
+                                            </td>
+                                            <td style={tdStyle}>
+                                                <div style={{ fontSize: 12, color: C.muted }}>
+                                                    {project.account_id.slice(0, 10)}...
                                                 </div>
-                                            )}
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <StatusBadge status={project.status} type="project" />
-                                        </td>
-                                        <td style={tdStyle}>
-                                            <div style={{ fontSize: 13, color: C.dark }}>
-                                                {formatDate(project.created_at)}
-                                            </div>
-                                        </td>
-                                        <td style={{ ...tdStyle, textAlign: "center" }}>
-                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                                                {/* Status change select */}
-                                                <div style={{ position: "relative" }}>
-                                                    <select
-                                                        value={project.status}
-                                                        onChange={(e) => handleStatusChange(project.project_id, e.target.value)}
-                                                        disabled={isChanging}
+                                            </td>
+                                            <td style={tdStyle}>
+                                                <div style={{ fontSize: 13, color: C.dark }}>{productLabel}</div>
+                                                {quantity && (
+                                                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                                                        {quantity} ex.
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td style={tdStyle}>
+                                                <StatusBadge status={project.status} type="project" />
+                                            </td>
+                                            <td style={tdStyle}>
+                                                <div style={{ fontSize: 13, color: C.dark }}>
+                                                    {formatDate(project.created_at)}
+                                                </div>
+                                            </td>
+                                            <td style={{ ...tdStyle, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                                    {/* Status change select */}
+                                                    <div style={{ position: "relative" }}>
+                                                        <select
+                                                            value={project.status}
+                                                            onChange={(e) => handleStatusChange(project.project_id, e.target.value)}
+                                                            disabled={isChanging}
+                                                            style={{
+                                                                padding: "6px 10px",
+                                                                paddingRight: 28,
+                                                                border: "1px solid " + C.border,
+                                                                borderRadius: 6,
+                                                                fontSize: 11,
+                                                                backgroundColor: C.white,
+                                                                color: C.dark,
+                                                                outline: "none",
+                                                                appearance: "none" as const,
+                                                                cursor: isChanging ? "not-allowed" : "pointer",
+                                                                opacity: isChanging ? 0.5 : 1,
+                                                            }}
+                                                        >
+                                                            {STATUS_OPTIONS.map((s) => (
+                                                                <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown size={12} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
+                                                    </div>
+
+                                                    {/* Link to project */}
+                                                    <a
+                                                        href={`/projet/${project.project_id}`}
                                                         style={{
-                                                            padding: "6px 10px",
-                                                            paddingRight: 28,
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            width: 32,
+                                                            height: 32,
+                                                            borderRadius: 8,
                                                             border: "1px solid " + C.border,
-                                                            borderRadius: 6,
-                                                            fontSize: 11,
                                                             backgroundColor: C.white,
                                                             color: C.dark,
-                                                            outline: "none",
-                                                            appearance: "none" as const,
-                                                            cursor: isChanging ? "not-allowed" : "pointer",
-                                                            opacity: isChanging ? 0.5 : 1,
+                                                            textDecoration: "none",
                                                         }}
+                                                        title="Voir le projet"
                                                     >
-                                                        {STATUS_OPTIONS.map((s) => (
-                                                            <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-                                                        ))}
-                                                    </select>
-                                                    <ChevronDown size={12} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
+                                                        <ExternalLink size={14} />
+                                                    </a>
                                                 </div>
-
-                                                {/* Link to project */}
-                                                <a
-                                                    href={`/projet/${project.project_id}`}
-                                                    style={{
-                                                        display: "inline-flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        width: 32,
-                                                        height: 32,
-                                                        borderRadius: 8,
-                                                        border: "1px solid " + C.border,
-                                                        backgroundColor: C.white,
-                                                        color: C.dark,
-                                                        textDecoration: "none",
-                                                    }}
-                                                    title="Voir le projet"
-                                                >
-                                                    <ExternalLink size={14} />
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                        </tr>
+                                        {isExpanded && (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: "20px 24px", background: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
+                                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+                                                        Flux projet — {project.brief_analysis?.product_type || "Brief uploade"}
+                                                    </div>
+                                                    <AdminProjectFlow
+                                                        projectId={project.project_id}
+                                                        projectStatus={project.status}
+                                                        token={token!}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 )
                             })}
                         </tbody>
