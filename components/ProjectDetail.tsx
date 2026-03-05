@@ -6,7 +6,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 export default function ProjectDetail() {
@@ -185,15 +185,24 @@ export default function ProjectDetail() {
                                     <div style={{ fontSize: 14, color: C.dark, lineHeight: 1.6, marginTop: 6 }}>{brief_analysis.raw_extraction}</div>
                                 </div>
                             )}
-                            {project.brief_file_url && (
-                                <a
-                                    href={project.brief_file_url}
-                                    target="_blank"
-                                    style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
-                                >
-                                    <FileText size={16} /> Télécharger le brief (PDF)
-                                </a>
-                            )}
+                            {project.brief_file_url && (() => {
+                                const url = project.brief_file_url as string
+                                const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || ""
+                                const isImage = ["jpg","jpeg","png","webp"].includes(ext)
+                                const isSpreadsheet = ["xlsx","xls","csv"].includes(ext)
+                                const isPresentation = ext === "pptx"
+                                const BriefIcon = isImage ? FileImage : isSpreadsheet ? FileSpreadsheet : isPresentation ? FileType : FileText
+                                const label = isImage ? "image" : isSpreadsheet ? "tableur" : isPresentation ? "présentation" : ext === "pdf" ? "PDF" : ext.toUpperCase() || "fichier"
+                                return (
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                                    >
+                                        <BriefIcon size={16} /> Télécharger le brief ({label})
+                                    </a>
+                                )
+                            })()}
                         </>
                     )}
 

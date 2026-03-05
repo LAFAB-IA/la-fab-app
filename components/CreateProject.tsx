@@ -49,7 +49,9 @@ export default function CreateProject() {
     const [submitError, setSubmitError] = useState("")
     const [success, setSuccess] = useState(false)
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024
+    const MAX_FILE_SIZE = 20 * 1024 * 1024
+    const ACCEPTED_EXT = [".pdf",".xlsx",".xls",".csv",".pptx",".docx",".doc",".txt",".rtf",".jpg",".jpeg",".png",".webp"]
+    const ACCEPTED_ATTR = ACCEPTED_EXT.join(",")
 
     // Fetch catalog on mount
     useEffect(() => {
@@ -80,8 +82,9 @@ export default function CreateProject() {
 
     // File validation
     function validateFile(f: File): string | null {
-        if (!f.name.toLowerCase().endsWith(".pdf")) return "Seuls les fichiers PDF sont acceptés."
-        if (f.size > MAX_FILE_SIZE) return "Le fichier ne doit pas dépasser 10 MB."
+        const ext = "." + (f.name.split(".").pop()?.toLowerCase() || "")
+        if (!ACCEPTED_EXT.includes(ext)) return "Format non supporté. Formats acceptés : PDF, Excel, Word, PowerPoint, images, texte."
+        if (f.size > MAX_FILE_SIZE) return "Le fichier ne doit pas dépasser 20 MB."
         return null
     }
 
@@ -141,7 +144,7 @@ export default function CreateProject() {
 
     // Submit Mode A
     async function submitBrief() {
-        if (!briefFile) { setBriefError("Déposez un fichier PDF."); return }
+        if (!briefFile) { setBriefError("Déposez un fichier."); return }
         setSubmitting(true)
         setSubmitError("")
 
@@ -333,20 +336,19 @@ export default function CreateProject() {
                             >
                                 <div style={{ marginBottom: 16 }}><FileUp size={56} style={{ color: C.muted, opacity: 0.7 }} /></div>
                                 <p style={{ fontSize: 16, color: C.dark, fontWeight: 600, margin: "0 0 8px" }}>
-                                    Glissez votre brief PDF ici
+                                    Glissez votre brief ici ou cliquez pour sélectionner
                                 </p>
-                                <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px" }}>ou cliquez pour sélectionner</p>
                                 <div style={{
                                     padding: "8px 20px", borderRadius: 8, backgroundColor: C.yellow,
                                     color: C.dark, fontSize: 13, fontWeight: 700, display: "inline-block",
                                 }}>
                                     Parcourir les fichiers
                                 </div>
-                                <p style={{ fontSize: 11, color: C.muted, margin: "12px 0 0" }}>PDF uniquement — 10 MB max</p>
+                                <p style={{ fontSize: 11, color: C.muted, margin: "12px 0 0" }}>PDF, Excel, Word, PowerPoint, images, texte — 20 MB max</p>
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept=".pdf"
+                                    accept={ACCEPTED_ATTR}
                                     style={{ display: "none" }}
                                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBriefFile(f) }}
                                 />
@@ -489,7 +491,7 @@ export default function CreateProject() {
                         {/* Optional brief upload (smaller) */}
                         <div style={{ marginBottom: 20 }}>
                             <label style={labelStyle}>
-                                Brief PDF <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
+                                Brief <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
                             </label>
                             {!descFile ? (
                                 <div
@@ -506,12 +508,12 @@ export default function CreateProject() {
                                     }}
                                 >
                                     <p style={{ fontSize: 13, color: C.muted, margin: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                        <FileUp size={14} />Glissez un PDF ici ou cliquez · 10 MB max
+                                        <FileUp size={14} />Glissez un fichier ici ou cliquez — 20 MB max
                                     </p>
                                     <input
                                         ref={fileInputRefB}
                                         type="file"
-                                        accept=".pdf"
+                                        accept={ACCEPTED_ATTR}
                                         style={{ display: "none" }}
                                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDescFile(f) }}
                                     />

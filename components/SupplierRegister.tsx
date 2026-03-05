@@ -84,13 +84,17 @@ export default function SupplierRegister() {
 
     // ── File handling ───────────────────────────────────────────────────────
 
+    const ACCEPTED_EXT = [".pdf",".xlsx",".xls",".csv",".pptx",".docx",".doc",".txt",".rtf",".jpg",".jpeg",".png",".webp"]
+    const ACCEPTED_ATTR = ACCEPTED_EXT.join(",")
+
     function handleFile(f: File) {
-        if (!f.name.toLowerCase().endsWith(".pdf")) {
-            setError("Seuls les fichiers PDF sont acceptés.")
+        const ext = "." + (f.name.split(".").pop()?.toLowerCase() || "")
+        if (!ACCEPTED_EXT.includes(ext)) {
+            setError("Format non supporté.")
             return
         }
-        if (f.size > 10 * 1024 * 1024) {
-            setError("Le fichier ne doit pas dépasser 10 MB.")
+        if (f.size > 20 * 1024 * 1024) {
+            setError("Le fichier ne doit pas dépasser 20 MB.")
             return
         }
         setError("")
@@ -406,12 +410,12 @@ export default function SupplierRegister() {
                                 <FileText size={20} /> Votre grille tarifaire
                             </h2>
                             <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px" }}>
-                                Formats acceptés : catalogue produits, liste de prix, devis type...
+                                Tous formats acceptés : PDF, Excel, Word, PowerPoint, CSV, images
                             </p>
 
                             {!noGrid && (
                                 <>
-                                    <input ref={fileInputRef} type="file" accept=".pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = "" }} style={{ display: "none" }} />
+                                    <input ref={fileInputRef} type="file" accept={ACCEPTED_ATTR} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = "" }} style={{ display: "none" }} />
 
                                     {!file ? (
                                         <div
@@ -430,10 +434,10 @@ export default function SupplierRegister() {
                                                 <FileUp size={24} color={C.muted} />
                                             </div>
                                             <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 6 }}>
-                                                Déposez votre grille tarifaire PDF
+                                                Déposez votre grille tarifaire
                                             </div>
                                             <div style={{ fontSize: 13, color: C.muted }}>
-                                                Notre IA l'analysera automatiquement
+                                                PDF, Excel, Word, PowerPoint, CSV, images — 20 MB max
                                             </div>
                                         </div>
                                     ) : (
