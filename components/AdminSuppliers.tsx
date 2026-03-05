@@ -143,6 +143,11 @@ export default function AdminSuppliers() {
     const [loadingConsultations, setLoadingConsultations] = useState<string | null>(null)
     const [changingId, setChangingId] = useState<string | null>(null)
 
+    // Products
+    const [supplierProducts, setSupplierProducts] = useState<Record<string, any[]>>({})
+    const [loadingProducts, setLoadingProducts] = useState<string | null>(null)
+    const [showAllProducts, setShowAllProducts] = useState<Record<string, boolean>>({})
+
     // ── Fetch data ───────────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -312,6 +317,20 @@ export default function AdminSuppliers() {
         // No direct endpoint for supplier consultations, use dashboard data
         // We'll show what we know from top_suppliers
         setLoadingConsultations(null)
+    }
+
+    function loadProducts(supplierId: string) {
+        if (!token || supplierProducts[supplierId]) return
+        setLoadingProducts(supplierId)
+        fetch(`${API_URL}/api/admin/supplier/${supplierId}/products`, {
+            headers: { Authorization: "Bearer " + token },
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) setSupplierProducts(prev => ({ ...prev, [supplierId]: data.products || [] }))
+                setLoadingProducts(null)
+            })
+            .catch(() => setLoadingProducts(null))
     }
 
     // ── Column header helper ────────────────────────────────────────────────
@@ -484,7 +503,7 @@ export default function AdminSuppliers() {
                             <div key={s.id}>
                                 {/* Row */}
                                 <div
-                                    onClick={() => { setExpandedId(isExpanded ? null : s.id); if (!isExpanded) loadConsultations(s.supplier_id) }}
+                                    onClick={() => { setExpandedId(isExpanded ? null : s.id); if (!isExpanded) { loadConsultations(s.supplier_id); loadProducts(s.supplier_id) } }}
                                     style={{ display: "flex", gap: 8, padding: "12px 20px", alignItems: "center", cursor: "pointer", backgroundColor: isExpanded ? "#fef9e0" : C.white, borderBottom: "1px solid " + C.border, transition: "background-color 0.15s" }}
                                 >
                                     <div style={{ width: 160, fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
@@ -550,6 +569,58 @@ export default function AdminSuppliers() {
                                                     )
                                                 })}
                                             </div>
+                                        </div>
+
+                                        {/* Produits & Tarifs */}
+                                        <div style={{ marginBottom: 16 }}>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                                                Produits & Tarifs
+                                            </div>
+                                            {loadingProducts === s.supplier_id ? (
+                                                <div style={{ fontSize: 13, color: C.muted, padding: "12px 0" }}>Chargement...</div>
+                                            ) : supplierProducts[s.supplier_id] && supplierProducts[s.supplier_id].length > 0 ? (
+                                                <div style={{ backgroundColor: C.white, borderRadius: 10, border: "1px solid " + C.border, overflow: "hidden" }}>
+                                                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 80px 80px 70px", gap: 0, padding: "8px 14px", backgroundColor: "#F8F8F6", borderBottom: "1px solid " + C.border }}>
+                                                        {["Produit", "Catégorie", "Dimensions", "Prix unit. HT", "Qté min", "Délai", "Source"].map(h => (
+                                                            <div key={h} style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</div>
+                                                        ))}
+                                                    </div>
+                                                    {(showAllProducts[s.supplier_id] ? supplierProducts[s.supplier_id] : supplierProducts[s.supplier_id].slice(0, 5)).map((p: any, idx: number) => (
+                                                        <div key={p.id || idx} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 80px 80px 70px", gap: 0, padding: "8px 14px", borderBottom: "1px solid " + C.bg, fontSize: 12, alignItems: "center" }}>
+                                                            <div style={{ color: C.dark, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.product_name || p.name || "—"}</div>
+                                                            <div style={{ color: C.muted }}>{p.category || "—"}</div>
+                                                            <div style={{ color: C.muted }}>{p.dimensions || "—"}</div>
+                                                            <div style={{ color: C.dark, fontWeight: 600 }}>{p.unit_price != null ? formatPrice(Number(p.unit_price)) : "—"}</div>
+                                                            <div style={{ color: C.muted }}>{p.min_quantity || "1"}</div>
+                                                            <div style={{ color: C.muted }}>{p.lead_time_days ? p.lead_time_days + "j" : "—"}</div>
+                                                            <div>
+                                                                <span style={{
+                                                                    padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 600,
+                                                                    backgroundColor: p.source === "ai_extracted" ? "#fef9e0" : "#f0f0ee",
+                                                                    color: p.source === "ai_extracted" ? "#b89a00" : "#7a8080",
+                                                                    border: "1px solid " + (p.source === "ai_extracted" ? "#f4cf1588" : "#e0e0de"),
+                                                                }}>
+                                                                    {p.source === "ai_extracted" ? "IA" : "Manuel"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {supplierProducts[s.supplier_id].length > 5 && (
+                                                        <button
+                                                            onClick={() => setShowAllProducts(prev => ({ ...prev, [s.supplier_id]: !prev[s.supplier_id] }))}
+                                                            style={{ width: "100%", padding: "8px 14px", background: "none", border: "none", borderTop: "1px solid " + C.bg, fontSize: 12, color: C.muted, fontWeight: 600, cursor: "pointer", textAlign: "center" }}
+                                                        >
+                                                            {showAllProducts[s.supplier_id]
+                                                                ? "Réduire"
+                                                                : `Voir la grille complète (${supplierProducts[s.supplier_id].length} produits)`}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div style={{ fontSize: 13, color: C.muted, padding: "12px 16px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border }}>
+                                                    Aucune grille tarifaire — en attente d'upload
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Actions */}

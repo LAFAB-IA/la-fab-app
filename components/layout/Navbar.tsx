@@ -104,8 +104,17 @@ export default function Navbar() {
                 </div>
             )}
 
-            {/* Spacer when not authenticated */}
-            {!isAuthenticated && <div style={{ flex: 1 }} />}
+            {/* Center links when not authenticated */}
+            {!isAuthenticated && (
+                <div style={{ flex: 1, display: "flex", justifyContent: "center" }} className="navbar-desktop-links">
+                    <Link href="/supplier/register" style={{
+                        color: C.white, textDecoration: "none", fontSize: 14, fontWeight: 500,
+                        opacity: 0.85, transition: "opacity 0.2s",
+                    }}>
+                        Devenir fournisseur
+                    </Link>
+                </div>
+            )}
 
             {/* Right side */}
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: isAuthenticated ? 0 : "auto" }}>
