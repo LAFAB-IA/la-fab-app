@@ -63,11 +63,16 @@ export default function Navbar() {
         : ""
 
     const navLinks = isAuthenticated
-        ? [
-              { href: "/projets", label: "Projets" },
-              { href: "/factures", label: "Factures" },
-              ...(user?.role === "admin" ? [{ href: "/admin/dashboard", label: "Admin" }] : []),
-          ]
+        ? user?.role === "supplier"
+            ? [
+                  { href: "/supplier/dashboard", label: "Dashboard" },
+                  { href: "/supplier/consultations", label: "Consultations" },
+              ]
+            : [
+                  { href: "/projets", label: "Projets" },
+                  { href: "/factures", label: "Factures" },
+                  ...(user?.role === "admin" ? [{ href: "/admin/dashboard", label: "Admin" }] : []),
+              ]
         : []
 
     return (
@@ -78,7 +83,7 @@ export default function Navbar() {
             fontFamily: "Inter, sans-serif",
         }}>
             {/* Logo */}
-            <Link href={isAuthenticated ? "/projets" : "/"} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+            <Link href={isAuthenticated ? (user?.role === "supplier" ? "/supplier/dashboard" : "/projets") : "/"} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
                 <div style={{
                     width: 32, height: 32, borderRadius: 6, backgroundColor: C.yellow,
                     display: "flex", alignItems: "center", justifyContent: "center",

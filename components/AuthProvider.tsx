@@ -34,6 +34,12 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+function redirectForRole(role: string): string {
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "supplier") return "/supplier/dashboard";
+  return "/projets";
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -98,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(meData.user.role === "admin" ? "/admin/dashboard" : "/projets");
+    router.push(redirectForRole(meData.user.role));
   };
 
   const signup = async (
@@ -131,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(meData.user.role === "admin" ? "/admin/dashboard" : "/projets");
+    router.push(redirectForRole(meData.user.role));
   };
 
   const logout = async () => {
