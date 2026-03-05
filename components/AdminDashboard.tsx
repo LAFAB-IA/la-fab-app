@@ -3,619 +3,520 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
-import { exportCSV } from "@/lib/utils"
-import { Lock, XCircle, FileText, Clock, CheckCircle2, Download, Archive, BarChart3, Users, FileUp, ClipboardList, MessageSquare, Link2, FolderOpen, Copy, AlertTriangle, ChevronDown, Mail } from "lucide-react"
-import { formatPrice, formatDate } from "@/lib/format"
+import { formatPrice, timeAgo } from "@/lib/format"
+import {
+    TrendingUp, TrendingDown, FolderOpen, Target, Clock,
+    UserCheck, FolderPlus, FileText, CreditCard, Bell,
+    AlertTriangle, XCircle, BarChart3, Users, Award,
+    Activity, ArrowRight, Loader2,
+} from "lucide-react"
 
-const { useEffect, useState, useRef } = React
+const { useEffect, useState } = React
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    created:      { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    quoted:       { label: "Devis envoyé",          bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
-    validated:    { label: "Commande validée",      bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    in_production:{ label: "En production",         bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-    delivered:    { label: "Livré",                 bg: "#e0f2f1", color: "#004d40", border: "#80cbc4" },
-    archived:     { label: "Archivé",               bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
+// ─── Status config ──────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string; key: string }> = {
+    created:       { label: "En attente",    bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588", key: "created" },
+    quoted:        { label: "Devisé",        bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db",   key: "quoted" },
+    validated:     { label: "Validé",        bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8",   key: "validated" },
+    in_production: { label: "Production",    bg: "#fff3e0", color: "#e65100", border: "#ffcc80",   key: "in_production" },
+    delivered:     { label: "Livré",         bg: "#e0f2f1", color: "#004d40", border: "#80cbc4",   key: "delivered" },
+    archived:      { label: "Archivé",       bg: "#f5f5f5", color: "#616161", border: "#e0e0e0",   key: "archived" },
 }
 
-const STATUS_FLOW = ["created", "quoted", "validated", "in_production", "delivered"]
+const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
 
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: string }) {
-    const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
+function formatK(n: number): string {
+    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + " K€"
+    return n.toFixed(0) + " €"
+}
+
+function getAuditIcon(action: string) {
+    if (action.includes("login") || action.includes("signup")) return UserCheck
+    if (action.includes("project") || action.includes("create")) return FolderPlus
+    if (action.includes("invoice")) return FileText
+    if (action.includes("payment") || action.includes("paid")) return CreditCard
+    return Bell
+}
+
+function getAuditLink(entityType: string, entityId: string): string | null {
+    if (entityType === "project") return "/admin/projets?search=" + entityId
+    if (entityType === "invoice") return "/admin/factures?search=" + entityId
+    if (entityType === "user") return "/admin/users"
+    return null
+}
+
+// ─── Card Component ─────────────────────────────────────────────────────────
+
+function KpiCard({ icon: Icon, label, value, sub, accent }: {
+    icon: React.ElementType; label: string; value: string; sub: string; accent?: boolean
+}) {
     return (
-        <span style={{
-            padding: "3px 10px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 600,
-            backgroundColor: sc.bg,
-            color: sc.color,
-            border: "1px solid " + sc.border,
-            whiteSpace: "nowrap",
+        <div style={{
+            background: C.white, borderRadius: 12, padding: "20px 22px",
+            boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
+            borderTop: accent ? "3px solid " + C.yellow : "3px solid transparent",
+            flex: 1, minWidth: 180,
         }}>
-            {sc.label}
-        </span>
-    )
-}
-
-// ─── AdminNote ────────────────────────────────────────────────────────────────
-
-function AdminNote({ projectId, initialNote }: { projectId: string; initialNote: string }) {
-    const { token } = useAuth()
-    const lsKey = "admin_note_" + projectId
-    const [note, setNote] = useState(initialNote || (typeof window !== "undefined" ? localStorage.getItem(lsKey) : "") || "")
-    const [saving, setSaving] = useState(false)
-    const [saved, setSaved] = useState(false)
-    const [error, setError] = useState(false)
-    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    function saveNote(text: string) {
-        localStorage.setItem(lsKey, text)
-        if (!token) return
-        setSaving(true)
-        setSaved(false)
-        setError(false)
-        fetch(`${API_URL}/api/project/${projectId}`, {
-            method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify({ admin_note: text }),
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                setSaving(false)
-                if (data.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
-                else setError(true)
-            })
-            .catch(() => { setSaving(false); setError(true) })
-    }
-
-    function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-        const text = e.target.value
-        setNote(text)
-        setSaved(false)
-        setError(false)
-        clearTimeout(timerRef.current)
-        timerRef.current = setTimeout(() => saveNote(text), 1200)
-    }
-
-    return (
-        <div style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, display: "flex", alignItems: "center", gap: 4 }}>
-                    <Lock size={12} style={{ display: "inline-block", verticalAlign: "middle" }} /> Note interne
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{
+                    width: 34, height: 34, borderRadius: 8,
+                    backgroundColor: accent ? "#fef9e0" : C.bg,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                    <Icon size={16} color={accent ? "#b89a00" : C.muted} />
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600 }}>
-                    {saving && <span style={{ color: C.muted }}>Sauvegarde...</span>}
-                    {saved  && <span style={{ color: "#1a7a3c" }}><CheckCircle2 size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 2 }} /> Sauvegardé</span>}
-                    {error  && <span style={{ color: "#c0392b", display: "inline-flex", alignItems: "center", gap: 2 }}><XCircle size={12} /> Erreur</span>}
-                </div>
+                <span style={{ fontSize: 12, fontWeight: 500, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    {label}
+                </span>
             </div>
-            <textarea
-                value={note}
-                onChange={handleChange}
-                placeholder="Instructions production, remarques client, contraintes techniques..."
-                style={{
-                    width: "100%",
-                    minHeight: 90,
-                    padding: "12px 14px",
-                    borderRadius: 10,
-                    border: "1px solid " + (error ? "#f5c6c6" : saved ? "#a8dbb8" : C.border),
-                    backgroundColor: error ? "#fff8f8" : saved ? "#f8fffe" : C.bg,
-                    fontSize: 13,
-                    color: C.dark,
-                    fontFamily: "Inter, sans-serif",
-                    resize: "vertical",
-                    boxSizing: "border-box",
-                    outline: "none",
-                    lineHeight: 1.6,
-                }}
-            />
+            <div style={{ fontSize: 26, fontWeight: 700, color: C.dark, marginBottom: 4 }}>{value}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{sub}</div>
         </div>
     )
 }
 
-// ─── AdminInvoiceForm ─────────────────────────────────────────────────────────
+// ─── Section Header ─────────────────────────────────────────────────────────
 
-function AdminInvoiceForm({ projectId }: { projectId: string }) {
-    const { token } = useAuth()
-    const [lines, setLines] = useState([{ description: "", quantity: 1, unit_price: 0 }])
-    const [notes, setNotes] = useState("Merci pour votre confiance.")
-    const [dueDays, setDueDays] = useState(30)
-    const [loading, setLoading] = useState(false)
-    const [result, setResult] = useState(null)
-    const [error, setError] = useState("")
-
-    function addLine() {
-        setLines((prev) => [...prev, { description: "", quantity: 1, unit_price: 0 }])
-    }
-
-    function removeLine(idx: number) {
-        setLines((prev) => prev.filter((_, i) => i !== idx))
-    }
-
-    function updateLine(idx: number, field: string, value: string) {
-        setLines((prev) =>
-            prev.map((l, i) =>
-                i === idx ? { ...l, [field]: field === "description" ? value : Number(value) } : l
-            )
-        )
-    }
-
-    const subtotal = lines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0)
-    const tax      = Math.round(subtotal * 0.2 * 100) / 100
-    const total    = Math.round((subtotal + tax) * 100) / 100
-
-    function handleGenerate() {
-        if (!token) return
-        const invalid = lines.some((l) => !l.description.trim() || l.quantity <= 0 || l.unit_price <= 0)
-        if (invalid) { setError("Tous les champs de ligne sont obligatoires"); return }
-        setLoading(true)
-        setError("")
-        setResult(null)
-        fetch(`${API_URL}/api/invoice/generate`, {
-            method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify({ project_id: projectId, line_items: lines, notes, due_days: dueDays }),
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setResult(data.invoice)
-                else setError(data.message || "Erreur génération")
-                setLoading(false)
-            })
-            .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }
-
+function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
     return (
-        <div style={{ marginTop: 24, padding: 20, backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border }}>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
-                <FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Générer une facture
-            </div>
-
-            {/* Lignes */}
-            {lines.map((line, idx) => (
-                <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 100px 32px", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                    <input
-                        value={line.description}
-                        onChange={(e) => updateLine(idx, "description", e.target.value)}
-                        placeholder="Description"
-                        style={{ padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
-                    />
-                    <input
-                        type="number"
-                        value={line.quantity}
-                        onChange={(e) => updateLine(idx, "quantity", e.target.value)}
-                        min={1}
-                        placeholder="Qté"
-                        style={{ padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none", textAlign: "center" }}
-                    />
-                    <input
-                        type="number"
-                        value={line.unit_price}
-                        onChange={(e) => updateLine(idx, "unit_price", e.target.value)}
-                        min={0}
-                        step={0.01}
-                        placeholder="Prix HT"
-                        style={{ padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none", textAlign: "right" }}
-                    />
-                    <button
-                        onClick={() => removeLine(idx)}
-                        disabled={lines.length === 1}
-                        style={{ width: 32, height: 32, border: "1px solid " + C.border, borderRadius: 8, background: C.white, color: C.muted, cursor: lines.length === 1 ? "not-allowed" : "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                        <XCircle size={14} />
-                    </button>
-                </div>
-            ))}
-
-            <button
-                onClick={addLine}
-                style={{ padding: "6px 14px", background: "none", border: "1px dashed " + C.border, borderRadius: 8, fontSize: 12, color: C.muted, cursor: "pointer", marginBottom: 16 }}
-            >
-                + Ajouter une ligne
-            </button>
-
-            {/* Notes + délai */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 12, marginBottom: 16 }}>
-                <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Notes (optionnel)"
-                    rows={2}
-                    style={{ padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none", resize: "vertical", fontFamily: "Inter, sans-serif" }}
-                />
-                <div>
-                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Délai paiement</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <input
-                            type="number"
-                            value={dueDays}
-                            onChange={(e) => setDueDays(Number(e.target.value))}
-                            min={1}
-                            style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
-                        />
-                        <span style={{ fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>jours</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Totaux */}
-            <div style={{ backgroundColor: C.white, borderRadius: 10, padding: "12px 16px", marginBottom: 16, border: "1px solid " + C.border }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted, marginBottom: 6 }}>
-                    <span>Sous-total HT</span><span>{formatPrice(subtotal)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted, marginBottom: 6 }}>
-                    <span>TVA 20%</span><span>{formatPrice(tax)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 600, color: C.dark, paddingTop: 8, borderTop: "1px solid " + C.border }}>
-                    <span>Total TTC</span><span>{formatPrice(total)}</span>
-                </div>
-            </div>
-
-            {error && <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}><XCircle size={12} /> {error}</div>}
-
-            {result ? (
-                <div style={{ backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8", borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1a7a3c", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                        <CheckCircle2 size={14} /> Facture {result.invoice_number} générée
-                    </div>
-                    <div style={{ fontSize: 13, color: C.dark, marginBottom: 12 }}>
-                        Total : {formatPrice(Number(result.total))} · Échéance : {formatDate(result.due_at)}
-                    </div>
-                    <a
-                        href={result.pdf_url}
-                        target="_blank"
-                        style={{ padding: "8px 16px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-                    >
-                        <FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Voir le PDF
-                    </a>
-                </div>
-            ) : (
-                <button
-                    onClick={handleGenerate}
-                    disabled={loading}
-                    style={{ width: "100%", padding: "11px 24px", background: loading ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-                >
-                    {loading ? (<><Clock size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Génération...</>) : (<><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Générer la facture</>)}
-                </button>
-            )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <Icon size={16} color={C.dark} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</span>
         </div>
     )
 }
 
-// ─── AdminDashboard ───────────────────────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
-    const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-    const [search, setSearch] = useState("")
-    const [filterStatus, setFilterStatus] = useState("all")
-    const [expandedId, setExpandedId] = useState(null)
-    const [statusChanging, setStatusChanging] = useState(null)
-    const [uploadingId, setUploadingId] = useState(null)
-    const [uploadSuccess, setUploadSuccess] = useState(null)
-    const [clientInfo, setClientInfo] = useState({})
-    const [loadingClient, setLoadingClient] = useState(null)
-    const fileInputRef = useRef(null)
-    const uploadTargetRef = useRef(null)
+
+    // Data
+    const [projects, setProjects] = useState<any[]>([])
+    const [invoices, setInvoices] = useState<any[]>([])
+    const [auditLogs, setAuditLogs] = useState<any[]>([])
+    const [supplierStats, setSupplierStats] = useState<any[]>([])
 
     useEffect(() => {
         if (authLoading) return
         if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
-        fetch(API_URL + "/api/admin/projects", { headers: { Authorization: "Bearer " + token } })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setProjects(data.projects)
-                else setError("Accès refusé ou erreur serveur")
-                setLoading(false)
-            })
-            .catch(() => { setError("Erreur réseau"); setLoading(false) })
+
+        const headers = { Authorization: "Bearer " + token }
+        let done = 0
+        const total = 4
+        const check = () => { done++; if (done >= total) setLoading(false) }
+
+        fetch(API_URL + "/api/admin/projects", { headers })
+            .then(r => r.json())
+            .then(d => { if (d.ok) setProjects(d.projects || []) })
+            .catch(() => {})
+            .finally(check)
+
+        fetch(API_URL + "/api/invoice/list", { headers })
+            .then(r => r.json())
+            .then(d => { if (d.ok) setInvoices(d.invoices || []) })
+            .catch(() => {})
+            .finally(check)
+
+        fetch(API_URL + "/api/admin/audit-logs?limit=10", { headers })
+            .then(r => r.json())
+            .then(d => { if (d.ok) setAuditLogs(d.logs || d.data || []) })
+            .catch(() => {})
+            .finally(check)
+
+        fetch(API_URL + "/api/admin/suppliers/stats", { headers })
+            .then(r => r.json())
+            .then(d => { if (d.ok) setSupplierStats(d.suppliers || d.data || []) })
+            .catch(() => {})
+            .finally(check)
     }, [token, isAuthenticated, authLoading])
 
-    function loadClientInfo(projectId: string) {
-        if (clientInfo[projectId]) return
-        if (!token) return
-        setLoadingClient(projectId)
-        fetch(`${API_URL}/api/admin/projects/${projectId}`, { headers: { Authorization: "Bearer " + token } })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok && data.client) setClientInfo((prev) => ({ ...prev, [projectId]: data.client }))
-                setLoadingClient(null)
-            })
-            .catch(() => setLoadingClient(null))
+    // ── Computed KPIs ───────────────────────────────────────────────────────
+
+    const paidInvoices = invoices.filter(i => i.status === "paid")
+    const caTotalTTC = paidInvoices.reduce((s, i) => s + Number(i.total || 0), 0)
+
+    // CA comparison: this month vs last month
+    const now = new Date()
+    const thisMonth = now.getMonth()
+    const thisYear = now.getFullYear()
+    const caThisMonth = paidInvoices
+        .filter(i => { const d = new Date(i.paid_at || i.created_at); return d.getMonth() === thisMonth && d.getFullYear() === thisYear })
+        .reduce((s, i) => s + Number(i.total || 0), 0)
+    const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1
+    const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear
+    const caLastMonth = paidInvoices
+        .filter(i => { const d = new Date(i.paid_at || i.created_at); return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear })
+        .reduce((s, i) => s + Number(i.total || 0), 0)
+    const caGrowth = caLastMonth > 0 ? Math.round(((caThisMonth - caLastMonth) / caLastMonth) * 100) : 0
+
+    // Active projects
+    const activeProjects = projects.filter(p => p.status !== "archived" && p.status !== "delivered")
+    const oneWeekAgo = Date.now() - 7 * 24 * 3600 * 1000
+    const newThisWeek = projects.filter(p => new Date(p.created_at).getTime() > oneWeekAgo).length
+
+    // Conversion rate
+    const totalProjects = projects.length
+    const convertedProjects = projects.filter(p => p.status === "validated" || p.status === "delivered" || p.status === "in_production").length
+    const conversionRate = totalProjects > 0 ? Math.round((convertedProjects / totalProjects) * 100) : 0
+    const pendingQuotes = projects.filter(p => p.status === "quoted").length
+
+    // Average delivery time
+    const deliveredProjects = projects.filter(p => p.status === "delivered" && p.updated_at && p.created_at)
+    const avgDeliveryDays = deliveredProjects.length > 0
+        ? Math.round(deliveredProjects.reduce((s, p) => s + (new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) / 86400000, 0) / deliveredProjects.length)
+        : 0
+    const inProductionCount = projects.filter(p => p.status === "in_production").length
+
+    // ── Monthly revenue (last 6 months) ─────────────────────────────────────
+
+    const monthlyRevenue: { month: string; amount: number; isCurrent: boolean }[] = []
+    for (let i = 5; i >= 0; i--) {
+        const m = new Date(thisYear, thisMonth - i, 1)
+        const mo = m.getMonth()
+        const yr = m.getFullYear()
+        const amount = paidInvoices
+            .filter(inv => { const d = new Date(inv.paid_at || inv.created_at); return d.getMonth() === mo && d.getFullYear() === yr })
+            .reduce((s, inv) => s + Number(inv.total || 0), 0)
+        monthlyRevenue.push({ month: MONTH_NAMES[mo], amount, isCurrent: i === 0 })
     }
+    const maxRevenue = Math.max(...monthlyRevenue.map(m => m.amount), 1)
 
-    function handleStatusChange(projectId: string, newStatus: string) {
-        if (!token) return
-        setStatusChanging(projectId)
-        fetch(`${API_URL}/api/project/${projectId}/status`, {
-            method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify({ status: newStatus }),
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setProjects((prev) => prev.map((p) => p.project_id === projectId ? { ...p, status: newStatus } : p))
-                setStatusChanging(null)
-            })
-            .catch(() => setStatusChanging(null))
+    // ── Project distribution by status ──────────────────────────────────────
+
+    const statusCounts = Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({
+        key, label: cfg.label, color: cfg.color, bg: cfg.bg, border: cfg.border,
+        count: projects.filter(p => p.status === key).length,
+    }))
+    const maxStatusCount = Math.max(...statusCounts.map(s => s.count), 1)
+
+    // ── Alerts ──────────────────────────────────────────────────────────────
+
+    type Alert = { label: string; count: number; color: string; bg: string; link: string }
+    const alerts: Alert[] = []
+
+    const noQuote48h = projects.filter(p => p.status === "created" && Date.now() - new Date(p.created_at).getTime() > 48 * 3600 * 1000).length
+    if (noQuote48h > 0) alerts.push({ label: "Projets sans devis depuis +48h", count: noQuote48h, color: "#c0392b", bg: "#fee", link: "/admin/projets?status=created" })
+
+    const overdueInvoices = invoices.filter(i => i.status === "overdue").length
+    if (overdueInvoices > 0) alerts.push({ label: "Factures impayées échues", count: overdueInvoices, color: "#e65100", bg: "#fff3e0", link: "/admin/factures?status=overdue" })
+
+    const inactiveSuppliers = supplierStats.filter((s: any) => s.response_rate === 0 || s.status === "inactive").length
+    if (inactiveSuppliers > 0) alerts.push({ label: "Fournisseurs inactifs", count: inactiveSuppliers, color: "#616161", bg: "#f5f5f5", link: "/admin/fournisseurs" })
+
+    const noResponse72h = projects.filter(p => {
+        if (p.status !== "quoted") return false
+        return Date.now() - new Date(p.updated_at || p.created_at).getTime() > 72 * 3600 * 1000
+    }).length
+    if (noResponse72h > 0) alerts.push({ label: "Consultations sans réponse +72h", count: noResponse72h, color: "#b89a00", bg: "#fef9e0", link: "/admin/projets?status=quoted" })
+
+    // ── Top 5 clients ───────────────────────────────────────────────────────
+
+    const clientMap: Record<string, { name: string; projectCount: number; ca: number; lastProject: string }> = {}
+    for (const p of projects) {
+        const id = p.account_id
+        if (!clientMap[id]) clientMap[id] = { name: id.slice(0, 12), projectCount: 0, ca: 0, lastProject: p.created_at }
+        clientMap[id].projectCount++
+        if (new Date(p.created_at) > new Date(clientMap[id].lastProject)) clientMap[id].lastProject = p.created_at
     }
-
-    function handleUploadQuote(projectId: string) {
-        uploadTargetRef.current = projectId
-        fileInputRef.current?.click()
+    for (const inv of paidInvoices) {
+        const proj = projects.find(p => p.project_id === inv.project_id)
+        if (proj && clientMap[proj.account_id]) {
+            clientMap[proj.account_id].ca += Number(inv.total || 0)
+            if (inv.client_name) clientMap[proj.account_id].name = inv.client_name
+        }
     }
+    const topClients = Object.values(clientMap).sort((a, b) => b.ca - a.ca).slice(0, 5)
 
-    function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0]
-        const projectId = uploadTargetRef.current
-        if (!file || !projectId || !token) return
-        setUploadingId(projectId)
-        const formData = new FormData()
-        formData.append("file", file)
-        fetch(`${API_URL}/api/project/${projectId}/upload-quote`, {
-            method: "POST",
-            headers: { Authorization: "Bearer " + token },
-            body: formData,
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) { setUploadSuccess(projectId); setTimeout(() => setUploadSuccess(null), 3000) }
-                setUploadingId(null)
-            })
-            .catch(() => setUploadingId(null))
-        e.target.value = ""
-    }
+    // ── Top 5 suppliers ─────────────────────────────────────────────────────
 
-    const filtered = projects.filter((p) => {
-        const matchStatus = filterStatus === "all" || p.status === filterStatus
-        const matchSearch =
-            search === "" ||
-            p.project_id.toLowerCase().includes(search.toLowerCase()) ||
-            p.account_id.toLowerCase().includes(search.toLowerCase()) ||
-            (p.brief_analysis?.product_type || "").toLowerCase().includes(search.toLowerCase()) ||
-            (clientInfo[p.project_id]?.email || "").toLowerCase().includes(search.toLowerCase())
-        return matchStatus && matchSearch
-    })
+    const topSuppliers = [...supplierStats]
+        .sort((a: any, b: any) => (b.response_rate || 0) - (a.response_rate || 0))
+        .slice(0, 5)
 
-    function handleExportProjects() {
-        const rows = filtered.map((p) => ({
-            "ID Projet":     p.project_id,
-            "ID Client":     p.account_id,
-            "Email Client":  clientInfo[p.project_id]?.email || "",
-            Statut:          STATUS_CONFIG[p.status]?.label || p.status,
-            "Type Produit":  p.brief_analysis?.product_type || "",
-            Quantité:        p.brief_analysis?.quantity_detected || "",
-            Dimensions:      p.brief_analysis?.dimensions || "",
-            Support:         p.brief_analysis?.material || "",
-            Finition:        p.brief_analysis?.finish || "",
-            Délai:           p.brief_analysis?.delivery_deadline || "",
-            "Total HT":      p.pricing?.total_net || "",
-            Devise:          p.pricing?.currency || "",
-            "Date Création": formatDate(p.created_at),
-            "Note Admin":    (typeof window !== "undefined" ? localStorage.getItem("admin_note_" + p.project_id) : "") || p.admin_note || "",
-        }))
-        exportCSV(rows, "lafab_projets")
-    }
-
-    const counts = Object.fromEntries(
-        Object.keys(STATUS_CONFIG).map((s) => [s, projects.filter((p) => p.status === s).length])
-    )
-    const pending48h = projects.filter(
-        (p) => p.status === "created" && Date.now() - new Date(p.created_at).getTime() > 48 * 3600 * 1000
-    ).length
+    // ── Render ───────────────────────────────────────────────────────────────
 
     if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: C.muted }}>Chargement admin...</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "Inter, sans-serif" }}>
+            <Loader2 size={20} color={C.muted} style={{ animation: "spin 1s linear infinite" }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
     )
 
     if (error) return (
-        <div style={{ fontFamily: "Inter, sans-serif" }}>
+        <div style={{ fontFamily: "Inter, sans-serif", padding: 40 }}>
             <p style={{ color: "#c0392b", display: "flex", alignItems: "center", gap: 6 }}><XCircle size={14} /> {error}</p>
         </div>
     )
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
-            <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelected} style={{ display: "none" }} />
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
-            <div style={{ maxWidth: 960, margin: "0 auto" }}>
+                {/* ══════════════════════════════════════════════════════════════
+                    SECTION 1 — KPIs
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="dash-kpis" style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
+                    <KpiCard
+                        icon={TrendingUp}
+                        label="CA Total TTC"
+                        value={formatPrice(caTotalTTC)}
+                        sub={caGrowth !== 0
+                            ? (caGrowth > 0 ? "+" : "") + caGrowth + "% vs mois précédent"
+                            : "Pas de comparaison disponible"}
+                        accent
+                    />
+                    <KpiCard
+                        icon={FolderOpen}
+                        label="Projets actifs"
+                        value={String(activeProjects.length)}
+                        sub={newThisWeek + " nouveau" + (newThisWeek > 1 ? "x" : "") + " cette semaine"}
+                    />
+                    <KpiCard
+                        icon={Target}
+                        label="Taux de conversion"
+                        value={conversionRate + "%"}
+                        sub={pendingQuotes + " devis en attente de validation"}
+                    />
+                    <KpiCard
+                        icon={Clock}
+                        label="Délai moyen"
+                        value={avgDeliveryDays > 0 ? avgDeliveryDays + "j" : "N/A"}
+                        sub={inProductionCount + " projet" + (inProductionCount > 1 ? "s" : "") + " en production"}
+                    />
+                </div>
 
-                {/* ── Header ── */}
-                <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
-                    <div>
-                        <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{projects.length} projets au total</p>
+                {/* ══════════════════════════════════════════════════════════════
+                    SECTION 2 — Graphiques
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+
+                    {/* ── CA mensuel (barres verticales) ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={BarChart3} label="Chiffre d'affaires mensuel" />
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 180, paddingTop: 16 }}>
+                            {monthlyRevenue.map((m, i) => (
+                                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+                                    <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                                        <div
+                                            style={{
+                                                width: "70%",
+                                                height: m.amount > 0 ? Math.max((m.amount / maxRevenue) * 100, 4) + "%" : "2px",
+                                                backgroundColor: m.isCurrent ? C.yellow : C.dark,
+                                                borderRadius: "4px 4px 0 0",
+                                                position: "relative",
+                                                minHeight: 4,
+                                            }}
+                                            title={formatPrice(m.amount)}
+                                        >
+                                            {m.amount > 0 && (
+                                                <div style={{
+                                                    position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
+                                                    fontSize: 10, fontWeight: 600, color: C.muted, whiteSpace: "nowrap",
+                                                }}>
+                                                    {formatK(m.amount)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: 11, color: C.muted, marginTop: 8, fontWeight: 500 }}>{m.month}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <button onClick={handleExportProjects} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                            <Download size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Export CSV
-                        </button>
-                        <a href="/admin/catalogue" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Archive size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Catalogue</a>
-                        <a href="/admin/analytics" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><BarChart3 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Analytics</a>
-                        <a href="/admin/users"     style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Users size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Utilisateurs</a>
-                        <a href="/admin/factures"  style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Factures</a>
-                        {pending48h > 0 && (
-                            <div style={{ background: "#fee", border: "1px solid #f5c6c6", borderRadius: 12, padding: "10px 16px", fontSize: 13, color: "#c0392b", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <AlertTriangle size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> {pending48h} projet{pending48h > 1 ? "s" : ""} sans devis depuis +48h
+
+                    {/* ── Répartition des projets (barres horizontales) ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={FolderOpen} label="Répartition des projets" />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                            {statusCounts.map(s => (
+                                <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <div style={{ width: 80, fontSize: 12, color: C.muted, fontWeight: 500, textAlign: "right", flexShrink: 0 }}>
+                                        {s.label}
+                                    </div>
+                                    <div style={{ flex: 1, height: 22, backgroundColor: C.bg, borderRadius: 4, overflow: "hidden" }}>
+                                        <div style={{
+                                            width: s.count > 0 ? Math.max((s.count / maxStatusCount) * 100, 6) + "%" : "0%",
+                                            height: "100%",
+                                            backgroundColor: s.color,
+                                            borderRadius: 4,
+                                            opacity: 0.8,
+                                            transition: "width 0.3s ease",
+                                        }} />
+                                    </div>
+                                    <div style={{ width: 28, fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "right", flexShrink: 0 }}>
+                                        {s.count}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ══════════════════════════════════════════════════════════════
+                    SECTION 3 — Activité récente + Alertes
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+
+                    {/* ── Dernières actions ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={Activity} label="Dernières actions" />
+                        {auditLogs.length === 0 ? (
+                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune activité récente</div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                                {auditLogs.slice(0, 10).map((log, i) => {
+                                    const Icon = getAuditIcon(log.action)
+                                    const link = getAuditLink(log.entity_type, log.entity_id)
+                                    const content = (
+                                        <div style={{
+                                            display: "flex", alignItems: "center", gap: 10, padding: "10px 8px",
+                                            borderBottom: i < auditLogs.length - 1 ? "1px solid " + C.bg : "none",
+                                            cursor: link ? "pointer" : "default",
+                                        }}>
+                                            <div style={{
+                                                width: 30, height: 30, borderRadius: 8, backgroundColor: C.bg,
+                                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                            }}>
+                                                <Icon size={14} color={C.muted} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: 13, color: C.dark, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {log.action}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: C.muted }}>
+                                                    {log.user_email ? log.user_email.split("@")[0] : "Système"} · {timeAgo(log.created_at)}
+                                                </div>
+                                            </div>
+                                            {link && <ArrowRight size={14} color={C.muted} />}
+                                        </div>
+                                    )
+                                    return link
+                                        ? <a key={log.id || i} href={link} style={{ textDecoration: "none", color: "inherit" }}>{content}</a>
+                                        : <div key={log.id || i}>{content}</div>
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Alertes ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={AlertTriangle} label="Alertes" />
+                        {alerts.length === 0 ? (
+                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0", display: "flex", alignItems: "center", gap: 8 }}>
+                                <Target size={14} /> Aucune alerte en cours
+                            </div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {alerts.map((a, i) => (
+                                    <a
+                                        key={i}
+                                        href={a.link}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                                            backgroundColor: a.bg, borderRadius: 8, textDecoration: "none",
+                                            border: "1px solid " + a.color + "33",
+                                        }}
+                                    >
+                                        <AlertTriangle size={14} color={a.color} style={{ flexShrink: 0 }} />
+                                        <span style={{ flex: 1, fontSize: 13, color: a.color, fontWeight: 500 }}>{a.label}</span>
+                                        <span style={{
+                                            padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                                            backgroundColor: a.color, color: C.white,
+                                        }}>
+                                            {a.count}
+                                        </span>
+                                    </a>
+                                ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* ── Compteurs statuts ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 28 }}>
-                    {Object.entries(STATUS_CONFIG).map(([key, sc]) => (
-                        <div
-                            key={key}
-                            onClick={() => setFilterStatus(filterStatus === key ? "all" : key)}
-                            style={{ background: filterStatus === key ? sc.bg : C.white, borderRadius: 12, padding: "12px 10px", textAlign: "center", border: "1px solid " + (filterStatus === key ? sc.border : C.border), cursor: "pointer", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}
-                        >
-                            <div style={{ fontSize: 22, fontWeight: 600, color: sc.color }}>{counts[key] || 0}</div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{sc.label}</div>
-                        </div>
-                    ))}
+                {/* ══════════════════════════════════════════════════════════════
+                    SECTION 4 — Mini-tableaux
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+
+                    {/* ── Top 5 clients ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={Users} label="Top 5 clients" />
+                        {topClients.length === 0 ? (
+                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune donnée</div>
+                        ) : (
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: "1px solid " + C.border }}>
+                                        <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Client</th>
+                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Projets</th>
+                                        <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>CA</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topClients.map((c, i) => (
+                                        <tr key={i} style={{ borderBottom: "1px solid " + C.bg }}>
+                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 500, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</td>
+                                            <td style={{ padding: "10px 4px", color: C.muted, textAlign: "center" }}>{c.projectCount}</td>
+                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{formatPrice(c.ca)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+
+                    {/* ── Top 5 fournisseurs ── */}
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={Award} label="Top 5 fournisseurs" />
+                        {topSuppliers.length === 0 ? (
+                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune donnée</div>
+                        ) : (
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: "1px solid " + C.border }}>
+                                        <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Fournisseur</th>
+                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Réponse</th>
+                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Score</th>
+                                        <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Consult.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topSuppliers.map((s: any, i: number) => (
+                                        <tr key={i} style={{ borderBottom: "1px solid " + C.bg }}>
+                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 500, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name || s.company_name || "Fournisseur"}</td>
+                                            <td style={{ padding: "10px 4px", color: C.muted, textAlign: "center" }}>{s.response_rate != null ? Math.round(s.response_rate) + "%" : "N/A"}</td>
+                                            <td style={{ padding: "10px 4px", textAlign: "center" }}>
+                                                <span style={{
+                                                    padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                                    backgroundColor: (s.trust_score || 0) >= 70 ? "#e8f8ee" : (s.trust_score || 0) >= 40 ? "#fef9e0" : "#fee",
+                                                    color: (s.trust_score || 0) >= 70 ? "#1a7a3c" : (s.trust_score || 0) >= 40 ? "#b89a00" : "#c0392b",
+                                                }}>
+                                                    {s.trust_score != null ? s.trust_score : "N/A"}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: "10px 4px", color: C.muted, textAlign: "right" }}>{s.consultations_answered ?? s.total_consultations ?? 0}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
                 </div>
 
-                {/* ── Recherche ── */}
-                <div style={{ marginBottom: 20 }}>
-                    <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Rechercher par ID, client, email, type de produit..."
-                        style={{ width: "100%", padding: "12px 16px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 14, backgroundColor: C.white, color: C.dark, boxSizing: "border-box", outline: "none" }}
-                    />
-                </div>
-                <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-                    {filtered.length} projet{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}
-                </div>
-
-                {/* ── Liste projets ── */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {filtered.map((project) => {
-                        const isExpanded  = expandedId === project.project_id
-                        const isChanging  = statusChanging === project.project_id
-                        const isUploading = uploadingId === project.project_id
-                        const wasUploaded = uploadSuccess === project.project_id
-                        const hasNote     = !!(project.admin_note || (typeof window !== "undefined" && localStorage.getItem("admin_note_" + project.project_id)))
-
-                        return (
-                            <div key={project.project_id} style={{ background: C.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-
-                                {/* ── Ligne cliquable ── */}
-                                <div
-                                    onClick={() => { const next = isExpanded ? null : project.project_id; setExpandedId(next); if (next) loadClientInfo(next) }}
-                                    style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}
-                                >
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-                                            <span style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>
-                                                {project.brief_analysis?.product_type || "Brief uploadé"}
-                                            </span>
-                                            <StatusBadge status={project.status} />
-                                            {project.status === "created" && Date.now() - new Date(project.created_at).getTime() > 48 * 3600 * 1000 && (
-                                                <span style={{ fontSize: 11, color: "#c0392b", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}><AlertTriangle size={14} /> +48h</span>
-                                            )}
-                                            {hasNote && (
-                                                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, padding: "2px 8px", border: "1px solid " + C.border, borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 4 }}><Lock size={12} /> Note</span>
-                                            )}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: C.muted }}>
-                                            {project.project_id} · {clientInfo[project.project_id]?.email || project.account_id.slice(0, 8) + "..."}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: C.muted }}>
-                                            {formatDate(project.created_at)}
-                                        </div>
-                                    </div>
-                                    <div style={{ fontSize: 18, color: C.muted }}>{isExpanded ? "▲" : "▼"}</div>
-                                </div>
-
-                                {/* ── Panneau expandé ── */}
-                                {isExpanded && (
-                                    <div style={{ borderTop: "1px solid " + C.border, padding: 20 }}>
-
-                                        {/* Client */}
-                                        <div style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                                            <div>
-                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Client</div>
-                                                {loadingClient === project.project_id ? (
-                                                    <div style={{ fontSize: 13, color: C.muted }}>Chargement...</div>
-                                                ) : clientInfo[project.project_id] ? (
-                                                    <div>
-                                                        <div style={{ fontSize: 14, color: C.dark, fontWeight: 600 }}>{clientInfo[project.project_id].email}</div>
-                                                        <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                                                            Inscrit le {formatDate(clientInfo[project.project_id].created_at)}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ fontSize: 13, color: C.muted }}>{project.account_id.slice(0, 8)}...</div>
-                                                )}
-                                            </div>
-                                            {clientInfo[project.project_id] && (
-                                                <a href={"mailto:" + clientInfo[project.project_id].email} style={{ padding: "8px 14px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                                    <Mail size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Contacter
-                                                </a>
-                                            )}
-                                        </div>
-
-                                        {/* Brief */}
-                                        {project.brief_analysis && (
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                                                {[
-                                                    { label: "Type",       val: project.brief_analysis.product_type },
-                                                    { label: "Quantité",   val: project.brief_analysis.quantity_detected ? project.brief_analysis.quantity_detected + " ex." : null },
-                                                    { label: "Dimensions", val: project.brief_analysis.dimensions },
-                                                    { label: "Support",    val: project.brief_analysis.material },
-                                                    { label: "Finition",   val: project.brief_analysis.finish },
-                                                    { label: "Délai",      val: project.brief_analysis.delivery_deadline },
-                                                ].filter((i) => i.val).map((item, idx) => (
-                                                    <div key={idx}>
-                                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>{item.label}</div>
-                                                        <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>{item.val}</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Note interne */}
-                                        <AdminNote projectId={project.project_id} initialNote={project.admin_note} />
-
-                                        {/* Changement statut */}
-                                        <div style={{ marginBottom: 20 }}>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
-                                                Changer le statut
-                                            </div>
-                                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                                {STATUS_FLOW.map((s, idx) => {
-                                                    const sc = STATUS_CONFIG[s]
-                                                    const isCurrent = project.status === s
-                                                    return (
-                                                        <button
-                                                            key={s}
-                                                            onClick={() => !isCurrent && handleStatusChange(project.project_id, s)}
-                                                            disabled={isCurrent || isChanging}
-                                                            style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, border: isCurrent ? "2px solid " + sc.color : "1px solid " + C.border, backgroundColor: isCurrent ? sc.bg : C.white, color: isCurrent ? sc.color : C.muted, cursor: isCurrent ? "default" : "pointer", opacity: isChanging ? 0.5 : 1 }}
-                                                        >
-                                                            {idx + 1}. {sc.label}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                            <button
-                                                onClick={() => handleUploadQuote(project.project_id)}
-                                                disabled={isUploading}
-                                                style={{ padding: "9px 18px", background: isUploading ? C.muted : wasUploaded ? "#e8f8ee" : C.yellow, color: wasUploaded ? "#1a7a3c" : C.dark, border: wasUploaded ? "1px solid #a8dbb8" : "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isUploading ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-                                            >
-                                                {isUploading ? (<><Clock size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Upload...</>) : wasUploaded ? (<><CheckCircle2 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Devis uploadé !</>) : (<><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Uploader un devis PDF</>)}
-                                            </button>
-                                            <a href={"/admin/quote-validation?project_id=" + project.project_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><ClipboardList size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Devis</a>
-                                            <a href={"/messages?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><MessageSquare size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Messages</a>
-                                            <a href={"/consultations?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Link2 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Consultations</a>
-                                            <a href={"/production?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><FolderOpen size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Fichiers</a>
-                                            <button onClick={() => navigator.clipboard.writeText(project.account_id)} style={{ padding: "9px 18px", background: "none", color: C.muted, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                                <Copy size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Copier ID
-                                            </button>
-                                        </div>
-
-                                        {/* Génération facture */}
-                                        <AdminInvoiceForm projectId={project.project_id} />
-
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
             </div>
+
+            {/* ── Responsive ── */}
+            <style>{`
+                @media (max-width: 768px) {
+                    .dash-grid { grid-template-columns: 1fr !important; }
+                    .dash-kpis { flex-direction: column; }
+                }
+            `}</style>
         </div>
     )
 }
