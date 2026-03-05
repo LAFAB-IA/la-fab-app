@@ -11,7 +11,7 @@ const PROTECTED_ROUTES = [
   "/profil",
 ];
 
-const PUBLIC_ROUTES = ["/login", "/", "/supplier/register"];
+const PUBLIC_ROUTES = ["/login", "/", "/supplier/register", "/auth/callback"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

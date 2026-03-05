@@ -7,7 +7,7 @@ import Sidebar from "@/components/layout/Sidebar"
 import SupplierSidebar from "@/components/layout/SupplierSidebar"
 import { C } from "@/lib/constants"
 
-const BARE_PATHS = ["/", "/login", "/supplier/register"]
+const BARE_PATHS = ["/", "/login", "/supplier/register", "/auth/callback"]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
