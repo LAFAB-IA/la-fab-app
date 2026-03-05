@@ -8,76 +8,51 @@ const { useEffect, useState } = React
 
 const EVENT_TYPES = [
     "project.created",
-    "project.status_changed",
+    "project.status_updated",
     "invoice.generated",
     "invoice.paid",
     "user.registered",
     "message.received",
+    "webhook.test",
 ]
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     active:   { label: "Actif",    bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
     inactive: { label: "Inactif",  bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" },
-    error:    { label: "Erreur",   bg: "#fde8e8", color: "#c0392b", border: "#f5c6c6" },
 }
 
 const DELIVERY_STATUS: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    success: { label: "Succès",  bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    failed:  { label: "Échoué", bg: "#fde8e8", color: "#c0392b", border: "#f5c6c6" },
-    pending: { label: "En cours", bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
+    success: { label: "Succès",    bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
+    failed:  { label: "Échoué",   bg: "#fde8e8", color: "#c0392b", border: "#f5c6c6" },
+    pending: { label: "En cours",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
 }
 
 interface Webhook {
     id: string
     url: string
     events: string[]
-    status: string
+    is_active: boolean
     secret: string
     created_at: string
-    last_triggered_at: string | null
-    failure_count: number
+    account_id: string
 }
 
 interface DeliveryLog {
     id: string
     webhook_id: string
-    event: string
+    event_type: string
     status: string
     status_code: number
     response_time_ms: number
     created_at: string
 }
 
-function WebhookStatusBadge({ status }: { status: string }) {
-    const sc = STATUS_CONFIG[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
-    return (
-        <span style={{
-            padding: "3px 10px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 600,
-            backgroundColor: sc.bg,
-            color: sc.color,
-            border: "1px solid " + sc.border,
-            whiteSpace: "nowrap",
-        }}>
-            {sc.label}
-        </span>
-    )
-}
-
 function DeliveryStatusBadge({ status }: { status: string }) {
     const dc = DELIVERY_STATUS[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
     return (
         <span style={{
-            padding: "3px 10px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 600,
-            backgroundColor: dc.bg,
-            color: dc.color,
-            border: "1px solid " + dc.border,
-            whiteSpace: "nowrap",
+            padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+            backgroundColor: dc.bg, color: dc.color, border: "1px solid " + dc.border, whiteSpace: "nowrap",
         }}>
             {dc.label}
         </span>
@@ -99,9 +74,7 @@ export default function AdminWebhooks() {
     const [showForm, setShowForm] = useState(false)
     const [formUrl, setFormUrl] = useState("")
     const [formEvents, setFormEvents] = useState<string[]>([])
-    const [formSecret, setFormSecret] = useState("")
     const [saving, setSaving] = useState(false)
-    const [editingId, setEditingId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState<string | null>(null)
 
     useEffect(() => {
@@ -112,10 +85,10 @@ export default function AdminWebhooks() {
 
     function fetchWebhooks() {
         if (!token) return
-        fetch(API_URL + "/api/admin/webhooks", { headers: { Authorization: "Bearer " + token } })
+        fetch(API_URL + "/api/webhooks", { headers: { Authorization: "Bearer " + token } })
             .then((r) => r.json())
             .then((data) => {
-                if (data.ok) setWebhooks(data.webhooks)
+                if (data.ok) setWebhooks(data.webhooks || [])
                 else setError("Accès refusé ou erreur serveur")
                 setLoading(false)
             })
@@ -125,10 +98,10 @@ export default function AdminWebhooks() {
     function fetchDeliveryLogs(webhookId: string) {
         if (!token || deliveryLogs[webhookId]) return
         setLoadingLogs(webhookId)
-        fetch(`${API_URL}/api/admin/webhooks/${webhookId}/deliveries`, { headers: { Authorization: "Bearer " + token } })
+        fetch(`${API_URL}/api/webhooks/${webhookId}/deliveries`, { headers: { Authorization: "Bearer " + token } })
             .then((r) => r.json())
             .then((data) => {
-                if (data.ok) setDeliveryLogs((prev) => ({ ...prev, [webhookId]: data.deliveries }))
+                if (data.ok) setDeliveryLogs((prev) => ({ ...prev, [webhookId]: data.deliveries || [] }))
                 setLoadingLogs(null)
             })
             .catch(() => setLoadingLogs(null))
@@ -137,7 +110,7 @@ export default function AdminWebhooks() {
     function handleTest(webhookId: string) {
         if (!token) return
         setTesting(webhookId)
-        fetch(`${API_URL}/api/admin/webhooks/${webhookId}/test`, {
+        fetch(`${API_URL}/api/webhooks/${webhookId}/test`, {
             method: "POST",
             headers: { Authorization: "Bearer " + token },
         })
@@ -152,27 +125,17 @@ export default function AdminWebhooks() {
             })
     }
 
-    function handleSave() {
+    function handleCreate() {
         if (!token || !formUrl.trim() || formEvents.length === 0) return
         setSaving(true)
-        const method = editingId ? "PUT" : "POST"
-        const url = editingId
-            ? `${API_URL}/api/admin/webhooks/${editingId}`
-            : `${API_URL}/api/admin/webhooks`
-
-        fetch(url, {
-            method,
+        fetch(`${API_URL}/api/webhooks`, {
+            method: "POST",
             headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify({ url: formUrl, events: formEvents, secret: formSecret }),
+            body: JSON.stringify({ url: formUrl, events: formEvents }),
         })
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) {
-                    if (editingId) {
-                        setWebhooks((prev) => prev.map((w) => w.id === editingId ? { ...w, url: formUrl, events: formEvents, secret: formSecret } : w))
-                    } else if (data.webhook) {
-                        setWebhooks((prev) => [...prev, data.webhook])
-                    }
                     resetForm()
                     fetchWebhooks()
                 }
@@ -184,7 +147,7 @@ export default function AdminWebhooks() {
     function handleDelete(webhookId: string) {
         if (!token) return
         setDeleting(webhookId)
-        fetch(`${API_URL}/api/admin/webhooks/${webhookId}`, {
+        fetch(`${API_URL}/api/webhooks/${webhookId}`, {
             method: "DELETE",
             headers: { Authorization: "Bearer " + token },
         })
@@ -196,20 +159,10 @@ export default function AdminWebhooks() {
             .catch(() => setDeleting(null))
     }
 
-    function startEdit(webhook: Webhook) {
-        setEditingId(webhook.id)
-        setFormUrl(webhook.url)
-        setFormEvents(webhook.events)
-        setFormSecret(webhook.secret || "")
-        setShowForm(true)
-    }
-
     function resetForm() {
         setShowForm(false)
-        setEditingId(null)
         setFormUrl("")
         setFormEvents([])
-        setFormSecret("")
     }
 
     function toggleEvent(event: string) {
@@ -250,32 +203,21 @@ export default function AdminWebhooks() {
                     </div>
                 </div>
 
-                {/* Inline form */}
+                {/* Create form */}
                 {showForm && (
                     <div style={{ background: C.white, borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: "0 1px 4px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}>
                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16 }}>
-                            {editingId ? "Modifier le webhook" : "Nouveau webhook"}
+                            Nouveau webhook
                         </div>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                            <div>
-                                <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>URL de destination</div>
-                                <input
-                                    value={formUrl}
-                                    onChange={(e) => setFormUrl(e.target.value)}
-                                    placeholder="https://example.com/webhook"
-                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.bg, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                                />
-                            </div>
-                            <div>
-                                <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>Secret (optionnel)</div>
-                                <input
-                                    value={formSecret}
-                                    onChange={(e) => setFormSecret(e.target.value)}
-                                    placeholder="whsec_..."
-                                    style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.bg, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                                />
-                            </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>URL de destination</div>
+                            <input
+                                value={formUrl}
+                                onChange={(e) => setFormUrl(e.target.value)}
+                                placeholder="https://example.com/webhook"
+                                style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.bg, color: C.dark, outline: "none", boxSizing: "border-box" }}
+                            />
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
@@ -298,11 +240,11 @@ export default function AdminWebhooks() {
 
                         <div style={{ display: "flex", gap: 10 }}>
                             <button
-                                onClick={handleSave}
+                                onClick={handleCreate}
                                 disabled={saving || !formUrl.trim() || formEvents.length === 0}
                                 style={{ padding: "10px 20px", background: saving ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}
                             >
-                                {saving ? "Sauvegarde..." : editingId ? "Mettre à jour" : "Créer le webhook"}
+                                {saving ? "Création..." : "Créer le webhook"}
                             </button>
                             <button
                                 onClick={resetForm}
@@ -335,15 +277,17 @@ export default function AdminWebhooks() {
                                             <span style={{ fontSize: 14, fontWeight: 700, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 400 }}>
                                                 {webhook.url}
                                             </span>
-                                            <WebhookStatusBadge status={webhook.status} />
-                                            {webhook.failure_count > 0 && (
-                                                <span style={{ fontSize: 11, color: "#c0392b", fontWeight: 600 }}>
-                                                    {webhook.failure_count} échec{webhook.failure_count > 1 ? "s" : ""}
-                                                </span>
-                                            )}
+                                            <span style={{
+                                                padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+                                                backgroundColor: webhook.is_active ? "#e8f8ee" : "#f0f0ee",
+                                                color: webhook.is_active ? "#1a7a3c" : "#7a8080",
+                                                border: "1px solid " + (webhook.is_active ? "#a8dbb8" : "#e0e0de"),
+                                            }}>
+                                                {webhook.is_active ? "Actif" : "Inactif"}
+                                            </span>
                                         </div>
                                         <div style={{ fontSize: 12, color: C.muted }}>
-                                            {webhook.events.join(", ")} · Dernier appel : {webhook.last_triggered_at ? new Date(webhook.last_triggered_at).toLocaleDateString("fr-FR") : "jamais"}
+                                            {webhook.events?.join(", ") || "—"}
                                         </div>
                                     </div>
                                     <div style={{ fontSize: 18, color: C.muted }}>{isExpanded ? "▲" : "▼"}</div>
@@ -357,7 +301,7 @@ export default function AdminWebhooks() {
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 10, padding: 16 }}>
                                             {[
                                                 { label: "URL", val: webhook.url },
-                                                { label: "Secret", val: webhook.secret ? "••••••" + webhook.secret.slice(-4) : "Non défini" },
+                                                { label: "Secret", val: webhook.secret ? "••••••" + webhook.secret.slice(-4) : "Auto-généré" },
                                                 { label: "Créé le", val: new Date(webhook.created_at).toLocaleDateString("fr-FR") },
                                             ].map((item, idx) => (
                                                 <div key={idx}>
@@ -373,7 +317,7 @@ export default function AdminWebhooks() {
                                                 Événements surveillés
                                             </div>
                                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                                {webhook.events.map((event) => (
+                                                {(webhook.events || []).map((event) => (
                                                     <span key={event} style={{ padding: "4px 12px", backgroundColor: C.bg, border: "1px solid " + C.border, borderRadius: 8, fontSize: 12, color: C.dark, fontWeight: 500 }}>
                                                         {event}
                                                     </span>
@@ -398,12 +342,6 @@ export default function AdminWebhooks() {
                                                 {isTesting ? "⏳ Test..." : "⚡ Tester"}
                                             </button>
                                             <button
-                                                onClick={() => startEdit(webhook)}
-                                                style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                                            >
-                                                ✏️ Modifier
-                                            </button>
-                                            <button
                                                 onClick={() => handleDelete(webhook.id)}
                                                 disabled={isDeleting}
                                                 style={{ padding: "9px 18px", background: isDeleting ? C.muted : "#fde8e8", color: "#c0392b", border: "1px solid #f5c6c6", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isDeleting ? "not-allowed" : "pointer" }}
@@ -424,7 +362,7 @@ export default function AdminWebhooks() {
                                                     {deliveryLogs[webhook.id].map((log) => (
                                                         <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 14px", backgroundColor: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
                                                             <DeliveryStatusBadge status={log.status} />
-                                                            <span style={{ fontSize: 12, color: C.dark, fontWeight: 500 }}>{log.event}</span>
+                                                            <span style={{ fontSize: 12, color: C.dark, fontWeight: 500 }}>{log.event_type}</span>
                                                             <span style={{ fontSize: 12, color: C.muted }}>HTTP {log.status_code}</span>
                                                             <span style={{ fontSize: 12, color: C.muted }}>{log.response_time_ms}ms</span>
                                                             <span style={{ fontSize: 12, color: C.muted, marginLeft: "auto" }}>

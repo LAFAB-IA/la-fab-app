@@ -17,23 +17,40 @@ export default function CreateProject() {
     const router = useRouter()
     const { token } = useAuth()
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const fileInputRefB = useRef<HTMLInputElement>(null)
+    const autocompleteRef = useRef<HTMLDivElement>(null)
+
+    // Mode
+    const [mode, setMode] = useState<"brief" | "describe">("brief")
 
     // Catalog
     const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
-    const [catalogLoading, setCatalogLoading] = useState(true)
-    const [catalogError, setCatalogError] = useState(false)
+    const [catalogLoaded, setCatalogLoaded] = useState(false)
 
-    // Steps
-    const [step, setStep] = useState(1)
+    // Mode A — brief upload
+    const [briefFile, setBriefFile] = useState<File | null>(null)
+    const [dragOver, setDragOver] = useState(false)
+    const [briefError, setBriefError] = useState("")
 
-    // Step 1 fields
-    const [selectedProductId, setSelectedProductId] = useState("")
-    const [customProductType, setCustomProductType] = useState("")
+    // Mode B — describe
+    const [productQuery, setProductQuery] = useState("")
+    const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null)
+    const [showSuggestions, setShowSuggestions] = useState(false)
     const [quantity, setQuantity] = useState("")
     const [specs, setSpecs] = useState("")
-    const [step1Error, setStep1Error] = useState("")
+    const [descFile, setDescFile] = useState<File | null>(null)
+    const [descDragOver, setDescDragOver] = useState(false)
+    const [descFileError, setDescFileError] = useState("")
+    const [descError, setDescError] = useState("")
 
-    // Fetch catalog products on mount
+    // Submit
+    const [submitting, setSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState("")
+    const [success, setSuccess] = useState(false)
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+    // Fetch catalog on mount
     useEffect(() => {
         if (!token) return
         fetch(`${API_URL}/api/catalog/products`, {
@@ -41,76 +58,31 @@ export default function CreateProject() {
         })
             .then((r) => r.json())
             .then((data) => {
-                if (data.ok && Array.isArray(data.products) && data.products.length > 0) {
+                if (data.ok && Array.isArray(data.products)) {
                     setCatalogProducts(data.products)
-                } else {
-                    setCatalogError(true)
                 }
-                setCatalogLoading(false)
+                setCatalogLoaded(true)
             })
-            .catch(() => { setCatalogError(true); setCatalogLoading(false) })
+            .catch(() => setCatalogLoaded(true))
     }, [token])
 
-    // Step 2 fields
-    const [file, setFile] = useState<File | null>(null)
-    const [skipFile, setSkipFile] = useState(false)
-    const [dragOver, setDragOver] = useState(false)
-    const [fileError, setFileError] = useState("")
-
-    // Submit state
-    const [submitting, setSubmitting] = useState(false)
-    const [submitError, setSubmitError] = useState("")
-    const [success, setSuccess] = useState(false)
-
-    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-
-    const useCatalog = catalogProducts.length > 0 && !catalogError
-
-    // Step 1 validation
-    const handleNext = () => {
-        setStep1Error("")
-        const hasProduct = useCatalog ? !!selectedProductId : !!customProductType.trim()
-        if (!hasProduct) { setStep1Error("Le type de produit est requis."); return }
-        if (!quantity || parseInt(quantity) < 1) { setStep1Error("La quantité doit être d'au moins 1."); return }
-        setStep(2)
-    }
-
-    const resolvedProductId = useCatalog ? selectedProductId : customProductType.trim()
-
-    // File handling
-    const validateFile = (f: File): boolean => {
-        if (!f.name.toLowerCase().endsWith(".pdf")) {
-            setFileError("Seuls les fichiers PDF sont acceptés.")
-            return false
+    // Close autocomplete on outside click
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
+                setShowSuggestions(false)
+            }
         }
-        if (f.size > MAX_FILE_SIZE) {
-            setFileError("Le fichier ne doit pas dépasser 10 MB.")
-            return false
-        }
-        setFileError("")
-        return true
-    }
-
-    const handleFileSelect = (f: File) => {
-        if (validateFile(f)) {
-            setFile(f)
-            setSkipFile(false)
-        }
-    }
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setDragOver(false)
-        const f = e.dataTransfer.files[0]
-        if (f) handleFileSelect(f)
+        document.addEventListener("mousedown", handleClick)
+        return () => document.removeEventListener("mousedown", handleClick)
     }, [])
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        setDragOver(true)
-    }, [])
-
-    const handleDragLeave = useCallback(() => setDragOver(false), [])
+    // File validation
+    function validateFile(f: File): string | null {
+        if (!f.name.toLowerCase().endsWith(".pdf")) return "Seuls les fichiers PDF sont acceptés."
+        if (f.size > MAX_FILE_SIZE) return "Le fichier ne doit pas dépasser 10 MB."
+        return null
+    }
 
     const formatSize = (bytes: number) => {
         if (bytes < 1024) return bytes + " o"
@@ -118,12 +90,57 @@ export default function CreateProject() {
         return (bytes / (1024 * 1024)).toFixed(1) + " Mo"
     }
 
-    // Submit
-    const handleSubmit = async () => {
-        if (!file && !skipFile) {
-            setFileError("Uploadez un brief ou cochez \"Passer cette étape\".")
-            return
-        }
+    // Mode A handlers
+    function handleBriefFile(f: File) {
+        const err = validateFile(f)
+        if (err) { setBriefError(err); return }
+        setBriefError("")
+        setBriefFile(f)
+    }
+
+    const handleBriefDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        setDragOver(false)
+        const f = e.dataTransfer.files[0]
+        if (f) handleBriefFile(f)
+    }, [])
+
+    // Mode B handlers
+    function handleDescFile(f: File) {
+        const err = validateFile(f)
+        if (err) { setDescFileError(err); return }
+        setDescFileError("")
+        setDescFile(f)
+    }
+
+    const handleDescDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        setDescDragOver(false)
+        const f = e.dataTransfer.files[0]
+        if (f) handleDescFile(f)
+    }, [])
+
+    // Autocomplete filtering
+    const suggestions = productQuery.trim().length > 0
+        ? catalogProducts.filter((p) => {
+              const q = productQuery.toLowerCase()
+              return (
+                  p.name.toLowerCase().includes(q) ||
+                  (p.category || "").toLowerCase().includes(q) ||
+                  (p.dimensions || "").toLowerCase().includes(q)
+              )
+          }).slice(0, 8)
+        : []
+
+    function selectProduct(p: CatalogProduct) {
+        setSelectedProduct(p)
+        setProductQuery(p.name + (p.dimensions ? ` — ${p.dimensions}` : ""))
+        setShowSuggestions(false)
+    }
+
+    // Submit Mode A
+    async function submitBrief() {
+        if (!briefFile) { setBriefError("Déposez un fichier PDF."); return }
         setSubmitting(true)
         setSubmitError("")
 
@@ -131,46 +148,88 @@ export default function CreateProject() {
             // 1. Create project
             const res = await fetch(`${API_URL}/api/project/create`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token,
-                },
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                body: JSON.stringify({ product_id: "BRIEF-UPLOAD", qty: 1, spec: "Brief uploadé" }),
+            })
+            const data = await res.json()
+            if (!data.ok && !data.project_id) {
+                setSubmitError(data.error || "Erreur lors de la création du projet.")
+                setSubmitting(false)
+                return
+            }
+            const projectId = data.project_id
+
+            // 2. Upload brief
+            const formData = new FormData()
+            formData.append("file", briefFile)
+            const uploadRes = await fetch(`${API_URL}/api/project/${projectId}/upload-brief`, {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token },
+                body: formData,
+            })
+            const uploadData = await uploadRes.json()
+            if (!uploadRes.ok && !uploadData.ok) {
+                setSubmitError(uploadData.message || "Erreur lors de l'upload du brief.")
+                setSubmitting(false)
+                return
+            }
+
+            setSuccess(true)
+            setTimeout(() => router.push(`/projet/${projectId}`), 2000)
+        } catch {
+            setSubmitError("Erreur réseau. Veuillez réessayer.")
+            setSubmitting(false)
+        }
+    }
+
+    // Submit Mode B
+    async function submitDescribe() {
+        setDescError("")
+        if (!productQuery.trim()) { setDescError("Le produit est requis."); return }
+        if (!quantity || parseInt(quantity) < 1) { setDescError("La quantité doit être d'au moins 1."); return }
+
+        setSubmitting(true)
+        setSubmitError("")
+
+        try {
+            const productId = selectedProduct
+                ? (selectedProduct.id || selectedProduct.catalog_item_id || "custom")
+                : "custom"
+            const specText = selectedProduct
+                ? (specs.trim() || undefined)
+                : (productQuery.trim() + (specs.trim() ? "\n" + specs.trim() : ""))
+
+            // 1. Create project
+            const res = await fetch(`${API_URL}/api/project/create`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
                 body: JSON.stringify({
-                    product_id: resolvedProductId,
+                    product_id: productId,
                     qty: parseInt(quantity),
-                    spec: specs.trim() || undefined,
+                    spec: specText,
                 }),
             })
             const data = await res.json()
             if (!data.ok && !data.project_id) {
-                setSubmitError(data.message || data.error || "Erreur lors de la création du projet.")
+                setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
                 return
             }
-            const projectId = data.project_id || data.project?.project_id
+            const projId = data.project_id
 
             // 2. Upload brief if file selected
-            if (file && projectId) {
+            if (descFile && projId) {
                 const formData = new FormData()
-                formData.append("file", file)
-                const uploadRes = await fetch(`${API_URL}/api/project/${projectId}/upload-brief`, {
+                formData.append("file", descFile)
+                await fetch(`${API_URL}/api/project/${projId}/upload-brief`, {
                     method: "POST",
                     headers: { Authorization: "Bearer " + token },
                     body: formData,
                 })
-                const uploadData = await uploadRes.json()
-                if (!uploadRes.ok && !uploadData.ok) {
-                    setSubmitError(uploadData.message || "Erreur lors de l'upload du brief.")
-                    setSubmitting(false)
-                    return
-                }
             }
 
-            // 3. Success
             setSuccess(true)
-            setTimeout(() => {
-                router.push(`/projet/${projectId}`)
-            }, 2000)
+            setTimeout(() => router.push(`/projet/${projId}`), 2000)
         } catch {
             setSubmitError("Erreur réseau. Veuillez réessayer.")
             setSubmitting(false)
@@ -209,11 +268,6 @@ export default function CreateProject() {
         )
     }
 
-    const steps = [
-        { num: 1, label: "Brief" },
-        { num: 2, label: "Fichier" },
-    ]
-
     return (
         <div style={{ fontFamily: "Inter, sans-serif", display: "flex", justifyContent: "center", padding: "40px 16px" }}>
             <div style={{
@@ -221,78 +275,188 @@ export default function CreateProject() {
                 maxWidth: 640, width: "100%",
                 boxShadow: "0 4px 24px rgba(58,64,64,0.10)", border: "1px solid " + C.border,
             }}>
-                {/* Stepper */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 32 }}>
-                    {steps.map((s, i) => (
-                        <React.Fragment key={s.num}>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                                <div style={{
-                                    width: 36, height: 36, borderRadius: "50%",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    fontSize: 14, fontWeight: 700,
-                                    backgroundColor: step > s.num ? "#1a7a3c" : step === s.num ? C.yellow : C.border,
-                                    color: step > s.num ? "#fff" : C.dark,
-                                    transition: "all 0.3s",
-                                }}>
-                                    {step > s.num ? "✓" : s.num}
-                                </div>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: step >= s.num ? C.dark : C.muted }}>
-                                    {s.num}. {s.label}
-                                </span>
-                            </div>
-                            {i < steps.length - 1 && (
-                                <div style={{
-                                    flex: 1, height: 2, maxWidth: 120, margin: "0 16px",
-                                    backgroundColor: step > 1 ? "#1a7a3c" : C.border,
-                                    marginBottom: 22, transition: "background-color 0.3s",
-                                }} />
-                            )}
-                        </React.Fragment>
-                    ))}
+                {/* Mode tabs */}
+                <div style={{ display: "flex", gap: 0, marginBottom: 28, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.border }}>
+                    <button
+                        onClick={() => setMode("brief")}
+                        style={{
+                            flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                            border: "none", transition: "all 0.2s",
+                            backgroundColor: mode === "brief" ? C.yellow : C.white,
+                            color: C.dark,
+                        }}
+                    >
+                        📄 Déposer un brief
+                    </button>
+                    <button
+                        onClick={() => setMode("describe")}
+                        style={{
+                            flex: 1, padding: "12px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                            border: "none", borderLeft: "1px solid " + C.border, transition: "all 0.2s",
+                            backgroundColor: mode === "describe" ? C.yellow : C.white,
+                            color: C.dark,
+                        }}
+                    >
+                        ✏️ Décrire mon projet
+                    </button>
                 </div>
 
-                {/* Step 1 */}
-                {step === 1 && (
+                {/* ═══ MODE A — Brief Upload ═══ */}
+                {mode === "brief" && (
                     <div>
-                        <h2 style={{ fontSize: 18, fontWeight: 700, color: C.dark, margin: "0 0 24px" }}>
-                            Décrivez votre projet
-                        </h2>
+                        <p style={{ fontSize: 15, color: C.dark, fontWeight: 600, margin: "0 0 8px", textAlign: "center" }}>
+                            Déposez votre brief et notre IA s'occupe du reste
+                        </p>
+                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", textAlign: "center" }}>
+                            L'analyse automatique extrait les spécifications de votre document
+                        </p>
 
-                        <div style={{ marginBottom: 16 }}>
-                            <label style={labelStyle}>Type de produit</label>
-                            {catalogLoading ? (
-                                <div style={{ ...inputStyle, display: "flex", alignItems: "center", color: C.muted }}>
-                                    Chargement du catalogue...
+                        {/* Drop zone */}
+                        {!briefFile ? (
+                            <div
+                                onDrop={handleBriefDrop}
+                                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                                onDragLeave={() => setDragOver(false)}
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                    border: `2px dashed ${dragOver ? C.yellow : C.border}`,
+                                    borderRadius: 16, padding: "60px 20px",
+                                    textAlign: "center", cursor: "pointer",
+                                    backgroundColor: dragOver ? "#fef9e0" : C.bg,
+                                    transition: "all 0.2s", marginBottom: 16,
+                                    minHeight: 220, display: "flex", flexDirection: "column",
+                                    alignItems: "center", justifyContent: "center",
+                                }}
+                            >
+                                <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.7 }}>📄</div>
+                                <p style={{ fontSize: 16, color: C.dark, fontWeight: 600, margin: "0 0 8px" }}>
+                                    Glissez votre brief PDF ici
+                                </p>
+                                <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px" }}>ou cliquez pour sélectionner</p>
+                                <div style={{
+                                    padding: "8px 20px", borderRadius: 8, backgroundColor: C.yellow,
+                                    color: C.dark, fontSize: 13, fontWeight: 700, display: "inline-block",
+                                }}>
+                                    Parcourir les fichiers
                                 </div>
-                            ) : useCatalog ? (
-                                <select
-                                    value={selectedProductId}
-                                    onChange={(e) => setSelectedProductId(e.target.value)}
-                                    style={inputStyle}
+                                <p style={{ fontSize: 11, color: C.muted, margin: "12px 0 0" }}>PDF uniquement — 10 MB max</p>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf"
+                                    style={{ display: "none" }}
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBriefFile(f) }}
+                                />
+                            </div>
+                        ) : (
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: 12,
+                                padding: "16px 18px", borderRadius: 12,
+                                backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
+                                marginBottom: 16,
+                            }}>
+                                <div style={{ fontSize: 32 }}>📕</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {briefFile.name}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: C.muted }}>{formatSize(briefFile.size)}</div>
+                                </div>
+                                <button
+                                    onClick={() => { setBriefFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                                    style={{
+                                        padding: "6px 14px", borderRadius: 6, border: "1px solid " + C.border,
+                                        backgroundColor: C.white, color: "#c0392b", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                                    }}
                                 >
-                                    <option value="">— Sélectionnez un produit —</option>
-                                    {catalogProducts.map((p) => (
-                                        <option key={p.id || p.catalog_item_id} value={p.id || p.catalog_item_id}>
-                                            {p.name}{p.dimensions ? ` — ${p.dimensions}` : ""}
-                                        </option>
+                                    Supprimer
+                                </button>
+                            </div>
+                        )}
+
+                        {briefError && <p style={errorStyle}>{briefError}</p>}
+                        {submitError && <p style={errorStyle}>{submitError}</p>}
+
+                        <button
+                            onClick={submitBrief}
+                            disabled={submitting || !briefFile}
+                            style={{
+                                ...primaryBtnStyle,
+                                opacity: submitting || !briefFile ? 0.6 : 1,
+                                cursor: submitting || !briefFile ? "not-allowed" : "pointer",
+                                marginTop: 8,
+                            }}
+                        >
+                            {submitting ? "Création en cours..." : "Créer le projet"}
+                        </button>
+                    </div>
+                )}
+
+                {/* ═══ MODE B — Describe Project ═══ */}
+                {mode === "describe" && (
+                    <div>
+                        {/* Product autocomplete */}
+                        <div style={{ marginBottom: 16, position: "relative" }} ref={autocompleteRef}>
+                            <label style={labelStyle}>Produit</label>
+                            <input
+                                type="text"
+                                value={productQuery}
+                                onChange={(e) => {
+                                    setProductQuery(e.target.value)
+                                    setSelectedProduct(null)
+                                    setShowSuggestions(true)
+                                }}
+                                onFocus={() => { if (productQuery.trim()) setShowSuggestions(true) }}
+                                placeholder="Tapez pour rechercher... Ex: Roll-up, Kakémono, Flyer"
+                                style={inputStyle}
+                                autoComplete="off"
+                            />
+
+                            {/* Suggestions dropdown */}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div style={{
+                                    position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+                                    backgroundColor: C.white, border: "1px solid " + C.border,
+                                    borderRadius: 10, boxShadow: "0 8px 24px rgba(58,64,64,0.12)",
+                                    maxHeight: 320, overflowY: "auto", marginTop: 4,
+                                }}>
+                                    {suggestions.map((p) => (
+                                        <div
+                                            key={p.id || p.catalog_item_id}
+                                            onClick={() => selectProduct(p)}
+                                            style={{
+                                                padding: "10px 14px", cursor: "pointer",
+                                                borderBottom: "1px solid " + C.border,
+                                                transition: "background-color 0.15s",
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fef9e0")}
+                                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = C.white)}
+                                        >
+                                            <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                                {p.name}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                                                {[p.dimensions, p.category].filter(Boolean).join(" · ") || "—"}
+                                            </div>
+                                        </div>
                                     ))}
-                                </select>
-                            ) : (
-                                <>
-                                    <input
-                                        type="text"
-                                        value={customProductType}
-                                        onChange={(e) => setCustomProductType(e.target.value)}
-                                        placeholder="Ex: Roll-up 85x200, Cartes de visite, Kakémono"
-                                        style={inputStyle}
-                                    />
-                                    <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>
-                                        Catalogue indisponible — décrivez votre produit manuellement.
-                                    </p>
-                                </>
+                                </div>
+                            )}
+
+                            {/* Selected indicator */}
+                            {selectedProduct && (
+                                <div style={{ fontSize: 12, color: "#1a7a3c", marginTop: 4, fontWeight: 600 }}>
+                                    ✓ Produit sélectionné : {selectedProduct.name}
+                                </div>
+                            )}
+                            {!selectedProduct && productQuery.trim() && catalogLoaded && (
+                                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+                                    Produit personnalisé — sera traité comme un brief libre
+                                </div>
                             )}
                         </div>
 
+                        {/* Quantity */}
                         <div style={{ marginBottom: 16 }}>
                             <label style={labelStyle}>Quantité</label>
                             <input
@@ -305,9 +469,10 @@ export default function CreateProject() {
                             />
                         </div>
 
-                        <div style={{ marginBottom: 24 }}>
+                        {/* Specs */}
+                        <div style={{ marginBottom: 20 }}>
                             <label style={labelStyle}>
-                                Spécifications <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
+                                Détails / spécifications <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
                             </label>
                             <textarea
                                 value={specs}
@@ -318,120 +483,77 @@ export default function CreateProject() {
                             />
                         </div>
 
-                        {step1Error && <p style={errorStyle}>{step1Error}</p>}
-
-                        <button onClick={handleNext} style={primaryBtnStyle}>
-                            Suivant →
-                        </button>
-                    </div>
-                )}
-
-                {/* Step 2 */}
-                {step === 2 && (
-                    <div>
-                        <h2 style={{ fontSize: 18, fontWeight: 700, color: C.dark, margin: "0 0 24px" }}>
-                            Uploadez votre brief
-                        </h2>
-
-                        {/* Drop zone */}
-                        {!file && (
-                            <div
-                                onDrop={handleDrop}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                    border: `2px dashed ${dragOver ? C.yellow : C.border}`,
-                                    borderRadius: 12, padding: "40px 20px",
-                                    textAlign: "center", cursor: "pointer",
-                                    backgroundColor: dragOver ? "#fef9e0" : C.white,
-                                    transition: "all 0.2s", marginBottom: 16,
-                                }}
-                            >
-                                <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
-                                <p style={{ fontSize: 14, color: C.dark, fontWeight: 500, margin: "0 0 4px" }}>
-                                    Glissez votre brief PDF ici ou cliquez pour sélectionner
-                                </p>
-                                <p style={{ fontSize: 12, color: C.muted, margin: 0 }}>PDF uniquement — 10 MB max</p>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf"
-                                    style={{ display: "none" }}
-                                    onChange={(e) => {
-                                        const f = e.target.files?.[0]
-                                        if (f) handleFileSelect(f)
-                                    }}
-                                />
-                            </div>
-                        )}
-
-                        {/* File preview */}
-                        {file && (
-                            <div style={{
-                                display: "flex", alignItems: "center", gap: 12,
-                                padding: "14px 16px", borderRadius: 10,
-                                backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
-                                marginBottom: 16,
-                            }}>
-                                <div style={{ fontSize: 28 }}>📕</div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {file.name}
-                                    </div>
-                                    <div style={{ fontSize: 12, color: C.muted }}>{formatSize(file.size)}</div>
-                                </div>
-                                <button
-                                    onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                        {/* Optional brief upload (smaller) */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={labelStyle}>
+                                Brief PDF <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
+                            </label>
+                            {!descFile ? (
+                                <div
+                                    onDrop={handleDescDrop}
+                                    onDragOver={(e) => { e.preventDefault(); setDescDragOver(true) }}
+                                    onDragLeave={() => setDescDragOver(false)}
+                                    onClick={() => fileInputRefB.current?.click()}
                                     style={{
-                                        padding: "6px 14px", borderRadius: 6, border: "1px solid " + C.border,
-                                        backgroundColor: C.white, color: "#c0392b", fontSize: 12, fontWeight: 600,
-                                        cursor: "pointer",
+                                        border: `2px dashed ${descDragOver ? C.yellow : C.border}`,
+                                        borderRadius: 10, padding: "20px 16px",
+                                        textAlign: "center", cursor: "pointer",
+                                        backgroundColor: descDragOver ? "#fef9e0" : C.bg,
+                                        transition: "all 0.2s",
                                     }}
                                 >
-                                    Supprimer
-                                </button>
-                            </div>
-                        )}
+                                    <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
+                                        📄 Glissez un PDF ici ou cliquez · 10 MB max
+                                    </p>
+                                    <input
+                                        ref={fileInputRefB}
+                                        type="file"
+                                        accept=".pdf"
+                                        style={{ display: "none" }}
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDescFile(f) }}
+                                    />
+                                </div>
+                            ) : (
+                                <div style={{
+                                    display: "flex", alignItems: "center", gap: 10,
+                                    padding: "10px 14px", borderRadius: 10,
+                                    backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
+                                }}>
+                                    <div style={{ fontSize: 20 }}>📕</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {descFile.name}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: C.muted }}>{formatSize(descFile.size)}</div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setDescFile(null); if (fileInputRefB.current) fileInputRefB.current.value = "" }}
+                                        style={{
+                                            padding: "4px 10px", borderRadius: 6, border: "1px solid " + C.border,
+                                            backgroundColor: C.white, color: "#c0392b", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
+                            {descFileError && <p style={{ ...errorStyle, marginTop: 4 }}>{descFileError}</p>}
+                        </div>
 
-                        {/* Skip checkbox */}
-                        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, cursor: "pointer", fontSize: 14, color: C.dark }}>
-                            <input
-                                type="checkbox"
-                                checked={skipFile}
-                                onChange={(e) => { setSkipFile(e.target.checked); if (e.target.checked) { setFile(null); setFileError("") } }}
-                                style={{ accentColor: C.yellow, width: 16, height: 16 }}
-                            />
-                            Passer cette étape
-                        </label>
-
-                        {fileError && <p style={errorStyle}>{fileError}</p>}
+                        {descError && <p style={errorStyle}>{descError}</p>}
                         {submitError && <p style={errorStyle}>{submitError}</p>}
 
-                        <div style={{ display: "flex", gap: 12 }}>
-                            <button
-                                onClick={() => setStep(1)}
-                                disabled={submitting}
-                                style={{
-                                    padding: "12px 24px", borderRadius: 8, border: "1px solid " + C.border,
-                                    backgroundColor: C.white, color: C.dark, fontSize: 14, fontWeight: 600,
-                                    cursor: "pointer", opacity: submitting ? 0.5 : 1,
-                                }}
-                            >
-                                ← Retour
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                                style={{
-                                    ...primaryBtnStyle,
-                                    flex: 1,
-                                    opacity: submitting ? 0.7 : 1,
-                                }}
-                            >
-                                {submitting ? "Création en cours..." : "Créer le projet"}
-                            </button>
-                        </div>
+                        <button
+                            onClick={submitDescribe}
+                            disabled={submitting}
+                            style={{
+                                ...primaryBtnStyle,
+                                opacity: submitting ? 0.7 : 1,
+                                cursor: submitting ? "not-allowed" : "pointer",
+                            }}
+                        >
+                            {submitting ? "Création en cours..." : "Créer le projet"}
+                        </button>
                     </div>
                 )}
             </div>
@@ -459,5 +581,5 @@ const primaryBtnStyle: React.CSSProperties = {
 }
 
 const errorStyle: React.CSSProperties = {
-    color: "#c0392b", fontSize: 13, marginBottom: 12, margin: "0 0 12px",
+    color: "#c0392b", fontSize: 13, margin: "0 0 12px",
 }
