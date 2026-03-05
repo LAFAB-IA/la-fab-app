@@ -183,27 +183,52 @@ export default function ProjectDetail() {
                                     <div style={{ fontSize: 14, color: C.dark, lineHeight: 1.6, marginTop: 6 }}>{brief_analysis.raw_extraction}</div>
                                 </div>
                             )}
+                            {project.brief_file_url && (
+                                <a
+                                    href={project.brief_file_url}
+                                    target="_blank"
+                                    style={{ display: "inline-block", marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                                >
+                                    📄 Télécharger le brief (PDF)
+                                </a>
+                            )}
                         </>
                     )}
 
-                    {/* Tarification */}
-                    {pricing && (
-                        <>
-                            <div style={sec}>Tarification</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+                    {/* Informations */}
+                    <div style={sec}>Informations</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+                        <div>
+                            <div style={lbl}>Quantité</div>
+                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{brief_analysis?.quantity_detected ?? quantity ?? "—"} ex.</div>
+                        </div>
+                        {pricing && (
+                            <>
                                 <div>
-                                    <div style={lbl}>Prix unitaire HT</div>
-                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{pricing.unit_net != null ? pricing.unit_net + " " + (pricing.currency || "EUR") : "En attente"}</div>
+                                    <div style={lbl}>Sous-total HT</div>
+                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{pricing.total_net != null ? pricing.total_net + " " + (pricing.currency || "EUR") : "En attente"}</div>
                                 </div>
                                 <div>
-                                    <div style={lbl}>Total HT</div>
-                                    <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
-                                        {pricing.total_net != null ? pricing.total_net + " " + (pricing.currency || "EUR") : "En attente"}
+                                    <div style={lbl}>TVA (20%)</div>
+                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>
+                                        {pricing.total_net != null ? (pricing.total_net * 0.2).toFixed(2) + " " + (pricing.currency || "EUR") : "—"}
                                     </div>
                                 </div>
+                                <div>
+                                    <div style={lbl}>Total TTC</div>
+                                    <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
+                                        {pricing.total_net != null ? (pricing.total_net * 1.2).toFixed(2) + " " + (pricing.currency || "EUR") : "En attente"}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        <div>
+                            <div style={lbl}>Date de création</div>
+                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                {new Date(created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                             </div>
-                        </>
-                    )}
+                        </div>
+                    </div>
 
                     {/* Devis */}
                     {quote_url && (
