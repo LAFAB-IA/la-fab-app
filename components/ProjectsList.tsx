@@ -72,7 +72,7 @@ export default function ProjectsList() {
                         <p style={{ color: C.muted, fontSize: 14, margin: "4px 0 0" }}>{projects.length} projet{projects.length > 1 ? "s" : ""}</p>
                     </div>
                     <a
-                        href="/nouveau-projet"
+                        href="/projet/nouveau"
                         style={{ padding: "10px 20px", backgroundColor: C.yellow, color: C.dark, borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}
                     >
                         + Nouveau projet
@@ -86,7 +86,7 @@ export default function ProjectsList() {
                         <div style={{ fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 8 }}>Aucun projet pour l'instant</div>
                         <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Déposez votre premier brief pour obtenir un devis.</div>
                         <a
-                            href="/nouveau-projet"
+                            href="/projet/nouveau"
                             style={{ padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: "none" }}
                         >
                             Déposer un brief

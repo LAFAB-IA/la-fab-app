@@ -1,9 +1,10 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
+import { io, Socket } from "socket.io-client"
 
 export default function Navbar() {
     const { user, token, isAuthenticated, logout } = useAuth()
@@ -12,8 +13,8 @@ export default function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    // Fetch unread notification count
-    useEffect(() => {
+    // Fetch unread notification count + poll every 30s
+    const fetchUnread = useCallback(() => {
         if (!token) return
         fetch(`${API_URL}/api/notification/unread-count`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -21,6 +22,28 @@ export default function Navbar() {
             .then((r) => r.json())
             .then((data) => { if (typeof data.count === "number") setUnreadCount(data.count) })
             .catch(() => {})
+    }, [token])
+
+    useEffect(() => {
+        fetchUnread()
+        const interval = setInterval(fetchUnread, 30000)
+        return () => clearInterval(interval)
+    }, [fetchUnread])
+
+    // WebSocket: listen for notification:new to increment counter
+    useEffect(() => {
+        if (!token) return
+        let socket: Socket | null = null
+        try {
+            socket = io(API_URL, {
+                auth: { token },
+                transports: ["websocket", "polling"],
+            })
+            socket.on("notification:new", () => {
+                setUnreadCount((c) => c + 1)
+            })
+        } catch { /* WebSocket optional */ }
+        return () => { socket?.disconnect() }
     }, [token])
 
     // Close dropdown on outside click
