@@ -3,6 +3,8 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { XCircle, Mail, Copy, MapPin, ChevronDown } from "lucide-react"
+import { formatPrice } from "@/lib/format"
 
 const { useEffect, useState, useMemo } = React
 
@@ -80,12 +82,12 @@ type SortKey = "name" | "city" | "partner_tier" | "trust_score" | "consultations
 
 function TierBadge({ tier }: { tier: string }) {
     const tc = TIER_CONFIG[tier] || { label: tier || "—", bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
-    return <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: tc.bg, color: tc.color, border: "1px solid " + tc.border, whiteSpace: "nowrap" }}>{tc.label}</span>
+    return <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: tc.bg, color: tc.color, border: "1px solid " + tc.border, whiteSpace: "nowrap" }}>{tc.label}</span>
 }
 
 function SupplierStatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
-    return <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>{sc.label}</span>
+    return <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>{sc.label}</span>
 }
 
 // ─── Bar chart helper ────────────────────────────────────────────────────────
@@ -319,7 +321,7 @@ export default function AdminSuppliers() {
         return (
             <div
                 onClick={() => handleSort(colKey)}
-                style={{ width, flex: width ? undefined : 1, fontSize: 11, fontWeight: 700, color: isActive ? C.dark : C.muted, textTransform: "uppercase", letterSpacing: 0.8, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4 }}
+                style={{ width, flex: width ? undefined : 1, fontSize: 11, fontWeight: 600, color: isActive ? C.dark : C.muted, textTransform: "uppercase", letterSpacing: 0.8, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4 }}
             >
                 {label}
                 {isActive && <span style={{ fontSize: 10 }}>{sortAsc ? "▲" : "▼"}</span>}
@@ -337,7 +339,7 @@ export default function AdminSuppliers() {
 
     if (error) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>❌ {error}</p>
+            <p style={{ color: "#c0392b" }}><XCircle size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} /> {error}</p>
         </div>
     )
 
@@ -364,10 +366,10 @@ export default function AdminSuppliers() {
                         { label: "Confiance moy.", value: avgTrust + "%", color: "#b89a00" },
                         { label: "Consultations", value: String(totalConsReceived), color: C.dark },
                         { label: "Réponses", value: totalConsReplied + " (" + globalResponseRate + "%)", color: "#1a3c7a" },
-                        { label: "CA estimé", value: totalRevenue.toLocaleString("fr-FR") + " €", color: "#e65100" },
+                        { label: "CA estimé", value: formatPrice(totalRevenue), color: "#e65100" },
                     ].map((kpi) => (
-                        <div key={kpi.label} style={{ background: C.white, borderRadius: 10, padding: "14px 10px", textAlign: "center", border: "1px solid " + C.border }}>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                        <div key={kpi.label} style={{ background: C.white, borderRadius: 12, padding: "14px 10px", textAlign: "center", border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: kpi.color }}>{kpi.value}</div>
                             <div style={{ fontSize: 10, color: C.muted, marginTop: 4, lineHeight: 1.3 }}>{kpi.label}</div>
                         </div>
                     ))}
@@ -376,8 +378,8 @@ export default function AdminSuppliers() {
                 {/* ── Charts ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
                     {/* Top 5 most active */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
                             Top 5 — Plus actifs
                         </div>
                         {top5.length > 0 ? top5.map(s => (
@@ -388,8 +390,8 @@ export default function AdminSuppliers() {
                     </div>
 
                     {/* By service */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
                             Répartition par métier
                         </div>
                         {services.length > 0 ? services.slice(0, 8).map(([svc, count]) => (
@@ -402,8 +404,8 @@ export default function AdminSuppliers() {
 
                 {/* Response rate chart */}
                 {top10Response.length > 0 && (
-                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border, marginBottom: 32 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <div style={{ background: C.white, borderRadius: 12, padding: 20, border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginBottom: 32 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.5 }}>
                             Taux de réponse — Top 10
                         </div>
                         {top10Response.map(s => (
@@ -430,19 +432,28 @@ export default function AdminSuppliers() {
                         placeholder="Rechercher par nom, ID, ville..."
                         style={{ flex: 1, minWidth: 200, padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, boxSizing: "border-box", outline: "none" }}
                     />
-                    <select value={filterTier} onChange={(e) => setFilterTier(e.target.value)} style={selectStyle}>
-                        <option value="all">Tous les tiers</option>
-                        {Object.entries(TIER_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select>
-                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
-                        <option value="all">Tous statuts</option>
-                        {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select>
-                    {cities.length > 1 && (
-                        <select value={filterCity} onChange={(e) => setFilterCity(e.target.value)} style={selectStyle}>
-                            <option value="all">Toutes villes</option>
-                            {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                        <select value={filterTier} onChange={(e) => setFilterTier(e.target.value)} style={{ ...selectStyle, paddingRight: 32, appearance: "none" as const }}>
+                            <option value="all">Tous les tiers</option>
+                            {Object.entries(TIER_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
+                        <ChevronDown size={14} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",color:C.muted}} />
+                    </div>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ ...selectStyle, paddingRight: 32, appearance: "none" as const }}>
+                            <option value="all">Tous statuts</option>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                        <ChevronDown size={14} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",color:C.muted}} />
+                    </div>
+                    {cities.length > 1 && (
+                        <div style={{ position: "relative", display: "inline-block" }}>
+                            <select value={filterCity} onChange={(e) => setFilterCity(e.target.value)} style={{ ...selectStyle, paddingRight: 32, appearance: "none" as const }}>
+                                <option value="all">Toutes villes</option>
+                                {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <ChevronDown size={14} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",color:C.muted}} />
+                        </div>
                     )}
                 </div>
 
@@ -451,7 +462,7 @@ export default function AdminSuppliers() {
                 </div>
 
                 {/* ── Table header ── */}
-                <div style={{ display: "flex", gap: 8, padding: "10px 20px", backgroundColor: C.bg, borderRadius: "10px 10px 0 0", border: "1px solid " + C.border, borderBottom: "none" }}>
+                <div style={{ display: "flex", gap: 8, padding: "10px 20px", backgroundColor: "#F8F8F6", borderRadius: "10px 10px 0 0", border: "1px solid " + C.border, borderBottom: "1px solid #e8e8e6" }}>
                     <ColHeader label="Nom" colKey="name" width={160} />
                     <ColHeader label="Ville" colKey="city" width={90} />
                     <ColHeader label="Tier" colKey="partner_tier" width={90} />
@@ -488,7 +499,7 @@ export default function AdminSuppliers() {
                                         {s.consultations_received ? s.response_rate + "%" : "—"}
                                     </div>
                                     <div style={{ width: 80, fontSize: 12, color: C.dark, fontWeight: 500, textAlign: "right" }}>
-                                        {s.estimated_revenue ? s.estimated_revenue.toLocaleString("fr-FR") + " €" : "—"}
+                                        {s.estimated_revenue ? formatPrice(s.estimated_revenue) : "—"}
                                     </div>
                                     <div style={{ width: 70 }}><SupplierStatusBadge status={s.status} /></div>
                                 </div>
@@ -498,7 +509,7 @@ export default function AdminSuppliers() {
                                     <div style={{ padding: 20, backgroundColor: "#fefdf5", borderBottom: "1px solid " + C.border }}>
 
                                         {/* Contact + info */}
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.white, borderRadius: 10, padding: 16, border: "1px solid " + C.border }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.white, borderRadius: 12, padding: 16, border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
                                             {[
                                                 { label: "ID", val: s.supplier_id },
                                                 { label: "Ville", val: s.city || "—" },
@@ -507,7 +518,7 @@ export default function AdminSuppliers() {
                                                 { label: "Tier", val: TIER_CONFIG[s.partner_tier]?.label || s.partner_tier || "—" },
                                                 { label: "Consultations reçues", val: String(s.consultations_received || 0) },
                                                 { label: "Réponses", val: String(s.consultations_replied || 0) },
-                                                { label: "CA estimé", val: (s.estimated_revenue || 0).toLocaleString("fr-FR") + " €" },
+                                                { label: "CA estimé", val: formatPrice(s.estimated_revenue || 0) },
                                             ].map((item, idx) => (
                                                 <div key={idx}>
                                                     <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>{item.label}</div>
@@ -519,13 +530,13 @@ export default function AdminSuppliers() {
                                         {/* Coordonnées GPS */}
                                         {(s.latitude || s.longitude) && (
                                             <div style={{ marginBottom: 16, padding: "10px 16px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border, fontSize: 12, color: C.muted }}>
-                                                📍 Coordonnées : {s.latitude?.toFixed(4)}, {s.longitude?.toFixed(4)}
+                                                <MapPin size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} /> Coordonnées : {s.latitude?.toFixed(4)}, {s.longitude?.toFixed(4)}
                                             </div>
                                         )}
 
                                         {/* Tier change */}
                                         <div style={{ marginBottom: 16 }}>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
                                                 Modifier le tier
                                             </div>
                                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -552,11 +563,11 @@ export default function AdminSuppliers() {
                                             </button>
                                             {s.email && (
                                                 <a href={"mailto:" + s.email} style={{ padding: "9px 18px", background: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-                                                    ✉️ Envoyer un email
+                                                    <Mail size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:6}} /> Envoyer un email
                                                 </a>
                                             )}
                                             <button onClick={() => navigator.clipboard.writeText(s.supplier_id)} style={{ padding: "9px 18px", background: "none", color: C.muted, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, cursor: "pointer" }}>
-                                                📋 Copier ID
+                                                <Copy size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:6}} /> Copier ID
                                             </button>
                                         </div>
                                     </div>
@@ -577,6 +588,6 @@ export default function AdminSuppliers() {
 }
 
 const selectStyle: React.CSSProperties = {
-    padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13,
+    padding: "10px 14px", paddingRight: 32, appearance: "none" as const, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13,
     backgroundColor: C.white, color: C.dark, outline: "none",
 }

@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { ClipboardList } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 const STATUS_CONFIG = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -17,7 +19,7 @@ const STATUS_CONFIG = {
 function StatusBadge({ status }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     return (
-        <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
+        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
             {sc.label}
         </span>
     )
@@ -57,7 +59,7 @@ export default function ProjectsList() {
 
     if (error) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>✗ {error}</p>
+            <p style={{ color: "#c0392b" }}>{error}</p>
         </div>
     )
 
@@ -81,8 +83,10 @@ export default function ProjectsList() {
 
                 {/* Liste vide */}
                 {projects.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: C.white, borderRadius: 16, border: "1px solid " + C.border }}>
-                        <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+                    <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: C.white, borderRadius: 12, border: "1px solid " + C.border }}>
+                        <div style={{ marginBottom: 16 }}>
+                            <ClipboardList size={40} style={{color: C.muted, opacity: 0.4}} />
+                        </div>
                         <div style={{ fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 8 }}>Aucun projet pour l'instant</div>
                         <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Déposez votre premier brief pour obtenir un devis.</div>
                         <a
@@ -104,7 +108,7 @@ export default function ProjectsList() {
                             <a
                                 key={project.project_id}
                                 href={`/projet/${project.project_id}`}
-                                style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 4px rgba(58,64,64,0.08)", border: "1px solid " + C.border, textDecoration: "none" }}
+                                style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border, textDecoration: "none" }}
                             >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                                     <div>
@@ -126,13 +130,13 @@ export default function ProjectsList() {
                                     {hasPrice && (
                                         <div>
                                             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Total HT</div>
-                                            <div style={{ fontSize: 13, color: C.dark, fontWeight: 700 }}>{project.pricing.total_net} {project.pricing.currency}</div>
+                                            <div style={{ fontSize: 13, color: C.dark, fontWeight: 700 }}>{formatPrice(project.pricing.total_net)}</div>
                                         </div>
                                     )}
                                     <div>
                                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Date</div>
                                         <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                                            {new Date(project.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                            {formatDate(project.created_at)}
                                         </div>
                                     </div>
                                 </div>

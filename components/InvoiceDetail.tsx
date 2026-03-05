@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { FileText, Clock, CreditCard, Download } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 const STATUS_CONFIG = {
     draft:   { label: "Brouillon",  bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
@@ -15,7 +17,7 @@ const STATUS_CONFIG = {
 function StatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     return (
-        <span style={{ padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border }}>
+        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border }}>
             {sc.label}
         </span>
     )
@@ -111,7 +113,7 @@ export default function InvoiceDetail() {
 
                 <a href="/factures" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes factures</a>
 
-                <div style={{ backgroundColor: C.white, borderRadius: 16, padding: 32, boxShadow: "0 2px 12px rgba(58,64,64,0.1)", marginTop: 16 }}>
+                <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginTop: 16 }}>
 
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -127,13 +129,13 @@ export default function InvoiceDetail() {
                         {invoice.created_at && (
                             <div>
                                 <div style={lbl}>Date d'émission</div>
-                                <div style={{ fontSize: 14, color: C.dark }}>{new Date(invoice.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                                <div style={{ fontSize: 14, color: C.dark }}>{formatDate(invoice.created_at)}</div>
                             </div>
                         )}
                         {invoice.due_at && (
                             <div>
                                 <div style={lbl}>Échéance</div>
-                                <div style={{ fontSize: 14, color: invoice.status === "overdue" ? "#c0392b" : C.dark }}>{new Date(invoice.due_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                                <div style={{ fontSize: 14, color: invoice.status === "overdue" ? "#c0392b" : C.dark }}>{formatDate(invoice.due_at)}</div>
                             </div>
                         )}
                         {invoice.client_name && (
@@ -163,21 +165,21 @@ export default function InvoiceDetail() {
                                 <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px 100px 100px", gap: 0, padding: "10px 0", borderBottom: "1px solid " + C.border }}>
                                     <div style={{ fontSize: 14, color: C.dark }}>{item.description}</div>
                                     <div style={{ fontSize: 14, color: C.dark, textAlign: "center" }}>{item.quantity}</div>
-                                    <div style={{ fontSize: 14, color: C.dark, textAlign: "right" }}>{item.unit_price.toFixed(2)} €</div>
-                                    <div style={{ fontSize: 14, color: C.dark, textAlign: "right", fontWeight: 600 }}>{(item.quantity * item.unit_price).toFixed(2)} €</div>
+                                    <div style={{ fontSize: 14, color: C.dark, textAlign: "right" }}>{formatPrice(item.unit_price)}</div>
+                                    <div style={{ fontSize: 14, color: C.dark, textAlign: "right", fontWeight: 600 }}>{formatPrice(item.quantity * item.unit_price)}</div>
                                 </div>
                             ))}
 
                             {/* Totals */}
                             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                                 <div style={{ display: "flex", gap: 32, fontSize: 14, color: C.muted }}>
-                                    <span>Sous-total HT</span><span>{subtotal.toFixed(2)} €</span>
+                                    <span>Sous-total HT</span><span>{formatPrice(subtotal)}</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 32, fontSize: 14, color: C.muted }}>
-                                    <span>TVA 20%</span><span>{tax.toFixed(2)} €</span>
+                                    <span>TVA 20%</span><span>{formatPrice(tax)}</span>
                                 </div>
                                 <div style={{ display: "flex", gap: 32, fontSize: 18, fontWeight: 700, color: C.dark, paddingTop: 8, borderTop: "2px solid " + C.dark }}>
-                                    <span>Total TTC</span><span>{total} €</span>
+                                    <span>Total TTC</span><span>{formatPrice(total)}</span>
                                 </div>
                             </div>
                         </div>
@@ -189,18 +191,18 @@ export default function InvoiceDetail() {
                             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16 }}>Paiement en 2 fois</div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 14, color: C.dark }}>
-                                <span>Acompte 30% : <strong>{invoice.deposit_amount} €</strong></span>
+                                <span>Acompte 30% : <strong>{formatPrice(Number(invoice.deposit_amount))}</strong></span>
                                 <span style={{ fontWeight: 600, color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted }}>
                                     {step === "deposit_paid" || step === "fully_paid"
-                                        ? `✓ Payé${invoice.deposit_paid_at ? " le " + new Date(invoice.deposit_paid_at).toLocaleDateString("fr-FR") : ""}`
+                                        ? `✓ Payé${invoice.deposit_paid_at ? " le " + formatDate(invoice.deposit_paid_at) : ""}`
                                         : "En attente"}
                                 </span>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, fontSize: 14, color: C.dark }}>
-                                <span>Solde 70% : <strong>{invoice.balance_amount} €</strong></span>
+                                <span>Solde 70% : <strong>{formatPrice(Number(invoice.balance_amount))}</strong></span>
                                 <span style={{ fontWeight: 600, color: step === "fully_paid" ? "#1a7a3c" : C.muted }}>
                                     {step === "fully_paid"
-                                        ? `✓ Payé${invoice.balance_paid_at ? " le " + new Date(invoice.balance_paid_at).toLocaleDateString("fr-FR") : ""}`
+                                        ? `✓ Payé${invoice.balance_paid_at ? " le " + formatDate(invoice.balance_paid_at) : ""}`
                                         : "En attente"}
                                 </span>
                             </div>
@@ -228,9 +230,9 @@ export default function InvoiceDetail() {
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                         <button
                             onClick={handleDownloadPdf}
-                            style={{ padding: "12px 24px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                         >
-                            📄 Télécharger le PDF
+                            <Download size={14} />Télécharger le PDF
                         </button>
 
                         {/* Split: deposit pending */}
@@ -238,9 +240,11 @@ export default function InvoiceDetail() {
                             <button
                                 onClick={() => handlePay("deposit")}
                                 disabled={!!payingStep}
-                                style={{ padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
-                                {payingStep === "deposit" ? "⏳ Redirection..." : `💳 Payer l'acompte (${invoice.deposit_amount} €)`}
+                                {payingStep === "deposit"
+                                    ? <><Clock size={14} />Redirection...</>
+                                    : <><CreditCard size={14} />Payer l&apos;acompte ({formatPrice(Number(invoice.deposit_amount))})</>}
                             </button>
                         )}
 
@@ -249,9 +253,11 @@ export default function InvoiceDetail() {
                             <button
                                 onClick={() => handlePay("balance")}
                                 disabled={!!payingStep}
-                                style={{ padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
-                                {payingStep === "balance" ? "⏳ Redirection..." : `💳 Payer le solde (${invoice.balance_amount} €)`}
+                                {payingStep === "balance"
+                                    ? <><Clock size={14} />Redirection...</>
+                                    : <><CreditCard size={14} />Payer le solde ({formatPrice(Number(invoice.balance_amount))})</>}
                             </button>
                         )}
 
@@ -260,15 +266,17 @@ export default function InvoiceDetail() {
                             <button
                                 onClick={() => handlePay("full")}
                                 disabled={!!payingStep}
-                                style={{ padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
-                                {payingStep === "full" ? "⏳ Redirection..." : `💳 Payer (${total} €)`}
+                                {payingStep === "full"
+                                    ? <><Clock size={14} />Redirection...</>
+                                    : <><CreditCard size={14} />Payer ({formatPrice(total)})</>}
                             </button>
                         )}
 
                         <a
                             href="/factures"
-                            style={{ padding: "12px 24px", backgroundColor: C.bg, color: C.dark, border: "1px solid " + C.border, borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                            style={{ padding: "12px 24px", backgroundColor: C.bg, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
                         >
                             Retour aux factures
                         </a>

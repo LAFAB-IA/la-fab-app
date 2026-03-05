@@ -3,6 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { XCircle, ChevronDown } from "lucide-react"
 
 const { useEffect, useState } = React
 
@@ -36,7 +37,7 @@ function ActionBadge({ action }: { action: string }) {
     const ac = ACTION_CONFIG[action] || { label: action, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
     return (
         <span style={{
-            padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+            padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
             backgroundColor: ac.bg, color: ac.color, border: "1px solid " + ac.border, whiteSpace: "nowrap",
         }}>
             {ac.label}
@@ -91,7 +92,7 @@ export default function AdminAudit() {
 
     if (error && !logs.length) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>❌ {error}</p>
+            <p style={{ color: "#c0392b" }}><XCircle size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} /> {error}</p>
         </div>
     )
 
@@ -111,26 +112,32 @@ export default function AdminAudit() {
 
                 {/* Filters */}
                 <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-                    <select
-                        value={filterAction}
-                        onChange={(e) => handleFilterChange(e.target.value, filterEntity, 1)}
-                        style={{ padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
-                    >
-                        <option value="all">Toutes les actions</option>
-                        {Object.entries(ACTION_CONFIG).map(([key, ac]) => (
-                            <option key={key} value={key}>{ac.label}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={filterEntity}
-                        onChange={(e) => handleFilterChange(filterAction, e.target.value, 1)}
-                        style={{ padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
-                    >
-                        <option value="all">Toutes les ressources</option>
-                        {ENTITY_TYPES.map((rt) => (
-                            <option key={rt} value={rt}>{rt.charAt(0).toUpperCase() + rt.slice(1)}</option>
-                        ))}
-                    </select>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                        <select
+                            value={filterAction}
+                            onChange={(e) => handleFilterChange(e.target.value, filterEntity, 1)}
+                            style={{ padding: "10px 14px", paddingRight: 32, appearance: "none" as const, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
+                        >
+                            <option value="all">Toutes les actions</option>
+                            {Object.entries(ACTION_CONFIG).map(([key, ac]) => (
+                                <option key={key} value={key}>{ac.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",color:C.muted}} />
+                    </div>
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                        <select
+                            value={filterEntity}
+                            onChange={(e) => handleFilterChange(filterAction, e.target.value, 1)}
+                            style={{ padding: "10px 14px", paddingRight: 32, appearance: "none" as const, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
+                        >
+                            <option value="all">Toutes les ressources</option>
+                            {ENTITY_TYPES.map((rt) => (
+                                <option key={rt} value={rt}>{rt.charAt(0).toUpperCase() + rt.slice(1)}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none",color:C.muted}} />
+                    </div>
                 </div>
 
                 {/* Logs list */}
@@ -141,7 +148,7 @@ export default function AdminAudit() {
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {logs.map((log) => (
-                            <div key={log.id} style={{ background: C.white, borderRadius: 12, padding: "14px 20px", boxShadow: "0 1px 4px rgba(58,64,64,0.08)", display: "flex", alignItems: "center", gap: 16 }}>
+                            <div key={log.id} style={{ background: C.white, borderRadius: 12, padding: "14px 20px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", display: "flex", alignItems: "center", gap: 16 }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
                                         <ActionBadge action={log.action} />

@@ -4,6 +4,8 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { exportCSV } from "@/lib/utils"
+import { Lock, XCircle, FileText, Clock, CheckCircle2, Download, Archive, BarChart3, Users, FileUp, ClipboardList, MessageSquare, Link2, FolderOpen, Copy, AlertTriangle, ChevronDown, Mail } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 const { useEffect, useState, useRef } = React
 
@@ -81,13 +83,13 @@ function AdminNote({ projectId, initialNote }: { projectId: string; initialNote:
     return (
         <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    🔒 Note interne
+                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Lock size={12} style={{ display: "inline-block", verticalAlign: "middle" }} /> Note interne
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600 }}>
                     {saving && <span style={{ color: C.muted }}>Sauvegarde...</span>}
-                    {saved  && <span style={{ color: "#1a7a3c" }}>✓ Sauvegardé</span>}
-                    {error  && <span style={{ color: "#c0392b" }}>✗ Erreur</span>}
+                    {saved  && <span style={{ color: "#1a7a3c" }}><CheckCircle2 size={12} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 2 }} /> Sauvegardé</span>}
+                    {error  && <span style={{ color: "#c0392b", display: "inline-flex", alignItems: "center", gap: 2 }}><XCircle size={12} /> Erreur</span>}
                 </div>
             </div>
             <textarea
@@ -168,8 +170,8 @@ function AdminInvoiceForm({ projectId }: { projectId: string }) {
 
     return (
         <div style={{ marginTop: 24, padding: 20, backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border }}>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16 }}>
-                🧾 Générer une facture
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
+                <FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Générer une facture
             </div>
 
             {/* Lignes */}
@@ -203,7 +205,7 @@ function AdminInvoiceForm({ projectId }: { projectId: string }) {
                         disabled={lines.length === 1}
                         style={{ width: 32, height: 32, border: "1px solid " + C.border, borderRadius: 8, background: C.white, color: C.muted, cursor: lines.length === 1 ? "not-allowed" : "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
-                        ×
+                        <XCircle size={14} />
                     </button>
                 </div>
             ))}
@@ -242,41 +244,41 @@ function AdminInvoiceForm({ projectId }: { projectId: string }) {
             {/* Totaux */}
             <div style={{ backgroundColor: C.white, borderRadius: 10, padding: "12px 16px", marginBottom: 16, border: "1px solid " + C.border }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted, marginBottom: 6 }}>
-                    <span>Sous-total HT</span><span>{subtotal.toFixed(2)} €</span>
+                    <span>Sous-total HT</span><span>{formatPrice(subtotal)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted, marginBottom: 6 }}>
-                    <span>TVA 20%</span><span>{tax.toFixed(2)} €</span>
+                    <span>TVA 20%</span><span>{formatPrice(tax)}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700, color: C.dark, paddingTop: 8, borderTop: "1px solid " + C.border }}>
-                    <span>Total TTC</span><span>{total.toFixed(2)} €</span>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 600, color: C.dark, paddingTop: 8, borderTop: "1px solid " + C.border }}>
+                    <span>Total TTC</span><span>{formatPrice(total)}</span>
                 </div>
             </div>
 
-            {error && <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 12 }}>✗ {error}</div>}
+            {error && <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}><XCircle size={12} /> {error}</div>}
 
             {result ? (
-                <div style={{ backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8", borderRadius: 10, padding: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1a7a3c", marginBottom: 8 }}>
-                        ✅ Facture {result.invoice_number} générée
+                <div style={{ backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8", borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1a7a3c", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <CheckCircle2 size={14} /> Facture {result.invoice_number} générée
                     </div>
                     <div style={{ fontSize: 13, color: C.dark, marginBottom: 12 }}>
-                        Total : {result.total} € · Échéance : {new Date(result.due_at).toLocaleDateString("fr-FR")}
+                        Total : {formatPrice(Number(result.total))} · Échéance : {formatDate(result.due_at)}
                     </div>
                     <a
                         href={result.pdf_url}
                         target="_blank"
-                        style={{ padding: "8px 16px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-block" }}
+                        style={{ padding: "8px 16px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
                     >
-                        📄 Voir le PDF
+                        <FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Voir le PDF
                     </a>
                 </div>
             ) : (
                 <button
                     onClick={handleGenerate}
                     disabled={loading}
-                    style={{ width: "100%", padding: "11px 24px", background: loading ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}
+                    style={{ width: "100%", padding: "11px 24px", background: loading ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                 >
-                    {loading ? "⏳ Génération..." : "🧾 Générer la facture"}
+                    {loading ? (<><Clock size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Génération...</>) : (<><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Générer la facture</>)}
                 </button>
             )}
         </div>
@@ -394,7 +396,7 @@ export default function AdminDashboard() {
             Délai:           p.brief_analysis?.delivery_deadline || "",
             "Total HT":      p.pricing?.total_net || "",
             Devise:          p.pricing?.currency || "",
-            "Date Création": new Date(p.created_at).toLocaleDateString("fr-FR"),
+            "Date Création": formatDate(p.created_at),
             "Note Admin":    (typeof window !== "undefined" ? localStorage.getItem("admin_note_" + p.project_id) : "") || p.admin_note || "",
         }))
         exportCSV(rows, "lafab_projets")
@@ -415,7 +417,7 @@ export default function AdminDashboard() {
 
     if (error) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>❌ {error}</p>
+            <p style={{ color: "#c0392b", display: "flex", alignItems: "center", gap: 6 }}><XCircle size={14} /> {error}</p>
         </div>
     )
 
@@ -431,16 +433,16 @@ export default function AdminDashboard() {
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{projects.length} projets au total</p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <button onClick={handleExportProjects} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                            ↓ Export CSV
+                        <button onClick={handleExportProjects} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <Download size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Export CSV
                         </button>
-                        <a href="/admin/catalogue" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>🗂 Catalogue</a>
-                        <a href="/admin/analytics" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>📊 Analytics</a>
-                        <a href="/admin/users"     style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>👥 Utilisateurs</a>
-                        <a href="/admin/factures"  style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>🧾 Factures</a>
+                        <a href="/admin/catalogue" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Archive size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Catalogue</a>
+                        <a href="/admin/analytics" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><BarChart3 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Analytics</a>
+                        <a href="/admin/users"     style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Users size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Utilisateurs</a>
+                        <a href="/admin/factures"  style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Factures</a>
                         {pending48h > 0 && (
-                            <div style={{ background: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, padding: "10px 16px", fontSize: 13, color: "#c0392b", fontWeight: 600 }}>
-                                ⚠️ {pending48h} projet{pending48h > 1 ? "s" : ""} sans devis depuis +48h
+                            <div style={{ background: "#fee", border: "1px solid #f5c6c6", borderRadius: 12, padding: "10px 16px", fontSize: 13, color: "#c0392b", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <AlertTriangle size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> {pending48h} projet{pending48h > 1 ? "s" : ""} sans devis depuis +48h
                             </div>
                         )}
                     </div>
@@ -452,9 +454,9 @@ export default function AdminDashboard() {
                         <div
                             key={key}
                             onClick={() => setFilterStatus(filterStatus === key ? "all" : key)}
-                            style={{ background: filterStatus === key ? sc.bg : C.white, borderRadius: 10, padding: "12px 10px", textAlign: "center", border: "1px solid " + (filterStatus === key ? sc.border : C.border), cursor: "pointer" }}
+                            style={{ background: filterStatus === key ? sc.bg : C.white, borderRadius: 12, padding: "12px 10px", textAlign: "center", border: "1px solid " + (filterStatus === key ? sc.border : C.border), cursor: "pointer", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}
                         >
-                            <div style={{ fontSize: 22, fontWeight: 700, color: sc.color }}>{counts[key] || 0}</div>
+                            <div style={{ fontSize: 22, fontWeight: 600, color: sc.color }}>{counts[key] || 0}</div>
                             <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.3 }}>{sc.label}</div>
                         </div>
                     ))}
@@ -483,7 +485,7 @@ export default function AdminDashboard() {
                         const hasNote     = !!(project.admin_note || (typeof window !== "undefined" && localStorage.getItem("admin_note_" + project.project_id)))
 
                         return (
-                            <div key={project.project_id} style={{ background: C.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(58,64,64,0.08)" }}>
+                            <div key={project.project_id} style={{ background: C.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
 
                                 {/* ── Ligne cliquable ── */}
                                 <div
@@ -492,22 +494,22 @@ export default function AdminDashboard() {
                                 >
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-                                            <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+                                            <span style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>
                                                 {project.brief_analysis?.product_type || "Brief uploadé"}
                                             </span>
                                             <StatusBadge status={project.status} />
                                             {project.status === "created" && Date.now() - new Date(project.created_at).getTime() > 48 * 3600 * 1000 && (
-                                                <span style={{ fontSize: 11, color: "#c0392b", fontWeight: 600 }}>⚠️ +48h</span>
+                                                <span style={{ fontSize: 11, color: "#c0392b", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}><AlertTriangle size={14} /> +48h</span>
                                             )}
                                             {hasNote && (
-                                                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, padding: "2px 8px", border: "1px solid " + C.border, borderRadius: 10 }}>🔒 Note</span>
+                                                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, padding: "2px 8px", border: "1px solid " + C.border, borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 4 }}><Lock size={12} /> Note</span>
                                             )}
                                         </div>
                                         <div style={{ fontSize: 12, color: C.muted }}>
                                             {project.project_id} · {clientInfo[project.project_id]?.email || project.account_id.slice(0, 8) + "..."}
                                         </div>
                                         <div style={{ fontSize: 12, color: C.muted }}>
-                                            {new Date(project.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                            {formatDate(project.created_at)}
                                         </div>
                                     </div>
                                     <div style={{ fontSize: 18, color: C.muted }}>{isExpanded ? "▲" : "▼"}</div>
@@ -518,16 +520,16 @@ export default function AdminDashboard() {
                                     <div style={{ borderTop: "1px solid " + C.border, padding: 20 }}>
 
                                         {/* Client */}
-                                        <div style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
                                             <div>
-                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Client</div>
+                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Client</div>
                                                 {loadingClient === project.project_id ? (
                                                     <div style={{ fontSize: 13, color: C.muted }}>Chargement...</div>
                                                 ) : clientInfo[project.project_id] ? (
                                                     <div>
                                                         <div style={{ fontSize: 14, color: C.dark, fontWeight: 600 }}>{clientInfo[project.project_id].email}</div>
                                                         <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                                                            Inscrit le {new Date(clientInfo[project.project_id].created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                                            Inscrit le {formatDate(clientInfo[project.project_id].created_at)}
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -535,15 +537,15 @@ export default function AdminDashboard() {
                                                 )}
                                             </div>
                                             {clientInfo[project.project_id] && (
-                                                <a href={"mailto:" + clientInfo[project.project_id].email} style={{ padding: "8px 14px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                                                    ✉️ Contacter
+                                                <a href={"mailto:" + clientInfo[project.project_id].email} style={{ padding: "8px 14px", background: C.dark, color: C.white, borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                                    <Mail size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Contacter
                                                 </a>
                                             )}
                                         </div>
 
                                         {/* Brief */}
                                         {project.brief_analysis && (
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 10, padding: 16 }}>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
                                                 {[
                                                     { label: "Type",       val: project.brief_analysis.product_type },
                                                     { label: "Quantité",   val: project.brief_analysis.quantity_detected ? project.brief_analysis.quantity_detected + " ex." : null },
@@ -565,7 +567,7 @@ export default function AdminDashboard() {
 
                                         {/* Changement statut */}
                                         <div style={{ marginBottom: 20 }}>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                                                 Changer le statut
                                             </div>
                                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -591,16 +593,16 @@ export default function AdminDashboard() {
                                             <button
                                                 onClick={() => handleUploadQuote(project.project_id)}
                                                 disabled={isUploading}
-                                                style={{ padding: "9px 18px", background: isUploading ? C.muted : wasUploaded ? "#e8f8ee" : C.yellow, color: wasUploaded ? "#1a7a3c" : C.dark, border: wasUploaded ? "1px solid #a8dbb8" : "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isUploading ? "not-allowed" : "pointer" }}
+                                                style={{ padding: "9px 18px", background: isUploading ? C.muted : wasUploaded ? "#e8f8ee" : C.yellow, color: wasUploaded ? "#1a7a3c" : C.dark, border: wasUploaded ? "1px solid #a8dbb8" : "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isUploading ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
                                             >
-                                                {isUploading ? "⏳ Upload..." : wasUploaded ? "✅ Devis uploadé !" : "📄 Uploader un devis PDF"}
+                                                {isUploading ? (<><Clock size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Upload...</>) : wasUploaded ? (<><CheckCircle2 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Devis uploadé !</>) : (<><FileText size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Uploader un devis PDF</>)}
                                             </button>
-                                            <a href={"/admin/quote-validation?project_id=" + project.project_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>📋 Devis</a>
-                                            <a href={"/messages?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>💬 Messages</a>
-                                            <a href={"/consultations?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>🔗 Consultations</a>
-                                            <a href={"/production?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>📁 Fichiers</a>
-                                            <button onClick={() => navigator.clipboard.writeText(project.account_id)} style={{ padding: "9px 18px", background: "none", color: C.muted, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, cursor: "pointer" }}>
-                                                📋 Copier ID
+                                            <a href={"/admin/quote-validation?project_id=" + project.project_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><ClipboardList size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Devis</a>
+                                            <a href={"/messages?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><MessageSquare size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Messages</a>
+                                            <a href={"/consultations?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><Link2 size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Consultations</a>
+                                            <a href={"/production?project_id=" + project.project_id + "&account_id=" + project.account_id} style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}><FolderOpen size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Fichiers</a>
+                                            <button onClick={() => navigator.clipboard.writeText(project.account_id)} style={{ padding: "9px 18px", background: "none", color: C.muted, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                                <Copy size={14} style={{ display: "inline-block", verticalAlign: "middle" }} /> Copier ID
                                             </button>
                                         </div>
 

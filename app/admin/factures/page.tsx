@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
+import { FileText, Download, ChevronDown, Search } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 import StatusBadge from "@/components/shared/StatusBadge"
 
 const STATUS_LABELS: Record<string, string> = {
@@ -62,7 +64,7 @@ function AdminInvoices() {
 
     if (error) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>❌ {error}</p>
+            <p style={{ color: "#c0392b" }}>{error}</p>
         </div>
     )
 
@@ -75,18 +77,18 @@ function AdminInvoices() {
                     <div>
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{invoices.length} facture{invoices.length > 1 ? "s" : ""} au total</p>
                     </div>
-                    <a href="/admin/dashboard" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>← Dashboard</a>
+                    <a href="/admin/dashboard" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Dashboard</a>
                 </div>
 
                 {/* KPIs */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 28 }}>
                     {[
-                        { label: "Total TTC", value: totalTTC.toFixed(2) + " €", color: C.dark },
+                        { label: "Total TTC", value: formatPrice(totalTTC), color: C.dark },
                         { label: "Factures", value: invoices.length, color: C.dark },
                         { label: "Payées", value: paidCount, color: "#1a7a3c" },
                         { label: "En retard", value: overdueCount, color: "#c0392b" },
                     ].map((s) => (
-                        <div key={s.label} style={{ background: C.white, borderRadius: 10, padding: "12px 10px", textAlign: "center", border: "1px solid " + C.border }}>
+                        <div key={s.label} style={{ background: C.white, borderRadius: 12, padding: "12px 10px", textAlign: "center", border: "1px solid " + C.border }}>
                             <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
                             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.label}</div>
                         </div>
@@ -95,22 +97,28 @@ function AdminInvoices() {
 
                 {/* Filters */}
                 <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-                    <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Rechercher par n° facture, client, projet..."
-                        style={{ flex: 1, minWidth: 200, padding: "12px 16px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 14, backgroundColor: C.white, color: C.dark, boxSizing: "border-box", outline: "none" }}
-                    />
-                    <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        style={{ padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none" }}
-                    >
-                        <option value="all">Tous les statuts</option>
-                        {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                        ))}
-                    </select>
+                    <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+                        <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.muted }} />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Rechercher par n° facture, client, projet..."
+                            style={{ width: "100%", padding: "12px 16px 12px 40px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 14, backgroundColor: C.white, color: C.dark, boxSizing: "border-box", outline: "none" }}
+                        />
+                    </div>
+                    <div style={{ position: "relative" }}>
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            style={{ padding: "10px 14px", paddingRight: 32, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none", appearance: "none" as const, cursor: "pointer" }}
+                        >
+                            <option value="all">Tous les statuts</option>
+                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
+                    </div>
                 </div>
 
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
@@ -136,21 +144,21 @@ function AdminInvoices() {
                             <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
                                 <div>
                                     <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Montant TTC</div>
-                                    <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{invoice.total} €</div>
+                                    <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{formatPrice(Number(invoice.total))}</div>
                                 </div>
                                 {invoice.due_at && (
                                     <div>
-                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Échéance</div>
+                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Echeance</div>
                                         <div style={{ fontSize: 13, color: invoice.status === "overdue" ? "#c0392b" : C.dark, fontWeight: 500 }}>
-                                            {new Date(invoice.due_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                            {formatDate(invoice.due_at)}
                                         </div>
                                     </div>
                                 )}
                                 {invoice.issued_at && (
                                     <div>
-                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Émise le</div>
+                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Emise le</div>
                                         <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                                            {new Date(invoice.issued_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+                                            {formatDate(invoice.issued_at)}
                                         </div>
                                     </div>
                                 )}
@@ -158,19 +166,19 @@ function AdminInvoices() {
                                     <div>
                                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Paiement</div>
                                         <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                                            Scindé — {invoice.payment_step === "fully_paid" ? "✓ Soldé" : invoice.payment_step === "deposit_paid" ? "Acompte payé" : "En attente"}
+                                            Scinde — {invoice.payment_step === "fully_paid" ? "Solde" : invoice.payment_step === "deposit_paid" ? "Acompte paye" : "En attente"}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             <div style={{ display: "flex", gap: 10 }}>
-                                <a href={`/facture/${invoice.id}`} style={{ padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                                    📄 Voir la facture
+                                <a href={`/facture/${invoice.id}`} style={{ padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    <FileText size={14} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />Voir la facture
                                 </a>
                                 {invoice.pdf_url && (
-                                    <a href={invoice.pdf_url} target="_blank" style={{ padding: "9px 18px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                                        ↓ Télécharger PDF
+                                    <a href={invoice.pdf_url} target="_blank" style={{ padding: "9px 18px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                        <Download size={14} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 6 }} />Telecharger PDF
                                     </a>
                                 )}
                             </div>
@@ -179,7 +187,7 @@ function AdminInvoices() {
 
                     {filtered.length === 0 && (
                         <div style={{ textAlign: "center", padding: 40, color: C.muted, fontSize: 14 }}>
-                            Aucune facture trouvée
+                            Aucune facture trouvee
                         </div>
                     )}
                 </div>

@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
+import { Clock, XCircle, FileText, CheckCircle2, ClipboardList, Link2, FolderOpen, MessageSquare } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ export default function Dashboard() {
     // ─── Styles communs ───────────────────────────────────────────────────────
 
     const cs   = { fontFamily: "Inter, sans-serif" } as React.CSSProperties
-    const card = { maxWidth: 720, margin: "0 auto", backgroundColor: C.white, borderRadius: 16, padding: 32, boxShadow: "0 2px 12px rgba(58,64,64,0.1)" }
+    const card = { maxWidth: 720, margin: "0 auto", backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }
     const lbl  = { fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }
     const val  = { fontSize: 16, color: C.dark, fontWeight: 500 }
     const sec  = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 16, marginTop: 32, paddingBottom: 8, borderBottom: "1px solid " + C.border }
@@ -112,13 +114,17 @@ export default function Dashboard() {
 
     if (loading) return (
         <div style={cs}>
-            <div style={{ ...card, textAlign: "center", color: C.muted }}>⏳ Chargement...</div>
+            <div style={{ ...card, textAlign: "center", color: C.muted, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Clock size={16} /> Chargement...
+            </div>
         </div>
     )
 
     if (error) return (
         <div style={cs}>
-            <div style={{ ...card, textAlign: "center", color: "#c0392b" }}>✗ {error}</div>
+            <div style={{ ...card, textAlign: "center", color: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <XCircle size={16} /> {error}
+            </div>
         </div>
     )
 
@@ -145,12 +151,12 @@ export default function Dashboard() {
                         </div>
                         <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{projectId}</div>
                     </div>
-                    <div style={{ backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, borderRadius: 20, padding: "4px 14px", fontSize: 13, fontWeight: 600 }}>
+                    <div style={{ backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600 }}>
                         {sc.label}
                     </div>
                 </div>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
-                    Créé le {new Date(created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                    Créé le {formatDate(created_at)}
                 </div>
 
                 {/* ── Timeline ── */}
@@ -220,12 +226,12 @@ export default function Dashboard() {
                 <div style={grid}>
                     <div>
                         <div style={lbl}>Prix unitaire HT</div>
-                        <div style={val}>{pricing?.unit_net != null ? pricing.unit_net + " " + (pricing.currency || "EUR") : "En attente"}</div>
+                        <div style={val}>{pricing?.unit_net != null ? formatPrice(pricing.unit_net) : "En attente"}</div>
                     </div>
                     <div>
                         <div style={lbl}>Total HT</div>
                         <div style={{ ...val, fontSize: 20, fontWeight: 700 }}>
-                            {pricing?.total_net != null ? pricing.total_net + " " + (pricing.currency || "EUR") : "En attente"}
+                            {pricing?.total_net != null ? formatPrice(pricing.total_net) : "En attente"}
                         </div>
                     </div>
                 </div>
@@ -242,26 +248,31 @@ export default function Dashboard() {
                             <a
                                 href={quoteUrl}
                                 target="_blank"
-                                style={{ display: "block", textAlign: "center", backgroundColor: C.dark, color: C.white, borderRadius: 10, padding: "14px 24px", fontWeight: 600, fontSize: 15, textDecoration: "none", marginBottom: 12 }}
+                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.dark, color: C.white, borderRadius: 8, padding: "14px 24px", fontWeight: 600, fontSize: 15, textDecoration: "none", marginBottom: 12 }}
                             >
-                                📄 Télécharger le devis
+                                <FileText size={16} /> Télécharger le devis
                             </a>
                             {!orderConfirmed && status !== "validated" && status !== "in_production" && status !== "delivered" && (
                                 <button
                                     onClick={handleValidateOrder}
                                     disabled={orderLoading}
-                                    style={{ display: "block", width: "100%", textAlign: "center", backgroundColor: orderLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 10, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: orderLoading ? "not-allowed" : "pointer" }}
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", textAlign: "center", backgroundColor: orderLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 8, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: orderLoading ? "not-allowed" : "pointer" }}
                                 >
-                                    {orderLoading ? "⏳ Validation en cours..." : "✅ Valider la commande"}
+                                    {orderLoading
+                                        ? <><Clock size={16} /> Validation en cours...</>
+                                        : <><CheckCircle2 size={16} /> Valider la commande</>
+                                    }
                                 </button>
                             )}
                             {orderConfirmed && (
-                                <div style={{ marginTop: 12, textAlign: "center", backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8", borderRadius: 10, padding: "14px 24px", fontSize: 15, color: "#1a7a3c", fontWeight: 600 }}>
-                                    ✅ Commande validée — nous revenons vers vous rapidement.
+                                <div style={{ marginTop: 12, textAlign: "center", backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8", borderRadius: 8, padding: "14px 24px", fontSize: 15, color: "#1a7a3c", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                    <CheckCircle2 size={16} /> Commande validée — nous revenons vers vous rapidement.
                                 </div>
                             )}
                             {orderError && (
-                                <div style={{ marginTop: 12, textAlign: "center", fontSize: 14, color: "#c0392b" }}>✗ {orderError}</div>
+                                <div style={{ marginTop: 12, textAlign: "center", fontSize: 14, color: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                    <XCircle size={14} /> {orderError}
+                                </div>
                             )}
                         </div>
                     ) : (
@@ -269,15 +280,17 @@ export default function Dashboard() {
                             <button
                                 onClick={handleGenerateQuote}
                                 disabled={quoteLoading}
-                                style={{ display: "block", width: "100%", textAlign: "center", backgroundColor: quoteLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 10, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: quoteLoading ? "not-allowed" : "pointer" }}
+                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", textAlign: "center", backgroundColor: quoteLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 8, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: quoteLoading ? "not-allowed" : "pointer" }}
                             >
-                                {quoteLoading ? "⏳ Génération en cours..." : "Générer le devis"}
+                                {quoteLoading ? <><Clock size={16} /> Génération en cours...</> : "Générer le devis"}
                             </button>
                             {quoteError && (
-                                <div style={{ marginTop: 12, textAlign: "center", fontSize: 14, color: "#c0392b" }}>✗ {quoteError}</div>
+                                <div style={{ marginTop: 12, textAlign: "center", fontSize: 14, color: "#c0392b", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                                    <XCircle size={14} /> {quoteError}
+                                </div>
                             )}
                             {!quoteLoading && !quoteError && (
-                                <div style={{ marginTop: 12, textAlign: "center", backgroundColor: C.bg, border: "1px dashed " + C.border, borderRadius: 10, padding: "12px 24px", fontSize: 13, color: C.muted }}>
+                                <div style={{ marginTop: 12, textAlign: "center", backgroundColor: C.bg, border: "1px dashed " + C.border, borderRadius: 8, padding: "12px 24px", fontSize: 13, color: C.muted }}>
                                     Le devis sera généré à partir de l'analyse du brief.
                                 </div>
                             )}
@@ -289,27 +302,27 @@ export default function Dashboard() {
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                     <a
                         href={"/quote-validation?project_id=" + projectId + "&account_id=" + accountId}
-                        style={{ display: "block", textAlign: "center", fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
-                        📋 Devis à valider →
+                        <ClipboardList size={16} /> Devis à valider →
                     </a>
                     <a
                         href={"/consultations?project_id=" + projectId + "&account_id=" + accountId}
-                        style={{ display: "block", textAlign: "center", fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
-                        🔗 Voir les consultations fournisseurs →
+                        <Link2 size={16} /> Voir les consultations fournisseurs →
                     </a>
                     <a
                         href={"/production?project_id=" + projectId + "&account_id=" + accountId}
-                        style={{ display: "block", textAlign: "center", fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
-                        📁 Fichiers & suivi production →
+                        <FolderOpen size={16} /> Fichiers & suivi production →
                     </a>
                     <a
                         href={"/messages?project_id=" + projectId + "&account_id=" + accountId}
-                        style={{ display: "block", textAlign: "center", fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
-                        💬 Messages →
+                        <MessageSquare size={16} /> Messages →
                     </a>
                 </div>
 

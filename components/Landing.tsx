@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
+import { Bot, FileText, BarChart3, CreditCard, MessageSquare, FolderOpen } from "lucide-react"
 
 const C = {
     dark:   "#3A4040",
@@ -54,8 +55,8 @@ function Step({ number, title, desc }) {
 
 function Feature({ icon, title, desc }) {
     return (
-        <div style={{ backgroundColor: C.white, borderRadius: 16, padding: "28px 24px", border: "1px solid " + C.border, boxShadow: "0 2px 8px rgba(58,64,64,0.06)" }}>
-            <div style={{ fontSize: 32, marginBottom: 14 }}>{icon}</div>
+        <div style={{ backgroundColor: C.white, borderRadius: 12, padding: "28px 24px", border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+            <div style={{ marginBottom: 14, color: C.dark }}>{icon}</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 8, fontFamily: "'DM Serif Display', serif" }}>{title}</div>
             <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.65 }}>{desc}</div>
         </div>
@@ -233,12 +234,12 @@ export default function Landing() {
 
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
                             {[
-                                { icon: "🤖", title: "Analyse IA du brief", desc: "Notre IA extrait automatiquement toutes les specs de votre document — format, quantité, finitions, délai. Zéro saisie manuelle." },
-                                { icon: "📄", title: "Devis instantané", desc: "Recevez un devis PDF professionnel, détaillé et signable directement depuis votre espace client." },
-                                { icon: "📊", title: "Suivi en temps réel", desc: "De la validation à la livraison, suivez chaque étape de votre commande avec des notifications automatiques." },
-                                { icon: "💳", title: "Paiement sécurisé", desc: "Réglez vos factures en ligne via Stripe. Simple, rapide, sécurisé. Historique complet disponible." },
-                                { icon: "💬", title: "Messagerie intégrée", desc: "Échangez directement avec notre équipe sur chaque projet. Toutes les communications centralisées." },
-                                { icon: "📁", title: "Espace fichiers", desc: "BAT, fichiers de production, bons de livraison — tout est stocké et accessible depuis votre compte." },
+                                { icon: <Bot size={32} />, title: "Analyse IA du brief", desc: "Notre IA extrait automatiquement toutes les specs de votre document — format, quantité, finitions, délai. Zéro saisie manuelle." },
+                                { icon: <FileText size={32} />, title: "Devis instantané", desc: "Recevez un devis PDF professionnel, détaillé et signable directement depuis votre espace client." },
+                                { icon: <BarChart3 size={32} />, title: "Suivi en temps réel", desc: "De la validation à la livraison, suivez chaque étape de votre commande avec des notifications automatiques." },
+                                { icon: <CreditCard size={32} />, title: "Paiement sécurisé", desc: "Réglez vos factures en ligne via Stripe. Simple, rapide, sécurisé. Historique complet disponible." },
+                                { icon: <MessageSquare size={32} />, title: "Messagerie intégrée", desc: "Échangez directement avec notre équipe sur chaque projet. Toutes les communications centralisées." },
+                                { icon: <FolderOpen size={32} />, title: "Espace fichiers", desc: "BAT, fichiers de production, bons de livraison — tout est stocké et accessible depuis votre compte." },
                             ].map((f, i) => (
                                 <FadeIn key={f.title} delay={i * 0.08}>
                                     <Feature {...f} />

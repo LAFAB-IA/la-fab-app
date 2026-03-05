@@ -6,6 +6,8 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
+import { FileText, Download } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 export default function ProjectDetail() {
     const { token, isAuthenticated, isLoading: authLoading, user } = useAuth()
@@ -122,7 +124,7 @@ export default function ProjectDetail() {
 
     if (error || !project) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>✗ {error || "Projet introuvable"}</p>
+            <p style={{ color: "#c0392b" }}>{error || "Projet introuvable"}</p>
         </div>
     )
 
@@ -134,7 +136,7 @@ export default function ProjectDetail() {
 
                 <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
 
-                <div style={{ backgroundColor: C.white, borderRadius: 16, padding: 32, boxShadow: "0 2px 12px rgba(58,64,64,0.1)", marginTop: 16 }}>
+                <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginTop: 16 }}>
 
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -147,7 +149,7 @@ export default function ProjectDetail() {
                         <StatusBadge status={status} type="project" />
                     </div>
                     <div style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
-                        Créé le {new Date(created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                        Créé le {formatDate(created_at)}
                     </div>
 
                     {/* Timeline */}
@@ -187,9 +189,9 @@ export default function ProjectDetail() {
                                 <a
                                     href={project.brief_file_url}
                                     target="_blank"
-                                    style={{ display: "inline-block", marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
                                 >
-                                    📄 Télécharger le brief (PDF)
+                                    <FileText size={16} /> Télécharger le brief (PDF)
                                 </a>
                             )}
                         </>
@@ -206,18 +208,18 @@ export default function ProjectDetail() {
                             <>
                                 <div>
                                     <div style={lbl}>Sous-total HT</div>
-                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{pricing.total_net != null ? pricing.total_net + " " + (pricing.currency || "EUR") : "En attente"}</div>
+                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{pricing.total_net != null ? formatPrice(pricing.total_net) : "En attente"}</div>
                                 </div>
                                 <div>
                                     <div style={lbl}>TVA (20%)</div>
                                     <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>
-                                        {pricing.total_net != null ? (pricing.total_net * 0.2).toFixed(2) + " " + (pricing.currency || "EUR") : "—"}
+                                        {pricing.total_net != null ? formatPrice(pricing.total_net * 0.2) : "—"}
                                     </div>
                                 </div>
                                 <div>
                                     <div style={lbl}>Total TTC</div>
                                     <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
-                                        {pricing.total_net != null ? (pricing.total_net * 1.2).toFixed(2) + " " + (pricing.currency || "EUR") : "En attente"}
+                                        {pricing.total_net != null ? formatPrice(pricing.total_net * 1.2) : "En attente"}
                                     </div>
                                 </div>
                             </>
@@ -225,7 +227,7 @@ export default function ProjectDetail() {
                         <div>
                             <div style={lbl}>Date de création</div>
                             <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
-                                {new Date(created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                {formatDate(created_at)}
                             </div>
                         </div>
                     </div>
@@ -242,9 +244,9 @@ export default function ProjectDetail() {
                             <a
                                 href={quote_url}
                                 target="_blank"
-                                style={{ display: "inline-block", padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
                             >
-                                📄 Télécharger le devis (PDF)
+                                <FileText size={16} /> Télécharger le devis (PDF)
                             </a>
                         </>
                     )}
@@ -264,7 +266,7 @@ export default function ProjectDetail() {
                                     <div key={inv.id} style={{ padding: "14px 18px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                                         <div>
                                             <div style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>{inv.invoice_number}</div>
-                                            <div style={{ fontSize: 13, color: C.muted }}>{inv.total} € TTC</div>
+                                            <div style={{ fontSize: 13, color: C.muted }}>{formatPrice(Number(inv.total))} TTC</div>
                                         </div>
                                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                                             <StatusBadge status={inv.status} type="invoice" />
@@ -337,12 +339,12 @@ export default function ProjectDetail() {
                                 onChange={(e) => setMsgText(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                                 placeholder="Écrire un message..."
-                                style={{ flex: 1, padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 10, fontSize: 14, color: C.dark, backgroundColor: C.white, outline: "none", fontFamily: "Inter, sans-serif" }}
+                                style={{ flex: 1, padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 14, color: C.dark, backgroundColor: C.white, outline: "none", fontFamily: "Inter, sans-serif" }}
                             />
                             <button
                                 onClick={handleSendMessage}
                                 disabled={sending || !msgText.trim()}
-                                style={{ padding: "10px 20px", backgroundColor: sending || !msgText.trim() ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: sending || !msgText.trim() ? "not-allowed" : "pointer" }}
+                                style={{ padding: "10px 20px", backgroundColor: sending || !msgText.trim() ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: sending || !msgText.trim() ? "not-allowed" : "pointer" }}
                             >
                                 {sending ? "..." : "Envoyer"}
                             </button>

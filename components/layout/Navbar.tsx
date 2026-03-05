@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
 import { io, Socket } from "socket.io-client"
+import { Bell, X, Menu } from "lucide-react"
 
 export default function Navbar() {
     const { user, token, isAuthenticated, logout } = useAuth()
@@ -85,10 +86,10 @@ export default function Navbar() {
                 }}>
                     LF
                 </div>
-                <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
+                <span style={{ color: C.white, fontWeight: 600, fontSize: 16 }}>LA FAB</span>
             </Link>
 
-            {/* Desktop nav links — center */}
+            {/* Desktop nav links -- center */}
             {isAuthenticated && (
                 <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 24 }}
                      className="navbar-desktop-links">
@@ -111,13 +112,13 @@ export default function Navbar() {
                 {isAuthenticated ? (
                     <>
                         {/* Notification bell */}
-                        <Link href="/notifications" style={{ position: "relative", color: C.white, textDecoration: "none", fontSize: 20, lineHeight: 1 }}>
-                            🔔
+                        <Link href="/notifications" style={{ position: "relative", color: C.white, textDecoration: "none", fontSize: 20, lineHeight: 1, display: "flex", alignItems: "center" }}>
+                            <Bell size={20} />
                             {unreadCount > 0 && (
                                 <span style={{
                                     position: "absolute", top: -6, right: -8,
                                     backgroundColor: "#e74c3c", color: "#fff",
-                                    fontSize: 10, fontWeight: 700, borderRadius: 10,
+                                    fontSize: 10, fontWeight: 600, borderRadius: 10,
                                     minWidth: 18, height: 18, display: "flex",
                                     alignItems: "center", justifyContent: "center",
                                     padding: "0 4px",
@@ -134,7 +135,7 @@ export default function Navbar() {
                                 style={{
                                     width: 36, height: 36, borderRadius: "50%",
                                     backgroundColor: C.yellow, color: C.dark,
-                                    fontWeight: 700, fontSize: 13, border: "none",
+                                    fontWeight: 600, fontSize: 13, border: "none",
                                     cursor: "pointer", display: "flex",
                                     alignItems: "center", justifyContent: "center",
                                 }}
@@ -144,8 +145,8 @@ export default function Navbar() {
                             {dropdownOpen && (
                                 <div style={{
                                     position: "absolute", right: 0, top: 44,
-                                    backgroundColor: C.white, borderRadius: 10,
-                                    boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                                    backgroundColor: C.white, borderRadius: 12,
+                                    boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
                                     border: "1px solid " + C.border,
                                     minWidth: 180, overflow: "hidden", zIndex: 1001,
                                 }}>
@@ -161,7 +162,7 @@ export default function Navbar() {
                                         fontWeight: 500, border: "none", background: "none",
                                         cursor: "pointer", borderTop: "1px solid " + C.border,
                                     }}>
-                                        Se déconnecter
+                                        Se deconnecter
                                     </button>
                                 </div>
                             )}
@@ -176,7 +177,7 @@ export default function Navbar() {
                                 color: C.white, fontSize: 22, cursor: "pointer", padding: 4,
                             }}
                         >
-                            {mobileOpen ? "✕" : "☰"}
+                            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </>
                 ) : (

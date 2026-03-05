@@ -3,6 +3,8 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { XCircle, Clock, Zap, Trash2, Plus, ChevronDown } from "lucide-react"
+import { formatDate } from "@/lib/format"
 
 const { useEffect, useState } = React
 
@@ -51,7 +53,7 @@ function DeliveryStatusBadge({ status }: { status: string }) {
     const dc = DELIVERY_STATUS[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
     return (
         <span style={{
-            padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+            padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
             backgroundColor: dc.bg, color: dc.color, border: "1px solid " + dc.border, whiteSpace: "nowrap",
         }}>
             {dc.label}
@@ -179,7 +181,7 @@ export default function AdminWebhooks() {
 
     if (error && !webhooks.length) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>❌ {error}</p>
+            <p style={{ color: "#c0392b" }}><XCircle size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} /> {error}</p>
         </div>
     )
 
@@ -196,17 +198,17 @@ export default function AdminWebhooks() {
                         <a href="/admin/dashboard" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>← Dashboard</a>
                         <button
                             onClick={() => { resetForm(); setShowForm(true) }}
-                            style={{ padding: "9px 18px", background: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                            style={{ padding: "9px 18px", background: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center" }}
                         >
-                            + Nouveau webhook
+                            <Plus size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} />Nouveau webhook
                         </button>
                     </div>
                 </div>
 
                 {/* Create form */}
                 {showForm && (
-                    <div style={{ background: C.white, borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: "0 1px 4px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}>
-                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16 }}>
+                    <div style={{ background: C.white, borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}>
+                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 16 }}>
                             Nouveau webhook
                         </div>
 
@@ -242,7 +244,7 @@ export default function AdminWebhooks() {
                             <button
                                 onClick={handleCreate}
                                 disabled={saving || !formUrl.trim() || formEvents.length === 0}
-                                style={{ padding: "10px 20px", background: saving ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}
+                                style={{ padding: "10px 20px", background: saving ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}
                             >
                                 {saving ? "Création..." : "Créer le webhook"}
                             </button>
@@ -265,7 +267,7 @@ export default function AdminWebhooks() {
                         const result = testResult[webhook.id]
 
                         return (
-                            <div key={webhook.id} style={{ background: C.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(58,64,64,0.08)" }}>
+                            <div key={webhook.id} style={{ background: C.white, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
 
                                 {/* Row */}
                                 <div
@@ -274,11 +276,11 @@ export default function AdminWebhooks() {
                                 >
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-                                            <span style={{ fontSize: 14, fontWeight: 700, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 400 }}>
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 400 }}>
                                                 {webhook.url}
                                             </span>
                                             <span style={{
-                                                padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+                                                padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
                                                 backgroundColor: webhook.is_active ? "#e8f8ee" : "#f0f0ee",
                                                 color: webhook.is_active ? "#1a7a3c" : "#7a8080",
                                                 border: "1px solid " + (webhook.is_active ? "#a8dbb8" : "#e0e0de"),
@@ -298,11 +300,11 @@ export default function AdminWebhooks() {
                                     <div style={{ borderTop: "1px solid " + C.border, padding: 20 }}>
 
                                         {/* Details */}
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 10, padding: 16 }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 24px", marginBottom: 20, backgroundColor: C.bg, borderRadius: 12, padding: 16 }}>
                                             {[
                                                 { label: "URL", val: webhook.url },
                                                 { label: "Secret", val: webhook.secret ? "••••••" + webhook.secret.slice(-4) : "Auto-généré" },
-                                                { label: "Créé le", val: new Date(webhook.created_at).toLocaleDateString("fr-FR") },
+                                                { label: "Créé le", val: formatDate(webhook.created_at) },
                                             ].map((item, idx) => (
                                                 <div key={idx}>
                                                     <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>{item.label}</div>
@@ -313,7 +315,7 @@ export default function AdminWebhooks() {
 
                                         {/* Events */}
                                         <div style={{ marginBottom: 20 }}>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
                                                 Événements surveillés
                                             </div>
                                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -337,22 +339,22 @@ export default function AdminWebhooks() {
                                             <button
                                                 onClick={() => handleTest(webhook.id)}
                                                 disabled={isTesting}
-                                                style={{ padding: "9px 18px", background: isTesting ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isTesting ? "not-allowed" : "pointer" }}
+                                                style={{ padding: "9px 18px", background: isTesting ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isTesting ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center" }}
                                             >
-                                                {isTesting ? "⏳ Test..." : "⚡ Tester"}
+                                                {isTesting ? <><Clock size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} />Test...</> : <><Zap size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} />Tester</>}
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(webhook.id)}
                                                 disabled={isDeleting}
-                                                style={{ padding: "9px 18px", background: isDeleting ? C.muted : "#fde8e8", color: "#c0392b", border: "1px solid #f5c6c6", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isDeleting ? "not-allowed" : "pointer" }}
+                                                style={{ padding: "9px 18px", background: isDeleting ? C.muted : "#fde8e8", color: "#c0392b", border: "1px solid #f5c6c6", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isDeleting ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center" }}
                                             >
-                                                {isDeleting ? "Suppression..." : "🗑 Supprimer"}
+                                                {isDeleting ? "Suppression..." : <><Trash2 size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} />Supprimer</>}
                                             </button>
                                         </div>
 
                                         {/* Delivery logs */}
                                         <div>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
                                                 Historique de livraison
                                             </div>
                                             {loadingLogs === webhook.id ? (

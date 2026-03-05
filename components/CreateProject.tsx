@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { FileUp, PenLine, FileText, X } from "lucide-react"
 
 interface CatalogProduct {
     id: string
@@ -241,9 +242,9 @@ export default function CreateProject() {
         return (
             <div style={{ fontFamily: "Inter, sans-serif", display: "flex", justifyContent: "center", padding: "60px 16px" }}>
                 <div style={{
-                    backgroundColor: C.white, borderRadius: 16, padding: "48px 32px",
+                    backgroundColor: C.white, borderRadius: 12, padding: "48px 32px",
                     maxWidth: 640, width: "100%", textAlign: "center",
-                    boxShadow: "0 4px 24px rgba(58,64,64,0.10)", border: "1px solid " + C.border,
+                    boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border,
                 }}>
                     <div style={{
                         width: 64, height: 64, borderRadius: "50%", backgroundColor: "#e8f8ee",
@@ -271,9 +272,9 @@ export default function CreateProject() {
     return (
         <div style={{ fontFamily: "Inter, sans-serif", display: "flex", justifyContent: "center", padding: "40px 16px" }}>
             <div style={{
-                backgroundColor: C.white, borderRadius: 16, padding: "32px",
+                backgroundColor: C.white, borderRadius: 12, padding: "32px",
                 maxWidth: 640, width: "100%",
-                boxShadow: "0 4px 24px rgba(58,64,64,0.10)", border: "1px solid " + C.border,
+                boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border,
             }}>
                 {/* Mode tabs */}
                 <div style={{ display: "flex", gap: 0, marginBottom: 28, borderRadius: 10, overflow: "hidden", border: "1px solid " + C.border }}>
@@ -284,9 +285,10 @@ export default function CreateProject() {
                             border: "none", transition: "all 0.2s",
                             backgroundColor: mode === "brief" ? C.yellow : C.white,
                             color: C.dark,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                         }}
                     >
-                        📄 Déposer un brief
+                        <FileUp size={14} />Déposer un brief
                     </button>
                     <button
                         onClick={() => setMode("describe")}
@@ -295,9 +297,10 @@ export default function CreateProject() {
                             border: "none", borderLeft: "1px solid " + C.border, transition: "all 0.2s",
                             backgroundColor: mode === "describe" ? C.yellow : C.white,
                             color: C.dark,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                         }}
                     >
-                        ✏️ Décrire mon projet
+                        <PenLine size={14} />Décrire mon projet
                     </button>
                 </div>
 
@@ -328,7 +331,7 @@ export default function CreateProject() {
                                     alignItems: "center", justifyContent: "center",
                                 }}
                             >
-                                <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.7 }}>📄</div>
+                                <div style={{ marginBottom: 16 }}><FileUp size={56} style={{ color: C.muted, opacity: 0.7 }} /></div>
                                 <p style={{ fontSize: 16, color: C.dark, fontWeight: 600, margin: "0 0 8px" }}>
                                     Glissez votre brief PDF ici
                                 </p>
@@ -355,7 +358,7 @@ export default function CreateProject() {
                                 backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
                                 marginBottom: 16,
                             }}>
-                                <div style={{ fontSize: 32 }}>📕</div>
+                                <div><FileText size={32} style={{ color: "#1a7a3c" }} /></div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                         {briefFile.name}
@@ -502,8 +505,8 @@ export default function CreateProject() {
                                         transition: "all 0.2s",
                                     }}
                                 >
-                                    <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
-                                        📄 Glissez un PDF ici ou cliquez · 10 MB max
+                                    <p style={{ fontSize: 13, color: C.muted, margin: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                        <FileUp size={14} />Glissez un PDF ici ou cliquez · 10 MB max
                                     </p>
                                     <input
                                         ref={fileInputRefB}
@@ -519,7 +522,7 @@ export default function CreateProject() {
                                     padding: "10px 14px", borderRadius: 10,
                                     backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
                                 }}>
-                                    <div style={{ fontSize: 20 }}>📕</div>
+                                    <div><FileText size={20} style={{ color: "#1a7a3c" }} /></div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                             {descFile.name}

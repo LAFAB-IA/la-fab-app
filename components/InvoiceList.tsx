@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { FileText, Clock, CreditCard, CheckCircle2 } from "lucide-react"
+import { formatPrice, formatDate } from "@/lib/format"
 
 const STATUS_CONFIG = {
     draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
@@ -14,7 +16,7 @@ const STATUS_CONFIG = {
 function StatusBadge({ status }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     return (
-        <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
+        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
             {sc.label}
         </span>
     )
@@ -22,7 +24,7 @@ function StatusBadge({ status }) {
 
 function SplitBadge({ label, color }: { label: string; color: string }) {
     return (
-        <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, backgroundColor: color === "green" ? "#e8f8ee" : "#fef9e0", color: color === "green" ? "#1a7a3c" : "#b89a00", border: "1px solid " + (color === "green" ? "#a8dbb8" : "#f4cf1588"), whiteSpace: "nowrap" }}>
+        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: color === "green" ? "#e8f8ee" : "#fef9e0", color: color === "green" ? "#1a7a3c" : "#b89a00", border: "1px solid " + (color === "green" ? "#a8dbb8" : "#f4cf1588"), whiteSpace: "nowrap" }}>
             {label}
         </span>
     )
@@ -105,7 +107,7 @@ export default function InvoiceList() {
                 {/* Liste vide */}
                 {invoices.length === 0 && (
                     <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: C.white, borderRadius: 16, border: "1px solid " + C.border }}>
-                        <div style={{ fontSize: 40, marginBottom: 16 }}>🧾</div>
+                        <div style={{ marginBottom: 16 }}><FileText size={40} style={{ color: C.muted, opacity: 0.4 }} /></div>
                         <div style={{ fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 8 }}>Aucune facture pour l'instant</div>
                         <div style={{ fontSize: 14, color: C.muted }}>Vos factures apparaîtront ici une fois générées.</div>
                     </div>
@@ -121,7 +123,7 @@ export default function InvoiceList() {
                         return (
                             <div
                                 key={invoice.id}
-                                style={{ backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 4px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}
+                                style={{ backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}
                             >
                                 {/* Ligne principale */}
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
@@ -142,13 +144,13 @@ export default function InvoiceList() {
                                 <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16 }}>
                                     <div>
                                         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Montant TTC</div>
-                                        <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{invoice.total} €</div>
+                                        <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{formatPrice(Number(invoice.total))}</div>
                                     </div>
                                     {invoice.due_at && (
                                         <div>
                                             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Échéance</div>
                                             <div style={{ fontSize: 13, color: invoice.status === "overdue" ? "#c0392b" : C.dark, fontWeight: 500 }}>
-                                                {new Date(invoice.due_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                                {formatDate(invoice.due_at)}
                                             </div>
                                         </div>
                                     )}
@@ -156,7 +158,7 @@ export default function InvoiceList() {
                                         <div>
                                             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Payée le</div>
                                             <div style={{ fontSize: 13, color: "#1a7a3c", fontWeight: 500 }}>
-                                                {new Date(invoice.paid_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                                {formatDate(invoice.paid_at)}
                                             </div>
                                         </div>
                                     )}
@@ -167,13 +169,13 @@ export default function InvoiceList() {
                                     <div style={{ padding: "12px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, marginBottom: 16, fontSize: 13, color: C.dark }}>
                                         <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Paiement en 2 fois</div>
                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                            <span>Acompte 30% : <strong>{invoice.deposit_amount} €</strong></span>
+                                            <span>Acompte 30% : <strong>{formatPrice(Number(invoice.deposit_amount))}</strong></span>
                                             <span style={{ color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
                                                 {step === "deposit_paid" || step === "fully_paid" ? "✓ Payé" : "En attente"}
                                             </span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span>Solde 70% : <strong>{invoice.balance_amount} €</strong></span>
+                                            <span>Solde 70% : <strong>{formatPrice(Number(invoice.balance_amount))}</strong></span>
                                             <span style={{ color: step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
                                                 {step === "fully_paid" ? "✓ Payé" : "En attente"}
                                             </span>
@@ -185,9 +187,9 @@ export default function InvoiceList() {
                                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                     <a
                                         href={`/facture/${invoice.id}`}
-                                        style={{ padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
                                     >
-                                        📄 Voir la facture
+                                        <FileText size={14} />Voir la facture
                                     </a>
 
                                     {/* Split: deposit pending */}
@@ -195,9 +197,11 @@ export default function InvoiceList() {
                                         <button
                                             onClick={() => handlePay(invoice.id, "deposit")}
                                             disabled={isPaying}
-                                            style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
                                         >
-                                            {isPaying ? "⏳ Redirection..." : `💳 Payer l'acompte (${invoice.deposit_amount} €)`}
+                                            {isPaying
+                                                ? <><Clock size={14} />Redirection...</>
+                                                : <><CreditCard size={14} />Payer l&apos;acompte ({formatPrice(Number(invoice.deposit_amount))})</>}
                                         </button>
                                     )}
 
@@ -206,9 +210,11 @@ export default function InvoiceList() {
                                         <button
                                             onClick={() => handlePay(invoice.id, "balance")}
                                             disabled={isPaying}
-                                            style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
                                         >
-                                            {isPaying ? "⏳ Redirection..." : `💳 Payer le solde (${invoice.balance_amount} €)`}
+                                            {isPaying
+                                                ? <><Clock size={14} />Redirection...</>
+                                                : <><CreditCard size={14} />Payer le solde ({formatPrice(Number(invoice.balance_amount))})</>}
                                         </button>
                                     )}
 
@@ -217,16 +223,18 @@ export default function InvoiceList() {
                                         <button
                                             onClick={() => handlePay(invoice.id, "full")}
                                             disabled={isPaying}
-                                            style={{ padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
                                         >
-                                            {isPaying ? "⏳ Redirection..." : `💳 Payer (${invoice.total} €)`}
+                                            {isPaying
+                                                ? <><Clock size={14} />Redirection...</>
+                                                : <><CreditCard size={14} />Payer ({formatPrice(Number(invoice.total))})</>}
                                         </button>
                                     )}
 
                                     {/* Paid badge */}
                                     {invoice.status === "paid" && (
-                                        <div style={{ padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
-                                            ✅ Paiement reçu
+                                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                                            <CheckCircle2 size={14} />Paiement reçu
                                         </div>
                                     )}
                                 </div>

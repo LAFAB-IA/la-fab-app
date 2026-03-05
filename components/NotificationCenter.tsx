@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { FolderKanban, FileText, CreditCard, Cog, Pin, Bell } from "lucide-react"
+import { timeAgo } from "@/lib/format"
 
 interface Notification {
     id: string
@@ -16,32 +18,15 @@ interface Notification {
     created_at: string
 }
 
-const TYPE_ICONS: Record<string, string> = {
-    projet: "🏗️",
-    project: "🏗️",
-    facture: "📄",
-    invoice: "📄",
-    paiement: "💳",
-    payment: "💳",
-    système: "⚙️",
-    system: "⚙️",
-}
-
-function timeAgo(dateStr: string): string {
-    const now = Date.now()
-    const then = new Date(dateStr).getTime()
-    const diff = Math.max(0, now - then)
-    const seconds = Math.floor(diff / 1000)
-    const minutes = Math.floor(seconds / 60)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
-
-    if (seconds < 60) return "À l'instant"
-    if (minutes < 60) return `Il y a ${minutes} min`
-    if (hours < 24) return `Il y a ${hours}h`
-    if (days === 1) return "Hier"
-    if (days < 7) return `Il y a ${days} jours`
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+    projet: <FolderKanban size={24} />,
+    project: <FolderKanban size={24} />,
+    facture: <FileText size={24} />,
+    invoice: <FileText size={24} />,
+    paiement: <CreditCard size={24} />,
+    payment: <CreditCard size={24} />,
+    "système": <Cog size={24} />,
+    system: <Cog size={24} />,
 }
 
 function getEntityRoute(entityType?: string, entityId?: string): string | null {
@@ -151,10 +136,10 @@ export default function NotificationCenter() {
             {notifications.length === 0 && !error && (
                 <div style={{
                     textAlign: "center", padding: "60px 20px",
-                    backgroundColor: C.white, borderRadius: 16,
+                    backgroundColor: C.white, borderRadius: 12,
                     border: "1px solid " + C.border,
                 }}>
-                    <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>🔔</div>
+                    <div style={{ marginBottom: 16 }}><Bell size={48} style={{ color: C.muted, opacity: 0.4 }} /></div>
                     <p style={{ fontSize: 16, fontWeight: 600, color: C.dark, margin: "0 0 8px" }}>
                         Aucune notification
                     </p>
@@ -167,7 +152,7 @@ export default function NotificationCenter() {
             {/* Notification list */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {notifications.map((notif) => {
-                    const icon = TYPE_ICONS[notif.type] || "📌"
+                    const icon = TYPE_ICONS[notif.type] || <Pin size={24} />
                     const route = getEntityRoute(notif.entity_type, notif.entity_id)
 
                     return (
@@ -179,12 +164,12 @@ export default function NotificationCenter() {
                                 padding: "16px 18px", borderRadius: 12,
                                 backgroundColor: notif.read ? C.white : "#fef9e0",
                                 border: "1px solid " + (notif.read ? C.border : "#f4cf1566"),
-                                boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
+                                boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
                                 cursor: route ? "pointer" : "default",
                                 transition: "background-color 0.2s",
                             }}
                         >
-                            <div style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>{icon}</div>
+                            <div style={{ flexShrink: 0, marginTop: 2 }}>{icon}</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                                     <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>

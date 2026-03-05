@@ -3,6 +3,7 @@
 import * as React from "react"
 import { C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { Printer, Clock } from "lucide-react"
 
 const { useState } = React
 
@@ -19,7 +20,7 @@ export default function Login() {
     async function handleSubmit() {
         setError("")
         if (!email || !password) { setError("Email et mot de passe obligatoires"); return }
-        if (mode === "signup" && (!firstName || !lastName)) { setError("Prénom et nom obligatoires"); return }
+        if (mode === "signup" && (!firstName || !lastName)) { setError("Prenom et nom obligatoires"); return }
 
         setLoading(true)
         try {
@@ -42,7 +43,7 @@ export default function Login() {
         width: "100%",
         padding: "12px 16px",
         border: "1px solid " + C.border,
-        borderRadius: 10,
+        borderRadius: 8,
         fontSize: 14,
         color: C.dark,
         backgroundColor: C.white,
@@ -67,9 +68,9 @@ export default function Login() {
                 width: "100%",
                 maxWidth: 420,
                 backgroundColor: C.white,
-                borderRadius: 16,
+                borderRadius: 12,
                 padding: 40,
-                boxShadow: "0 4px 24px rgba(58,64,64,0.10)",
+                boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
             }}>
 
                 {/* Logo / titre */}
@@ -83,18 +84,17 @@ export default function Login() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 22,
                     }}>
-                        🖨
+                        <Printer size={22} />
                     </div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 6px" }}>LA FAB</h1>
+                    <h1 style={{ fontSize: 22, fontWeight: 600, color: C.dark, margin: "0 0 6px" }}>LA FAB</h1>
                     <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-                        {mode === "login" ? "Connectez-vous à votre espace" : "Créez votre compte"}
+                        {mode === "login" ? "Connectez-vous a votre espace" : "Creez votre compte"}
                     </p>
                 </div>
 
                 {/* Tabs login / signup */}
-                <div style={{ display: "flex", gap: 0, marginBottom: 24, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ display: "flex", gap: 0, marginBottom: 24, border: "1px solid " + C.border, borderRadius: 8, overflow: "hidden" }}>
                     {(["login", "signup"] as const).map((m) => (
                         <button
                             key={m}
@@ -123,7 +123,7 @@ export default function Login() {
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Prénom"
+                                placeholder="Prenom"
                                 style={inputStyle}
                             />
                             <input
@@ -156,7 +156,7 @@ export default function Login() {
                 {/* Erreur */}
                 {error && (
                     <div style={{ marginTop: 12, padding: "10px 14px", backgroundColor: "#fde8e8", border: "1px solid #f5c6c6", borderRadius: 8, fontSize: 13, color: "#c0392b" }}>
-                        ✗ {error}
+                        {error}
                     </div>
                 )}
 
@@ -171,13 +171,13 @@ export default function Login() {
                         background: loading ? C.muted : C.yellow,
                         color: C.dark,
                         border: "none",
-                        borderRadius: 10,
+                        borderRadius: 8,
                         fontSize: 15,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: loading ? "not-allowed" : "pointer",
                     }}
                 >
-                    {loading ? "⏳ Chargement..." : mode === "login" ? "Se connecter" : "Créer mon compte"}
+                    {loading ? <><Clock size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:6}} />Chargement...</> : mode === "login" ? "Se connecter" : "Creer mon compte"}
                 </button>
 
             </div>
