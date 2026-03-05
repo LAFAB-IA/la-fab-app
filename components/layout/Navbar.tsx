@@ -16,7 +16,7 @@ export default function Navbar() {
     // Fetch unread notification count + poll every 30s
     const fetchUnread = useCallback(() => {
         if (!token) return
-        fetch(`${API_URL}/api/notification/unread-count`, {
+        fetch(`${API_URL}/api/notifications/unread-count`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then((r) => r.json())

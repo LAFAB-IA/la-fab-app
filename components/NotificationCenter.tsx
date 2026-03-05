@@ -64,7 +64,7 @@ export default function NotificationCenter() {
     const fetchNotifications = useCallback(async () => {
         if (!token) return
         try {
-            const res = await fetch(`${API_URL}/api/notification`, {
+            const res = await fetch(`${API_URL}/api/notifications`, {
                 headers: { Authorization: "Bearer " + token },
             })
             const data = await res.json()
@@ -86,7 +86,7 @@ export default function NotificationCenter() {
         // Mark as read
         if (!notif.read) {
             try {
-                await fetch(`${API_URL}/api/notification/${notif.id}/read`, {
+                await fetch(`${API_URL}/api/notifications/${notif.id}/read`, {
                     method: "PATCH",
                     headers: { Authorization: "Bearer " + token },
                 })
@@ -101,7 +101,7 @@ export default function NotificationCenter() {
     const handleMarkAllRead = async () => {
         setMarkingAll(true)
         try {
-            await fetch(`${API_URL}/api/notification/read-all`, {
+            await fetch(`${API_URL}/api/notifications/read-all`, {
                 method: "PATCH",
                 headers: { Authorization: "Bearer " + token },
             })
