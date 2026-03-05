@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
-import { ClipboardList } from "lucide-react"
+import { ClipboardList, ExternalLink } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
+import Drawer from "@/components/shared/Drawer"
+import ProjectDetail from "@/components/ProjectDetail"
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
     quoted:        { label: "Devis envoyé",          bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
     validated:     { label: "Commande validée",      bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
@@ -16,7 +18,7 @@ const STATUS_CONFIG = {
     archived:      { label: "Archivé",               bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     return (
         <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
@@ -27,17 +29,15 @@ function StatusBadge({ status }) {
 
 export default function ProjectsList() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
-    const [projects, setProjects] = useState([])
+    const [projects, setProjects] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-    const [accountId, setAccountId] = useState("")
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+    const [drawerOpen, setDrawerOpen] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
         if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
-
-        const storedAccountId = localStorage.getItem("account_id") || ""
-        setAccountId(storedAccountId)
 
         fetch(`${API_URL}/api/project`, {
             headers: { Authorization: "Bearer " + token },
@@ -50,6 +50,16 @@ export default function ProjectsList() {
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
     }, [token, isAuthenticated, authLoading])
+
+    function openProject(id: string) {
+        setSelectedProjectId(id)
+        setDrawerOpen(true)
+    }
+
+    function closeDrawer() {
+        setDrawerOpen(false)
+        setSelectedProjectId(null)
+    }
 
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
@@ -100,15 +110,15 @@ export default function ProjectsList() {
 
                 {/* Cartes projets */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {projects.map((project) => {
+                    {projects.map((project: any) => {
                         const sc = STATUS_CONFIG[project.status] || { color: C.muted }
                         const hasPrice = project.pricing?.total_net != null
 
                         return (
-                            <a
+                            <div
                                 key={project.project_id}
-                                href={`/projet/${project.project_id}`}
-                                style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border, textDecoration: "none" }}
+                                onClick={() => openProject(project.project_id)}
+                                style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border, cursor: "pointer", transition: "box-shadow 0.15s" }}
                             >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                                     <div>
@@ -144,12 +154,38 @@ export default function ProjectsList() {
                                 <div style={{ marginTop: 14, fontSize: 12, color: sc.color, fontWeight: 600 }}>
                                     Voir le projet →
                                 </div>
-                            </a>
+                            </div>
                         )
                     })}
                 </div>
 
             </div>
+
+            {/* Drawer */}
+            <Drawer
+                isOpen={drawerOpen}
+                onClose={closeDrawer}
+                title={selectedProjectId ? "Détail du projet" : undefined}
+            >
+                {selectedProjectId && (
+                    <>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                            <a
+                                href={`/projet/${selectedProjectId}`}
+                                style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                    border: "1px solid " + C.border, background: C.white, color: C.dark,
+                                    textDecoration: "none",
+                                }}
+                            >
+                                <ExternalLink size={13} /> Ouvrir en pleine page
+                            </a>
+                        </div>
+                        <ProjectDetail projectId={selectedProjectId} onClose={closeDrawer} />
+                    </>
+                )}
+            </Drawer>
         </div>
     )
 }

@@ -9,10 +9,15 @@ import StatusBadge from "@/components/shared/StatusBadge"
 import { FileText, Download, FileSpreadsheet, FileImage, FileType, File } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
-export default function ProjectDetail() {
+interface ProjectDetailProps {
+    projectId?: string
+    onClose?: () => void
+}
+
+export default function ProjectDetail({ projectId: propId, onClose }: ProjectDetailProps = {}) {
     const { token, isAuthenticated, isLoading: authLoading, user } = useAuth()
     const params = useParams()
-    const id = params.id as string
+    const id = propId || (params.id as string)
 
     const [project, setProject] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -134,7 +139,11 @@ export default function ProjectDetail() {
         <div style={{ fontFamily: "Inter, sans-serif" }}>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-                <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
+                {onClose ? (
+                    <button onClick={onClose} style={{ color: C.muted, fontSize: 14, fontWeight: 500, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Fermer</button>
+                ) : (
+                    <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
+                )}
 
                 <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginTop: 16 }}>
 

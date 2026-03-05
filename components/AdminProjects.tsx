@@ -7,6 +7,8 @@ import { formatPrice, formatDate } from "@/lib/format"
 import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import AdminProjectFlow from "@/components/AdminProjectFlow"
+import Drawer from "@/components/shared/Drawer"
+import ProjectDetail from "@/components/ProjectDetail"
 
 const { useEffect, useState } = React
 
@@ -35,6 +37,8 @@ export default function AdminProjects() {
     const [sortDir, setSortDir] = useState<SortDir>("desc")
     const [statusChanging, setStatusChanging] = useState<string | null>(null)
     const [expandedProject, setExpandedProject] = useState<string | null>(null)
+    const [drawerProjectId, setDrawerProjectId] = useState<string | null>(null)
+    const [drawerOpen, setDrawerOpen] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
@@ -332,9 +336,9 @@ export default function AdminProjects() {
                                                         <ChevronDown size={12} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
                                                     </div>
 
-                                                    {/* Link to project */}
-                                                    <a
-                                                        href={`/projet/${project.project_id}`}
+                                                    {/* Open drawer */}
+                                                    <button
+                                                        onClick={() => { setDrawerProjectId(project.project_id); setDrawerOpen(true) }}
                                                         style={{
                                                             display: "inline-flex",
                                                             alignItems: "center",
@@ -345,12 +349,12 @@ export default function AdminProjects() {
                                                             border: "1px solid " + C.border,
                                                             backgroundColor: C.white,
                                                             color: C.dark,
-                                                            textDecoration: "none",
+                                                            cursor: "pointer",
                                                         }}
                                                         title="Voir le projet"
                                                     >
                                                         <ExternalLink size={14} />
-                                                    </a>
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -381,6 +385,41 @@ export default function AdminProjects() {
                     )}
                 </div>
             </div>
+
+            {/* Project detail drawer */}
+            <Drawer
+                isOpen={drawerOpen}
+                onClose={() => { setDrawerOpen(false); setDrawerProjectId(null) }}
+                title="Detail du projet"
+                width="800px"
+            >
+                {drawerProjectId && (
+                    <>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                            <a
+                                href={`/projet/${drawerProjectId}`}
+                                style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                    border: "1px solid " + C.border, background: C.white, color: C.dark,
+                                    textDecoration: "none",
+                                }}
+                            >
+                                <ExternalLink size={13} /> Ouvrir en pleine page
+                            </a>
+                        </div>
+                        <ProjectDetail projectId={drawerProjectId} onClose={() => { setDrawerOpen(false); setDrawerProjectId(null) }} />
+                        <div style={{ marginTop: 28, paddingTop: 20, borderTop: "2px solid " + C.yellow }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 14 }}>Flux de gestion</div>
+                            <AdminProjectFlow
+                                projectId={drawerProjectId}
+                                projectStatus={projects.find((p) => p.project_id === drawerProjectId)?.status || "created"}
+                                token={token!}
+                            />
+                        </div>
+                    </>
+                )}
+            </Drawer>
         </div>
     )
 }

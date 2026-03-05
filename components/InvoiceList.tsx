@@ -3,17 +3,19 @@
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
-import { FileText, Clock, CreditCard, CheckCircle2 } from "lucide-react"
+import { FileText, Clock, CreditCard, CheckCircle2, ExternalLink } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
+import Drawer from "@/components/shared/Drawer"
+import InvoiceDetail from "@/components/InvoiceDetail"
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
     pending: { label: "À payer",        bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
     paid:    { label: "Payée",          bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
     overdue: { label: "En retard",      bg: "#fee",    color: "#c0392b", border: "#f5c6c6" },
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     return (
         <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
@@ -32,11 +34,13 @@ function SplitBadge({ label, color }: { label: string; color: string }) {
 
 export default function InvoiceList() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
-    const [invoices, setInvoices] = useState([])
+    const [invoices, setInvoices] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-    const [payingId, setPayingId] = useState(null)
+    const [payingId, setPayingId] = useState<string | null>(null)
     const [payError, setPayError] = useState("")
+    const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+    const [drawerOpen, setDrawerOpen] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
@@ -75,6 +79,16 @@ export default function InvoiceList() {
             .catch(() => { setPayError("Erreur réseau"); setPayingId(null) })
     }
 
+    function openInvoice(id: string) {
+        setSelectedInvoiceId(id)
+        setDrawerOpen(true)
+    }
+
+    function closeDrawer() {
+        setDrawerOpen(false)
+        setSelectedInvoiceId(null)
+    }
+
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: C.muted }}>Chargement de vos factures...</p>
@@ -83,7 +97,7 @@ export default function InvoiceList() {
 
     if (error) return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: "#c0392b" }}>✗ {error}</p>
+            <p style={{ color: "#c0392b" }}>{error}</p>
         </div>
     )
 
@@ -100,7 +114,7 @@ export default function InvoiceList() {
 
                 {payError && (
                     <div style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>
-                        ✗ {payError}
+                        {payError}
                     </div>
                 )}
 
@@ -115,7 +129,7 @@ export default function InvoiceList() {
 
                 {/* Cartes factures */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {invoices.map((invoice) => {
+                    {invoices.map((invoice: any) => {
                         const isPaying = payingId === invoice.id
                         const isSplit = invoice.payment_type === "split"
                         const step = invoice.payment_step
@@ -171,13 +185,13 @@ export default function InvoiceList() {
                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                                             <span>Acompte 30% : <strong>{formatPrice(Number(invoice.deposit_amount))}</strong></span>
                                             <span style={{ color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
-                                                {step === "deposit_paid" || step === "fully_paid" ? "✓ Payé" : "En attente"}
+                                                {step === "deposit_paid" || step === "fully_paid" ? "Paye" : "En attente"}
                                             </span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span>Solde 70% : <strong>{formatPrice(Number(invoice.balance_amount))}</strong></span>
                                             <span style={{ color: step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
-                                                {step === "fully_paid" ? "✓ Payé" : "En attente"}
+                                                {step === "fully_paid" ? "Paye" : "En attente"}
                                             </span>
                                         </div>
                                     </div>
@@ -185,12 +199,12 @@ export default function InvoiceList() {
 
                                 {/* Actions */}
                                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                    <a
-                                        href={`/facture/${invoice.id}`}
-                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                    <button
+                                        onClick={() => openInvoice(invoice.id)}
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                                     >
                                         <FileText size={14} />Voir la facture
-                                    </a>
+                                    </button>
 
                                     {/* Split: deposit pending */}
                                     {isSplit && step === "pending" && (
@@ -244,6 +258,32 @@ export default function InvoiceList() {
                 </div>
 
             </div>
+
+            {/* Drawer */}
+            <Drawer
+                isOpen={drawerOpen}
+                onClose={closeDrawer}
+                title="Détail de la facture"
+            >
+                {selectedInvoiceId && (
+                    <>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                            <a
+                                href={`/facture/${selectedInvoiceId}`}
+                                style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                    border: "1px solid " + C.border, background: C.white, color: C.dark,
+                                    textDecoration: "none",
+                                }}
+                            >
+                                <ExternalLink size={13} /> Ouvrir en pleine page
+                            </a>
+                        </div>
+                        <InvoiceDetail invoiceId={selectedInvoiceId} onClose={closeDrawer} />
+                    </>
+                )}
+            </Drawer>
         </div>
     )
 }

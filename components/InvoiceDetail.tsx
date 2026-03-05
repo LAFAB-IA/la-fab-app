@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { FileText, Clock, CreditCard, Download } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     draft:   { label: "Brouillon",  bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
     pending: { label: "À payer",    bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
     paid:    { label: "Payée",      bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
@@ -23,10 +23,15 @@ function StatusBadge({ status }: { status: string }) {
     )
 }
 
-export default function InvoiceDetail() {
+interface InvoiceDetailProps {
+    invoiceId?: string
+    onClose?: () => void
+}
+
+export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDetailProps = {}) {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const params = useParams()
-    const id = params.id as string
+    const id = propId || (params.id as string)
     const [invoice, setInvoice] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -111,7 +116,11 @@ export default function InvoiceDetail() {
         <div style={{ fontFamily: "Inter, sans-serif" }}>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-                <a href="/factures" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes factures</a>
+                {onClose ? (
+                    <button onClick={onClose} style={{ color: C.muted, fontSize: 14, fontWeight: 500, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Fermer</button>
+                ) : (
+                    <a href="/factures" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes factures</a>
+                )}
 
                 <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginTop: 16 }}>
 
