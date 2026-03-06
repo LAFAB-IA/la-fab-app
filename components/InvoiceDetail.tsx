@@ -239,6 +239,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                         <button
                             onClick={handleDownloadPdf}
+                            className="btn-secondary"
                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                         >
                             <Download size={14} />Télécharger le PDF
@@ -249,6 +250,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
                             <button
                                 onClick={() => handlePay("deposit")}
                                 disabled={!!payingStep}
+                                className="btn-primary"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
                                 {payingStep === "deposit"
@@ -262,6 +264,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
                             <button
                                 onClick={() => handlePay("balance")}
                                 disabled={!!payingStep}
+                                className="btn-primary"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
                                 {payingStep === "balance"
@@ -275,6 +278,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
                             <button
                                 onClick={() => handlePay("full")}
                                 disabled={!!payingStep}
+                                className="btn-primary"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: payingStep ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payingStep ? "not-allowed" : "pointer" }}
                             >
                                 {payingStep === "full"
@@ -285,6 +289,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
 
                         <a
                             href="/factures"
+                            className="btn-secondary"
                             style={{ padding: "12px 24px", backgroundColor: C.bg, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
                         >
                             Retour aux factures

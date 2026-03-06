@@ -401,6 +401,7 @@ export default function CreateProject() {
                                         </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); removeBriefFile(idx) }}
+                                            className="btn-danger"
                                             style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: "#c0392b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                                         >
                                             <X size={12} />
@@ -435,6 +436,7 @@ export default function CreateProject() {
                         <button
                             onClick={submitBrief}
                             disabled={submitting || briefFiles.length === 0}
+                            className="btn-primary"
                             style={{
                                 ...primaryBtnStyle,
                                 opacity: submitting || briefFiles.length === 0 ? 0.6 : 1,
@@ -585,6 +587,7 @@ export default function CreateProject() {
                                             </div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); removeDescFile(idx) }}
+                                                className="btn-danger"
                                                 style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid " + C.border, backgroundColor: C.white, color: "#c0392b", fontSize: 10, cursor: "pointer" }}
                                             >
                                                 <X size={10} />
@@ -618,6 +621,7 @@ export default function CreateProject() {
                         <button
                             onClick={submitDescribe}
                             disabled={submitting}
+                            className="btn-primary"
                             style={{
                                 ...primaryBtnStyle,
                                 opacity: submitting ? 0.7 : 1,

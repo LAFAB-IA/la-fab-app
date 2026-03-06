@@ -85,6 +85,7 @@ export default function ProjectsList() {
                     </div>
                     <a
                         href="/projet/nouveau"
+                        className="btn-primary"
                         style={{ padding: "10px 20px", backgroundColor: C.yellow, color: C.dark, borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}
                     >
                         + Nouveau projet
@@ -101,6 +102,7 @@ export default function ProjectsList() {
                         <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Déposez votre premier brief pour obtenir un devis.</div>
                         <a
                             href="/projet/nouveau"
+                            className="btn-primary"
                             style={{ padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: "none" }}
                         >
                             Déposer un brief
@@ -118,6 +120,7 @@ export default function ProjectsList() {
                             <div
                                 key={project.project_id}
                                 onClick={() => openProject(project.project_id)}
+                                className="row-hover"
                                 style={{ display: "block", backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border, cursor: "pointer", transition: "box-shadow 0.15s" }}
                             >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -172,6 +175,7 @@ export default function ProjectsList() {
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
                             <a
                                 href={`/projet/${selectedProjectId}`}
+                                className="btn-secondary"
                                 style={{
                                     display: "inline-flex", alignItems: "center", gap: 6,
                                     padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,

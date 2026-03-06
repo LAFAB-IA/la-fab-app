@@ -252,7 +252,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function generateQuote() {
         setLoad("quote", true)
         try {
-            const r = await fetch(`${API_URL}/api/quote/${projectId}/generate-quote`, { method: "POST", headers: authHeaders() })
+            const r = await fetch(`${API_URL}/api/project/${projectId}/generate-quote`, { method: "POST", headers: authHeaders() })
             const data = await r.json()
             if (data.ok) {
                 setQuoteUrl(data.quote_url || null)
@@ -433,6 +433,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                 const ctx = s.prompt + (sel.email_body || "") + (sel.reply_message ? `\nRéponse fournisseur : ${sel.reply_message}` : "")
                                 setInlineAiInput(ctx)
                             }}
+                            className="btn-secondary"
                             style={{
                                 padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
                                 border: "1px solid " + C.border, background: C.bg, color: C.dark,
@@ -457,6 +458,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     <button
                         onClick={() => askInlineAI(sel)}
                         disabled={inlineAiLoading || !inlineAiInput.trim()}
+                        className="btn-primary"
                         style={{
                             padding: "8px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                             border: "none", background: C.yellow, color: C.dark,
@@ -532,6 +534,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             <button
                 onClick={onClick}
                 disabled={isLoading || disabled}
+                className={isPrimary ? "btn-primary" : "btn-secondary"}
                 style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
@@ -540,7 +543,6 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     color: isPrimary ? C.dark : C.dark,
                     cursor: isLoading || disabled ? "not-allowed" : "pointer",
                     opacity: isLoading || disabled ? 0.6 : 1,
-                    transition: "opacity 0.15s",
                 }}
             >
                 {isLoading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : icon}
@@ -753,6 +755,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                         <button
                                                             onClick={() => generateAIReply(sel)}
                                                             disabled={aiReplyGenerating}
+                                                            className="btn-secondary"
                                                             style={{
                                                                 display: "inline-flex", alignItems: "center", gap: 6,
                                                                 padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -780,6 +783,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                             <button
                                                                 onClick={() => sendAdminReply(sel.consultation_id)}
                                                                 disabled={aiReplySending || !aiReplyDraft.trim()}
+                                                                className="btn-primary"
                                                                 style={{
                                                                     marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
                                                                     padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -892,12 +896,13 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         backgroundColor: isSelected ? "#fafaf8" : C.white,
                                         borderBottom: "1px solid " + C.bg,
                                         borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
-                                        opacity: hasReplied ? 1 : 0.6,
                                     }}
                                 >
-                                    {renderSupplierListItem(c)}
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                        {renderConsultationStatus(c.status)}
+                                    <div style={{ opacity: hasReplied ? 1 : 0.6 }}>
+                                        {renderSupplierListItem(c)}
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            {renderConsultationStatus(c.status)}
+                                        </div>
                                     </div>
                                     {c.status !== "replied" && c.status !== "responded" && (
                                         <button
@@ -906,11 +911,12 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                 sendReminder(c.consultation_id)
                                                 setMsg("reminder_" + c.consultation_id, "ok", "Relance envoyée")
                                             }}
+                                            className="btn-secondary"
                                             style={{
                                                 marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4,
                                                 padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
                                                 border: "1px solid #e8d88e", background: "#fef9e0", color: "#b89a00",
-                                                cursor: "pointer", opacity: 1, pointerEvents: "auto",
+                                                cursor: "pointer", opacity: 1, pointerEvents: "auto" as const,
                                             }}
                                         >
                                             <Bell size={10} /> Relancer
@@ -1010,6 +1016,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                     <button
                                                         onClick={() => sendAdminReply(sel.consultation_id)}
                                                         disabled={aiReplySending || !aiReplyDraft.trim()}
+                                                        className="btn-primary"
                                                         style={{
                                                             marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
                                                             padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -1189,6 +1196,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     <button
                         onClick={generateLinesViaAI}
                         disabled={aiGeneratingLines}
+                        className="btn-secondary"
                         style={{
                             display: "inline-flex", alignItems: "center", gap: 5,
                             padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
@@ -1230,7 +1238,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             {formatPrice(li.quantity * li.unit_price)}
                         </div>
                         {lineItems.length > 1 && (
-                            <button onClick={() => removeLine(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#991b1b", padding: 4 }}>
+                            <button onClick={() => removeLine(idx)} className="btn-danger" style={{ background: "none", border: "none", cursor: "pointer", color: "#991b1b", padding: 4 }}>
                                 <Trash2 size={14} />
                             </button>
                         )}
@@ -1302,7 +1310,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     e.preventDefault(); e.stopPropagation()
                                     const next = isExpanded ? null : step.key
                                     setExpandedStep(next)
-                                    if (next) { setTimeout(() => { stepRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 100) }
+                                    if (next) { setTimeout(() => { const el = stepRefs.current[next]; if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" }) } }, 100) }
                                 }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
@@ -1428,6 +1436,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
                             <button
                                 onClick={() => setConfirmSendConsultation(null)}
+                                className="btn-secondary"
                                 style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                             >
                                 Annuler
@@ -1438,6 +1447,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     setConfirmSendConsultation(null)
                                 }}
                                 disabled={loading["send_" + confirmSendConsultation.consultation_id]}
+                                className="btn-primary"
                                 style={{
                                     padding: "9px 22px", borderRadius: 8, border: "none",
                                     backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -1521,6 +1531,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
                                 <button
                                     onClick={() => setConfirmSendAll(false)}
+                                    className="btn-secondary"
                                     style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                                 >
                                     Annuler
@@ -1531,6 +1542,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         setConfirmSendAll(false)
                                     }}
                                     disabled={loading["sendAll"]}
+                                    className="btn-primary"
                                     style={{
                                         padding: "9px 22px", borderRadius: 8, border: "none",
                                         backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",

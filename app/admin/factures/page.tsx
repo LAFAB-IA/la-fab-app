@@ -451,16 +451,16 @@ function AdminInvoices() {
                                     {inv.due_at ? formatDate(inv.due_at) : "—"}
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
-                                    <button onClick={() => setSelectedInvoice(inv)} title="Voir" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                                    <button onClick={() => setSelectedInvoice(inv)} title="Voir" className="btn-icon" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
                                         <Eye size={12} color={C.muted} />
                                     </button>
                                     {inv.pdf_url && (
-                                        <a href={inv.pdf_url} target="_blank" title="PDF" style={{ width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: C.dark, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                                        <a href={inv.pdf_url} target="_blank" title="PDF" className="btn-icon" style={{ width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: C.dark, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
                                             <Download size={12} color={C.white} />
                                         </a>
                                     )}
                                     {inv.status !== "paid" && inv.status !== "draft" && inv.status !== "cancelled" && (
-                                        <button title="Relancer" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #f5c6c6", backgroundColor: "#fde8e8", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                                        <button title="Relancer" className="btn-danger" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #f5c6c6", backgroundColor: "#fde8e8", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
                                             <Send size={12} color="#c0392b" />
                                         </button>
                                     )}
@@ -480,7 +480,7 @@ function AdminInvoices() {
                 {totalPages > 1 && (
                     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16, marginBottom: 32 }}>
                         <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
-                            style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, cursor: page === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: page === 0 ? 0.4 : 1 }}>
+                            className="btn-icon" style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, cursor: page === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: page === 0 ? 0.4 : 1 }}>
                             <ChevronLeft size={14} color={C.dark} />
                         </button>
                         {Array.from({ length: totalPages }, (_, i) => (
@@ -490,7 +490,7 @@ function AdminInvoices() {
                             </button>
                         )).slice(Math.max(0, page - 2), page + 3)}
                         <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1}
-                            style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, cursor: page >= totalPages - 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: page >= totalPages - 1 ? 0.4 : 1 }}>
+                            className="btn-icon" style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, cursor: page >= totalPages - 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: page >= totalPages - 1 ? 0.4 : 1 }}>
                             <ChevronRight size={14} color={C.dark} />
                         </button>
                     </div>

@@ -282,6 +282,7 @@ export default function AdminProjects() {
                     </div>
                     <a
                         href="/admin/dashboard"
+                        className="btn-secondary"
                         style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
                     >
                         <ArrowLeft size={14} />
@@ -438,13 +439,13 @@ export default function AdminProjects() {
                                                 </select>
                                                 <ChevronDown size={12} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
                                             </div>
-                                            <button onClick={() => { setDrawerProjectId(project.project_id); setDrawerOpen(true) }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, cursor: "pointer" }} title="Voir">
+                                            <button onClick={() => { setDrawerProjectId(project.project_id); setDrawerOpen(true) }} className="btn-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, cursor: "pointer" }} title="Voir">
                                                 <ExternalLink size={13} />
                                             </button>
-                                            <button onClick={() => { setDrawerProjectId(project.project_id); setDrawerOpen(true) }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, cursor: "pointer" }} title="Modifier">
+                                            <button onClick={() => { setDrawerProjectId(project.project_id); setDrawerOpen(true) }} className="btn-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, cursor: "pointer" }} title="Modifier">
                                                 <Pencil size={13} />
                                             </button>
-                                            <button onClick={() => setDeleteConfirmId(project.project_id)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", cursor: "pointer" }} title="Supprimer">
+                                            <button onClick={() => setDeleteConfirmId(project.project_id)} className="btn-danger" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 6, border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", cursor: "pointer" }} title="Supprimer">
                                                 <Trash2 size={13} />
                                             </button>
                                         </div>
@@ -492,10 +493,10 @@ export default function AdminProjects() {
                                 Confirmer la suppression du projet <strong style={{ color: C.dark }}>{deleteConfirmId.slice(0, 12)}</strong> ? Cette action est irréversible.
                             </p>
                             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                                <button onClick={() => setDeleteConfirmId(null)} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                                <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary" style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                                     Annuler
                                 </button>
-                                <button onClick={() => handleDeleteProject(deleteConfirmId)} disabled={deleting} style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: "#991b1b", color: C.white, fontSize: 13, fontWeight: 600, cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}>
+                                <button onClick={() => handleDeleteProject(deleteConfirmId)} disabled={deleting} className="btn-danger" style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: "#991b1b", color: C.white, fontSize: 13, fontWeight: 600, cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}>
                                     {deleting ? "Suppression..." : "Confirmer la suppression"}
                                 </button>
                             </div>
@@ -528,6 +529,7 @@ export default function AdminProjects() {
                             </button>
                             <a
                                 href={`/projet/${drawerProjectId}`}
+                                className="btn-secondary"
                                 style={{
                                     display: "inline-flex", alignItems: "center", gap: 6,
                                     padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
@@ -597,6 +599,7 @@ export default function AdminProjects() {
                                     <button
                                         onClick={handleAiSend}
                                         disabled={aiLoading || !aiInput.trim()}
+                                        className="btn-primary"
                                         style={{
                                             padding: "9px 16px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 700,
                                             backgroundColor: aiLoading || !aiInput.trim() ? C.muted : C.yellow, color: C.dark,

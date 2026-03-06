@@ -99,7 +99,7 @@ export default function Navbar() {
                 <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 24 }}
                      className="navbar-desktop-links">
                     {navLinks.map((link) => (
-                        <Link key={link.href} href={link.href} style={{
+                        <Link key={link.href} href={link.href} className="nav-link" style={{
                             color: C.white, textDecoration: "none", fontSize: 14, fontWeight: 500,
                             opacity: 0.85, transition: "opacity 0.2s",
                         }}>
@@ -112,7 +112,7 @@ export default function Navbar() {
             {/* Center links when not authenticated */}
             {!isAuthenticated && (
                 <div style={{ flex: 1, display: "flex", justifyContent: "center" }} className="navbar-desktop-links">
-                    <Link href="/supplier/register" style={{
+                    <Link href="/supplier/register" className="nav-link" style={{
                         color: C.white, textDecoration: "none", fontSize: 14, fontWeight: 500,
                         opacity: 0.85, transition: "opacity 0.2s",
                     }}>
@@ -164,13 +164,13 @@ export default function Navbar() {
                                     border: "1px solid " + C.border,
                                     minWidth: 180, overflow: "hidden", zIndex: 1001,
                                 }}>
-                                    <Link href="/profil" onClick={() => setDropdownOpen(false)} style={{
+                                    <Link href="/profil" onClick={() => setDropdownOpen(false)} className="nav-link" style={{
                                         display: "block", padding: "12px 16px", fontSize: 14,
                                         color: C.dark, textDecoration: "none", fontWeight: 500,
                                     }}>
                                         Mon profil
                                     </Link>
-                                    <button onClick={() => { setDropdownOpen(false); logout() }} style={{
+                                    <button onClick={() => { setDropdownOpen(false); logout() }} className="btn-danger" style={{
                                         display: "block", width: "100%", textAlign: "left",
                                         padding: "12px 16px", fontSize: 14, color: "#c0392b",
                                         fontWeight: 500, border: "none", background: "none",
@@ -195,7 +195,7 @@ export default function Navbar() {
                         </button>
                     </>
                 ) : (
-                    <Link href="/login" style={{
+                    <Link href="/login" className="btn-primary" style={{
                         padding: "8px 20px", backgroundColor: C.yellow, color: C.dark,
                         borderRadius: 8, fontWeight: 600, fontSize: 14,
                         textDecoration: "none",

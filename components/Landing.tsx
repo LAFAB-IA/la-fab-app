@@ -91,13 +91,13 @@ export default function Landing() {
                         </span>
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <a href="/login" style={{
+                        <a href="/login" className="nav-link" style={{
                             padding: "8px 18px", fontSize: 14, fontWeight: 600,
                             color: scrolled ? C.dark : C.white, textDecoration: "none", borderRadius: 8,
                         }}>
                             Se connecter
                         </a>
-                        <a href="/login" style={{
+                        <a href="/login" className="btn-primary" style={{
                             padding: "8px 20px", fontSize: 14, fontWeight: 700,
                             color: C.dark, textDecoration: "none",
                             backgroundColor: C.yellow, borderRadius: 8,
@@ -139,14 +139,14 @@ export default function Landing() {
 
                         {/* CTA buttons */}
                         <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
-                            <a href="/projet/nouveau" style={{
+                            <a href="/projet/nouveau" className="btn-primary" style={{
                                 padding: "16px 32px", backgroundColor: C.yellow, color: C.dark,
                                 borderRadius: 8, fontSize: 16, fontWeight: 700, textDecoration: "none",
                                 border: "none",
                             }}>
                                 Déposer un brief
                             </a>
-                            <a href="#comment-ca-marche" style={{
+                            <a href="#comment-ca-marche" className="btn-secondary" style={{
                                 padding: "16px 32px", color: C.yellow,
                                 borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none",
                                 border: `1px solid ${C.yellow}`, backgroundColor: "transparent",
@@ -318,7 +318,7 @@ export default function Landing() {
                             <p style={{ fontSize: 17, color: C.muted, lineHeight: 1.6, marginBottom: 36 }}>
                                 Créez votre compte gratuitement et déposez votre premier brief en moins de 2 minutes.
                             </p>
-                            <a href="/login" style={{
+                            <a href="/login" className="btn-primary" style={{
                                 display: "inline-block", padding: "16px 40px",
                                 backgroundColor: C.yellow, color: C.dark,
                                 borderRadius: 8, fontSize: 16, fontWeight: 700,
@@ -328,7 +328,7 @@ export default function Landing() {
                                 Créer mon compte
                             </a>
                             <div style={{ marginTop: 20 }}>
-                                <a href="/supplier/register" style={{
+                                <a href="/supplier/register" className="nav-link" style={{
                                     fontSize: 14, color: C.muted, textDecoration: "underline",
                                 }}>
                                     Vous êtes fournisseur ?
@@ -365,9 +365,9 @@ export default function Landing() {
 
                         {/* Col 2 — Liens */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            <a href="/login" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Connexion</a>
-                            <a href="/supplier/register" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Espace fournisseur</a>
-                            <a href="mailto:contact@lafab-360.fr" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Contact</a>
+                            <a href="/login" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Connexion</a>
+                            <a href="/supplier/register" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Espace fournisseur</a>
+                            <a href="mailto:contact@lafab-360.fr" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Contact</a>
                         </div>
 
                         {/* Col 3 — Contact */}

@@ -136,7 +136,7 @@ export default function Dashboard() {
 
             {/* Retour */}
             <div style={{ maxWidth: 720, margin: "0 auto 16px auto" }}>
-                <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>
+                <a href="/projets" className="nav-link" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>
                     ← Mes projets
                 </a>
             </div>
@@ -256,6 +256,7 @@ export default function Dashboard() {
                                 <button
                                     onClick={handleValidateOrder}
                                     disabled={orderLoading}
+                                    className="btn-primary"
                                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", textAlign: "center", backgroundColor: orderLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 8, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: orderLoading ? "not-allowed" : "pointer" }}
                                 >
                                     {orderLoading
@@ -280,6 +281,7 @@ export default function Dashboard() {
                             <button
                                 onClick={handleGenerateQuote}
                                 disabled={quoteLoading}
+                                className="btn-primary"
                                 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", textAlign: "center", backgroundColor: quoteLoading ? C.muted : C.yellow, color: C.dark, borderRadius: 8, padding: "14px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: quoteLoading ? "not-allowed" : "pointer" }}
                             >
                                 {quoteLoading ? <><Clock size={16} /> Génération en cours...</> : "Générer le devis"}
@@ -302,24 +304,28 @@ export default function Dashboard() {
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                     <a
                         href={"/quote-validation?project_id=" + projectId + "&account_id=" + accountId}
+                        className="btn-secondary"
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
                         <ClipboardList size={16} /> Devis à valider →
                     </a>
                     <a
                         href={"/consultations?project_id=" + projectId + "&account_id=" + accountId}
+                        className="btn-secondary"
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
                         <Link2 size={16} /> Voir les consultations fournisseurs →
                     </a>
                     <a
                         href={"/production?project_id=" + projectId + "&account_id=" + accountId}
+                        className="btn-secondary"
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.muted, textDecoration: "none", fontWeight: 500, padding: "10px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
                         <FolderOpen size={16} /> Fichiers & suivi production →
                     </a>
                     <a
                         href={"/messages?project_id=" + projectId + "&account_id=" + accountId}
+                        className="btn-secondary"
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14, color: C.dark, textDecoration: "none", fontWeight: 600, padding: "10px 16px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.bg }}
                     >
                         <MessageSquare size={16} /> Messages →
