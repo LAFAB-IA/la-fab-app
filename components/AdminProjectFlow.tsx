@@ -1274,17 +1274,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             {/* Step header */}
                             <div
                                 ref={(el) => { stepRefs.current[step.key] = el }}
-                                role="button"
                                 tabIndex={-1}
-                                onMouseDown={(e) => { e.preventDefault() }}
-                                onClick={(e) => {
-                                    e.preventDefault(); e.stopPropagation()
-                                    const opening = !isExpanded
-                                    setExpandedStep(opening ? step.key : null)
-                                    if (opening) {
-                                        setTimeout(() => { stepRefs.current[step.key]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 50)
-                                    }
-                                }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
