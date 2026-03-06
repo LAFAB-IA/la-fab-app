@@ -92,6 +92,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [inlineAiInput, setInlineAiInput] = useState("")
     const [inlineAiReply, setInlineAiReply] = useState("")
     const [inlineAiLoading, setInlineAiLoading] = useState(false)
+    const stepRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
 
     /* routing table columns — resizable & reorderable */
     const ROUTING_COLS = ["expand", "supplier", "status", "sent", "actions"] as const
@@ -407,6 +408,72 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         } catch { setInlineAiReply("Erreur réseau. Réessayez.") }
         setInlineAiLoading(false)
         setInlineAiInput("")
+    }
+
+    /* ─────── shared inline AI panel ─────── */
+    const AI_SHORTCUTS = [
+        { label: "Réécrire le mail", prompt: "Réécris le mail de consultation envoyé à ce fournisseur de manière plus professionnelle et percutante. Mail actuel : " },
+        { label: "Réorienter le projet", prompt: "Propose une réorientation des lots de production pour ce projet en tenant compte des réponses fournisseurs et du plan de production actuel." },
+        { label: "Préparer une réponse", prompt: "Prépare une réponse professionnelle à envoyer à ce fournisseur en tenant compte de sa réponse et du contexte projet." },
+    ]
+
+    function renderInlineAI(sel: Consultation, detailLbl: React.CSSProperties) {
+        return (
+            <div style={{ marginTop: 16, padding: "14px 16px", backgroundColor: C.white, borderRadius: 10, border: "1px solid " + C.border }}>
+                <div style={{ ...detailLbl, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Brain size={12} /> Assistant IA
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                    {AI_SHORTCUTS.map((s, i) => (
+                        <button
+                            key={i}
+                            onClick={() => {
+                                const ctx = s.prompt + (sel.email_body || "") + (sel.reply_message ? `\nRéponse fournisseur : ${sel.reply_message}` : "")
+                                setInlineAiInput(ctx)
+                            }}
+                            style={{
+                                padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
+                                border: "1px solid " + C.border, background: C.bg, color: C.dark,
+                                cursor: "pointer", whiteSpace: "nowrap",
+                            }}
+                        >
+                            {s.label}
+                        </button>
+                    ))}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                        value={inlineAiInput}
+                        onChange={(e) => setInlineAiInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") askInlineAI(sel) }}
+                        placeholder="Poser une question sur cette consultation..."
+                        style={{
+                            flex: 1, padding: "8px 12px", fontSize: 12, border: "1px solid " + C.border,
+                            borderRadius: 6, color: C.dark, outline: "none",
+                        }}
+                    />
+                    <button
+                        onClick={() => askInlineAI(sel)}
+                        disabled={inlineAiLoading || !inlineAiInput.trim()}
+                        style={{
+                            padding: "8px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                            border: "none", background: C.yellow, color: C.dark,
+                            cursor: inlineAiLoading ? "not-allowed" : "pointer",
+                            opacity: inlineAiLoading ? 0.7 : 1,
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                        }}
+                    >
+                        {inlineAiLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
+                        {inlineAiLoading ? "..." : "Demander"}
+                    </button>
+                </div>
+                {inlineAiReply && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                        {inlineAiReply}
+                    </div>
+                )}
+            </div>
+        )
     }
 
     /* ─────── line items ─────── */
@@ -733,6 +800,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                             {!sel.email_subject && !sel.email_body && !sel.matched_products?.length && !sel.reply_message && (
                                                 <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun détail disponible pour cette consultation.</div>
                                             )}
+                                            {/* Inline AI assistant */}
+                                            {renderInlineAI(sel, detailLbl)}
                                             {renderMsg("send_" + sel.consultation_id)}
                                         </>
                                     )
@@ -939,42 +1008,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         </div>
                                     )}
                                     {/* Inline AI assistant */}
-                                    <div style={{ marginTop: 16, padding: "14px 16px", backgroundColor: C.white, borderRadius: 10, border: "1px solid " + C.border }}>
-                                        <div style={{ ...detailLbl, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                                            <Brain size={12} /> Assistant IA
-                                        </div>
-                                        <div style={{ display: "flex", gap: 8 }}>
-                                            <input
-                                                value={inlineAiInput}
-                                                onChange={(e) => setInlineAiInput(e.target.value)}
-                                                onKeyDown={(e) => { if (e.key === "Enter") askInlineAI(sel) }}
-                                                placeholder="Poser une question sur cette consultation..."
-                                                style={{
-                                                    flex: 1, padding: "8px 12px", fontSize: 12, border: "1px solid " + C.border,
-                                                    borderRadius: 6, color: C.dark, outline: "none",
-                                                }}
-                                            />
-                                            <button
-                                                onClick={() => askInlineAI(sel)}
-                                                disabled={inlineAiLoading || !inlineAiInput.trim()}
-                                                style={{
-                                                    padding: "8px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                    border: "none", background: C.yellow, color: C.dark,
-                                                    cursor: inlineAiLoading ? "not-allowed" : "pointer",
-                                                    opacity: inlineAiLoading ? 0.7 : 1,
-                                                    display: "inline-flex", alignItems: "center", gap: 5,
-                                                }}
-                                            >
-                                                {inlineAiLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
-                                                {inlineAiLoading ? "..." : "Demander"}
-                                            </button>
-                                        </div>
-                                        {inlineAiReply && (
-                                            <div style={{ marginTop: 10, fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
-                                                {inlineAiReply}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {renderInlineAI(sel, detailLbl)}
 
                                     {renderMsg("reminder_" + sel.consultation_id)}
                                 </>
@@ -1234,10 +1268,18 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                             {/* Step header */}
                             <div
+                                ref={(el) => { stepRefs.current[step.key] = el }}
                                 role="button"
                                 tabIndex={-1}
                                 onMouseDown={(e) => { e.preventDefault() }}
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
+                                onClick={(e) => {
+                                    e.preventDefault(); e.stopPropagation()
+                                    const opening = !isExpanded
+                                    setExpandedStep(opening ? step.key : null)
+                                    if (opening) {
+                                        setTimeout(() => { stepRefs.current[step.key]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 50)
+                                    }
+                                }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
