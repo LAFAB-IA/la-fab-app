@@ -29,6 +29,9 @@ interface Consultation {
     response_delay?: string
     sent_at?: string
     responded_at?: string
+    email_subject?: string
+    email_body?: string
+    matched_products?: any[]
 }
 
 interface Validation {
@@ -78,6 +81,44 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
     const [loading, setLoading] = useState<Record<string, boolean>>({})
     const [messages, setMessages] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
+    const [expandedConsultation, setExpandedConsultation] = useState<string | null>(null)
+    const [confirmSendConsultation, setConfirmSendConsultation] = useState<Consultation | null>(null)
+    const [confirmSendAll, setConfirmSendAll] = useState(false)
+
+    /* routing table columns — resizable & reorderable */
+    const ROUTING_COLS = ["expand", "supplier", "status", "sent", "actions"] as const
+    type RoutingCol = (typeof ROUTING_COLS)[number]
+    const ROUTING_COL_LABELS: Record<RoutingCol, string> = { expand: "", supplier: "Fournisseur", status: "Statut", sent: "Envoye le", actions: "Actions" }
+    const [rtColOrder, setRtColOrder] = useState<RoutingCol[]>([...ROUTING_COLS])
+    const [rtColWidths, setRtColWidths] = useState<Record<string, number>>({})
+    const [rtResizing, setRtResizing] = useState<{ col: string; startX: number; startW: number } | null>(null)
+    const [rtDragCol, setRtDragCol] = useState<string | null>(null)
+    const [rtDragOverCol, setRtDragOverCol] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (!rtResizing) return
+        function onMouseMove(e: MouseEvent) {
+            if (!rtResizing) return
+            const newW = Math.max(60, rtResizing.startW + (e.clientX - rtResizing.startX))
+            setRtColWidths((prev) => ({ ...prev, [rtResizing.col]: newW }))
+        }
+        function onMouseUp() { setRtResizing(null) }
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+        return () => { document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", onMouseUp) }
+    }, [rtResizing])
+
+    function handleRtColumnDrop(targetCol: string) {
+        if (!rtDragCol || rtDragCol === targetCol) { setRtDragCol(null); setRtDragOverCol(null); return }
+        setRtColOrder((prev) => {
+            const newOrder = prev.filter((c) => c !== rtDragCol)
+            const targetIdx = newOrder.indexOf(targetCol as RoutingCol)
+            newOrder.splice(targetIdx, 0, rtDragCol as RoutingCol)
+            return newOrder
+        })
+        setRtDragCol(null)
+        setRtDragOverCol(null)
+    }
 
     /* invoice step state */
     const [lineItems, setLineItems] = useState<LineItem[]>([{ description: "", quantity: 1, unit_price: 0 }])
@@ -111,8 +152,15 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         try {
             const r = await fetch(`${API_URL}/api/consultation/${projectId}`, { headers: authHeaders() })
             const data = await r.json()
-            if (data.ok) setConsultations(data.consultations || [])
-        } catch { /* silent */ }
+            if (data.ok) {
+                const list = data.consultations || []
+                const drafts = list.filter((c: any) => c.status === "draft")
+                console.log("[CONSULTATIONS]", { total: list.length, drafts: drafts.length, statuses: list.map((c: any) => c.status) })
+                setConsultations(list)
+            } else {
+                console.error("[FETCH_CONSULTATIONS_ERROR]", data.error, data)
+            }
+        } catch (e) { console.error("[FETCH_CONSULTATIONS_NETWORK]", e) }
     }, [projectId, authHeaders])
 
     const fetchValidations = useCallback(async () => {
@@ -153,10 +201,27 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 setMsg("sendAll", "ok", `${data.sent} consultation(s) envoyee(s)`)
                 fetchConsultations()
             } else {
+                console.error("[SEND_ALL_ERROR]", data.error, data)
                 setMsg("sendAll", "err", data.error || "Erreur envoi")
             }
-        } catch { setMsg("sendAll", "err", "Erreur reseau") }
+        } catch (e) { console.error("[SEND_ALL_NETWORK]", e); setMsg("sendAll", "err", "Erreur reseau") }
         setLoad("sendAll", false)
+    }
+
+    async function sendOne(consultationId: string) {
+        setLoad("send_" + consultationId, true)
+        try {
+            const r = await fetch(`${API_URL}/api/consultation/${consultationId}/send`, { method: "POST", headers: authHeaders() })
+            const data = await r.json()
+            if (data.ok) {
+                setMsg("send_" + consultationId, "ok", "Consultation envoyee")
+                fetchConsultations()
+            } else {
+                console.error("[SEND_ONE_ERROR]", consultationId, data.error, data)
+                setMsg("send_" + consultationId, "err", data.error || "Erreur envoi")
+            }
+        } catch (e) { console.error("[SEND_ONE_NETWORK]", consultationId, e); setMsg("send_" + consultationId, "err", "Erreur reseau") }
+        setLoad("send_" + consultationId, false)
     }
 
     async function sendReminder(consultationId: string) {
@@ -361,13 +426,13 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     function renderRouting() {
-        const pendingCount = consultations.filter((c) => c.status === "pending" || c.status === "created").length
+        const draftCount = consultations.filter((c) => c.status === "draft").length
         return (
             <div>
                 {renderProductionPlan()}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                     {renderBtn("Lancer le routage IA", routeSuppliers, "route", <Route size={14} />)}
-                    {consultations.length > 0 && renderBtn(`Envoyer tout (${pendingCount})`, sendAll, "sendAll", <Send size={14} />, "secondary", pendingCount === 0)}
+                    {consultations.length > 0 && renderBtn(`Envoyer tout (${draftCount})`, () => setConfirmSendAll(true), "sendAll", <Send size={14} />, "secondary", draftCount === 0)}
                 </div>
                 {renderMsg("route")}
                 {renderMsg("sendAll")}
@@ -376,29 +441,142 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                             {consultations.length} fournisseur(s) route(s)
                         </div>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: Object.keys(rtColWidths).length > 0 ? "fixed" : "auto" }}>
                             <thead>
                                 <tr>
-                                    {["Fournisseur", "Statut", "Envoye le"].map((h) => (
-                                        <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
-                                    ))}
+                                    {rtColOrder.map((col) => {
+                                        const label = ROUTING_COL_LABELS[col]
+                                        const isActions = col === "actions"
+                                        const isExpand = col === "expand"
+                                        const draggable = !isExpand && !isActions
+                                        return (
+                                            <th
+                                                key={col}
+                                                draggable={draggable}
+                                                onDragStart={() => draggable && setRtDragCol(col)}
+                                                onDragOver={(e) => { if (draggable) { e.preventDefault(); setRtDragOverCol(col) } }}
+                                                onDragLeave={() => setRtDragOverCol(null)}
+                                                onDrop={() => handleRtColumnDrop(col)}
+                                                style={{
+                                                    position: "relative",
+                                                    textAlign: isActions ? "center" : "left",
+                                                    padding: "6px 10px",
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    color: C.muted,
+                                                    borderBottom: "1px solid " + C.border,
+                                                    textTransform: "uppercase",
+                                                    width: isExpand ? 30 : (rtColWidths[col] || "auto"),
+                                                    cursor: draggable ? "grab" : "default",
+                                                    userSelect: "none",
+                                                    whiteSpace: "nowrap",
+                                                    borderLeft: rtDragOverCol === col ? "2px solid " + C.yellow : "none",
+                                                }}
+                                            >
+                                                {label}
+                                                {/* Resize handle */}
+                                                {!isExpand && (
+                                                    <div
+                                                        onMouseDown={(e) => {
+                                                            e.stopPropagation()
+                                                            e.preventDefault()
+                                                            const th = e.currentTarget.parentElement
+                                                            if (!th) return
+                                                            setRtResizing({ col, startX: e.clientX, startW: th.offsetWidth })
+                                                        }}
+                                                        style={{
+                                                            position: "absolute", right: 0, top: 0, bottom: 0, width: 4,
+                                                            cursor: "col-resize", backgroundColor: "transparent",
+                                                        }}
+                                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = C.border)}
+                                                        onMouseLeave={(e) => { if (!rtResizing) e.currentTarget.style.backgroundColor = "transparent" }}
+                                                    />
+                                                )}
+                                            </th>
+                                        )
+                                    })}
                                 </tr>
                             </thead>
                             <tbody>
-                                {consultations.map((c) => (
-                                    <tr key={c.consultation_id}>
-                                        <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee" }}>
-                                            <div style={{ fontWeight: 500, color: C.dark }}>{c.supplier_name || c.supplier_id.slice(0, 10)}</div>
-                                            {c.supplier_email && <div style={{ fontSize: 11, color: C.muted }}>{c.supplier_email}</div>}
-                                        </td>
-                                        <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee" }}>
-                                            {renderConsultationStatus(c.status)}
-                                        </td>
-                                        <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontSize: 12, color: C.muted }}>
-                                            {c.sent_at ? formatDate(c.sent_at) : "—"}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {consultations.map((c) => {
+                                    const isRowExpanded = expandedConsultation === c.consultation_id
+
+                                    const cellContent: Record<RoutingCol, React.ReactNode> = {
+                                        expand: isRowExpanded ? <ChevronUp size={14} color={C.muted} /> : <ChevronDown size={14} color={C.muted} />,
+                                        supplier: (
+                                            <>
+                                                <div style={{ fontWeight: 500, color: C.dark }}>{c.supplier_name || c.supplier_id.slice(0, 10)}</div>
+                                                {c.supplier_email && <div style={{ fontSize: 11, color: C.muted }}>{c.supplier_email}</div>}
+                                            </>
+                                        ),
+                                        status: renderConsultationStatus(c.status),
+                                        sent: <span style={{ fontSize: 12, color: C.muted }}>{c.sent_at ? formatDate(c.sent_at) : "\u2014"}</span>,
+                                        actions: c.status === "draft" ? renderBtn("Envoyer", () => setConfirmSendConsultation(c), "send_" + c.consultation_id, <Send size={12} />, "primary") : null,
+                                    }
+
+                                    return (
+                                        <React.Fragment key={c.consultation_id}>
+                                            <tr
+                                                onClick={() => setExpandedConsultation(isRowExpanded ? null : c.consultation_id)}
+                                                style={{ cursor: "pointer", transition: "background 0.15s" }}
+                                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fafaf8")}
+                                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                                            >
+                                                {rtColOrder.map((col) => (
+                                                    <td
+                                                        key={col}
+                                                        onClick={col === "actions" ? (e) => e.stopPropagation() : undefined}
+                                                        style={{
+                                                            padding: col === "expand" ? "8px 6px" : "8px 10px",
+                                                            borderBottom: "1px solid #f0f0ee",
+                                                            textAlign: col === "actions" ? "center" : "left",
+                                                            width: col === "expand" ? 30 : undefined,
+                                                        }}
+                                                    >
+                                                        {cellContent[col]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                            {isRowExpanded && (
+                                                <tr>
+                                                    <td colSpan={rtColOrder.length} style={{ padding: "12px 16px", backgroundColor: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
+                                                        {c.email_subject && (
+                                                            <div style={{ marginBottom: 10 }}>
+                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Objet</div>
+                                                                <div style={{ fontSize: 13, color: C.dark }}>{c.email_subject}</div>
+                                                            </div>
+                                                        )}
+                                                        {c.matched_products && c.matched_products.length > 0 && (
+                                                            <div style={{ marginBottom: 10 }}>
+                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Produits</div>
+                                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                                                    {c.matched_products.map((p: any, idx: number) => (
+                                                                        <span key={idx} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.white, border: "1px solid " + C.border, color: C.dark }}>
+                                                                            {p.name || p.product_name || p.label || JSON.stringify(p)}
+                                                                            {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {c.email_body && (
+                                                            <div>
+                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Message</div>
+                                                                <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                                                                    {c.email_body}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {!c.email_subject && !c.email_body && !c.matched_products?.length && (
+                                                            <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun detail disponible pour cette consultation.</div>
+                                                        )}
+                                                        {renderMsg("send_" + c.consultation_id)}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -409,6 +587,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
     function renderConsultationStatus(status: string) {
         const cfg: Record<string, { label: string; bg: string; color: string }> = {
+            draft: { label: "Brouillon", bg: "#fef9e0", color: "#b89a00" },
             created: { label: "Cree", bg: "#f5f5f5", color: "#616161" },
             pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
             sent: { label: "Envoye", bg: "#e8f0fe", color: "#1a3c7a" },
@@ -800,6 +979,193 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     )
                 })}
             </div>
+
+            {/* ─── Confirmation modal for individual send ─── */}
+            {confirmSendConsultation && (
+                <div
+                    onClick={() => setConfirmSendConsultation(null)}
+                    style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ backgroundColor: C.white, borderRadius: 14, padding: "28px 28px 24px", maxWidth: 560, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+                    >
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                            <Send size={16} /> Confirmer l&apos;envoi
+                        </h3>
+                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 20px" }}>
+                            Vous allez envoyer cette consultation par email.
+                        </p>
+
+                        {/* Supplier */}
+                        <div style={{ marginBottom: 14 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Fournisseur</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                {confirmSendConsultation.supplier_name || confirmSendConsultation.supplier_id.slice(0, 12)}
+                            </div>
+                            {confirmSendConsultation.supplier_email && (
+                                <div style={{ fontSize: 12, color: C.muted }}>{confirmSendConsultation.supplier_email}</div>
+                            )}
+                        </div>
+
+                        {/* Matched products */}
+                        {confirmSendConsultation.matched_products && confirmSendConsultation.matched_products.length > 0 && (
+                            <div style={{ marginBottom: 14 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Produits</div>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                    {confirmSendConsultation.matched_products.map((p: any, idx: number) => (
+                                        <span key={idx} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: "#fefce8", border: "1px solid #fef08a", color: C.dark }}>
+                                            {p.name || p.product_name || p.label || JSON.stringify(p)}
+                                            {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Email preview */}
+                        {(confirmSendConsultation.email_subject || confirmSendConsultation.email_body) && (
+                            <div style={{ marginBottom: 20 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Apercu email</div>
+                                {confirmSendConsultation.email_subject && (
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 6 }}>
+                                        {confirmSendConsultation.email_subject}
+                                    </div>
+                                )}
+                                {confirmSendConsultation.email_body && (
+                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "12px 14px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 220, overflowY: "auto" }}>
+                                        {confirmSendConsultation.email_body}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {renderMsg("send_" + confirmSendConsultation.consultation_id)}
+
+                        {/* Actions */}
+                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                            <button
+                                onClick={() => setConfirmSendConsultation(null)}
+                                style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await sendOne(confirmSendConsultation.consultation_id)
+                                    setConfirmSendConsultation(null)
+                                }}
+                                disabled={loading["send_" + confirmSendConsultation.consultation_id]}
+                                style={{
+                                    padding: "9px 22px", borderRadius: 8, border: "none",
+                                    backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    opacity: loading["send_" + confirmSendConsultation.consultation_id] ? 0.6 : 1,
+                                }}
+                            >
+                                {loading["send_" + confirmSendConsultation.consultation_id]
+                                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Envoi...</>
+                                    : <><Send size={14} /> Confirmer l&apos;envoi</>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Confirmation modal for send all ─── */}
+            {confirmSendAll && (() => {
+                const drafts = consultations.filter((c) => c.status === "draft")
+                return (
+                    <div
+                        onClick={() => setConfirmSendAll(false)}
+                        style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" }}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ backgroundColor: C.white, borderRadius: 14, padding: "28px 28px 24px", maxWidth: 640, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+                        >
+                            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                                <Send size={16} /> Envoyer {drafts.length} consultation{drafts.length > 1 ? "s" : ""}
+                            </h3>
+                            <p style={{ fontSize: 13, color: C.muted, margin: "0 0 20px" }}>
+                                Les emails suivants seront envoyés aux fournisseurs.
+                            </p>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                                {drafts.map((c) => (
+                                    <div key={c.consultation_id} style={{ padding: "14px 16px", borderRadius: 10, border: "1px solid " + C.border, backgroundColor: "#fafaf8" }}>
+                                        {/* Supplier */}
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                                            <div>
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                                    {c.supplier_name || c.supplier_id.slice(0, 12)}
+                                                </div>
+                                                {c.supplier_email && (
+                                                    <div style={{ fontSize: 12, color: C.muted }}>{c.supplier_email}</div>
+                                                )}
+                                            </div>
+                                            {renderConsultationStatus(c.status)}
+                                        </div>
+
+                                        {/* Matched products */}
+                                        {c.matched_products && c.matched_products.length > 0 && (
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                                                {c.matched_products.map((p: any, idx: number) => (
+                                                    <span key={idx} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fefce8", border: "1px solid #fef08a", color: C.dark }}>
+                                                        {p.name || p.product_name || p.label || JSON.stringify(p)}
+                                                        {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Email preview */}
+                                        {c.email_subject && (
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 4 }}>{c.email_subject}</div>
+                                        )}
+                                        {c.email_body && (
+                                            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 80, overflowY: "auto", padding: "6px 10px", backgroundColor: C.white, borderRadius: 6, border: "1px solid " + C.border }}>
+                                                {c.email_body}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {renderMsg("sendAll")}
+
+                            {/* Actions */}
+                            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                                <button
+                                    onClick={() => setConfirmSendAll(false)}
+                                    style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        await sendAll()
+                                        setConfirmSendAll(false)
+                                    }}
+                                    disabled={loading["sendAll"]}
+                                    style={{
+                                        padding: "9px 22px", borderRadius: 8, border: "none",
+                                        backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                                        display: "inline-flex", alignItems: "center", gap: 6,
+                                        opacity: loading["sendAll"] ? 0.6 : 1,
+                                    }}
+                                >
+                                    {loading["sendAll"]
+                                        ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Envoi...</>
+                                        : <><Send size={14} /> Confirmer l&apos;envoi ({drafts.length})</>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
         </div>
     )
 }

@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
   );
 
   if (isProtected && !token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   if (pathname === "/login" && token) {
