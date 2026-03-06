@@ -638,6 +638,16 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                         <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
                                                     </div>
                                                 )}
+                                                <div>
+                                                    <div style={detailLbl}>Jours depuis l'envoi</div>
+                                                    <div style={{ fontSize: 13, color: C.dark }}>
+                                                        {sel.sent_at ? Math.max(0, Math.floor((Date.now() - new Date(sel.sent_at).getTime()) / 86400000)) + " j" : "—"}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div style={detailLbl}>Relances envoyées</div>
+                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.reminders_count ?? 0}</div>
+                                                </div>
                                             </div>
                                             {sel.matched_products && sel.matched_products.length > 0 && (
                                                 <div style={{ marginBottom: 14 }}>
@@ -793,7 +803,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         backgroundColor: isSelected ? "#fafaf8" : C.white,
                                         borderBottom: "1px solid " + C.bg,
                                         borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
-                                        opacity: hasReplied ? 1 : 0.5,
+                                        opacity: hasReplied ? 1 : 0.6,
                                     }}
                                 >
                                     <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>
@@ -802,10 +812,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                         {renderConsultationStatus(c.status)}
-                                        {!hasReplied && (
+                                        {!hasReplied && (c.status === "sent" || c.status === "pending") && (
                                             <span
                                                 onClick={(e) => { e.stopPropagation(); sendReminder(c.consultation_id) }}
-                                                style={{ fontSize: 11, fontWeight: 600, color: "#b89a00", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
+                                                style={{ fontSize: 11, fontWeight: 600, color: "#b89a00", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, opacity: 1 }}
                                             >
                                                 <Bell size={10} /> Relancer
                                             </span>
@@ -1225,8 +1235,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             {/* Step header */}
                             <div
                                 role="button"
-                                tabIndex={0}
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setExpandedStep(isExpanded ? null : step.key) }}
+                                tabIndex={-1}
+                                onMouseDown={(e) => { e.preventDefault() }}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
