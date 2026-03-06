@@ -6,7 +6,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -26,6 +26,14 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     // Invoices
     const [invoices, setInvoices] = useState<any[]>([])
     const [invoicesLoading, setInvoicesLoading] = useState(false)
+
+    // Briefs
+    const [briefs, setBriefs] = useState<any[]>([])
+    const [briefsLoading, setBriefsLoading] = useState(false)
+    const [showUpload, setShowUpload] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [dragOver, setDragOver] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Messages
     const [messages, setMessages] = useState<any[]>([])
@@ -81,6 +89,26 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
             .catch(() => setMessagesLoading(false))
     }, [token, id, project])
 
+    // Fetch briefs
+    const fetchBriefs = React.useCallback(() => {
+        if (!token || !id) return
+        setBriefsLoading(true)
+        fetch(`${API_URL}/api/project/${id}/briefs`, {
+            headers: { Authorization: "Bearer " + token },
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok) setBriefs(data.briefs || [])
+                setBriefsLoading(false)
+            })
+            .catch(() => setBriefsLoading(false))
+    }, [token, id])
+
+    useEffect(() => {
+        if (!project) return
+        fetchBriefs()
+    }, [project, fetchBriefs])
+
     // Scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -116,6 +144,48 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                 if (data.ok && data.checkout_url) window.location.href = data.checkout_url
             })
             .catch(() => {})
+    }
+
+    function handleUploadBrief(file: globalThis.File) {
+        if (!token || !id || uploading) return
+        setUploading(true)
+        const formData = new FormData()
+        formData.append("file", file)
+        fetch(`${API_URL}/api/project/${id}/upload-brief`, {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: formData,
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok) {
+                    fetchBriefs()
+                    setShowUpload(false)
+                }
+                setUploading(false)
+            })
+            .catch(() => setUploading(false))
+    }
+
+    function handleDrop(e: React.DragEvent) {
+        e.preventDefault()
+        setDragOver(false)
+        const file = e.dataTransfer.files?.[0]
+        if (file) handleUploadBrief(file)
+    }
+
+    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0]
+        if (file) handleUploadBrief(file)
+    }
+
+    function getBriefIcon(url: string) {
+        const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || ""
+        if (["jpg", "jpeg", "png", "webp"].includes(ext)) return { Icon: FileImage, label: "image" }
+        if (["xlsx", "xls", "csv"].includes(ext)) return { Icon: FileSpreadsheet, label: "tableur" }
+        if (ext === "pptx") return { Icon: FileType, label: "présentation" }
+        if (ext === "pdf") return { Icon: FileText, label: "PDF" }
+        return { Icon: File, label: ext.toUpperCase() || "fichier" }
     }
 
     const lbl = { fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 2 }
@@ -169,51 +239,191 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         <ProjectTimeline status={status} />
                     </div>
 
-                    {/* Brief */}
-                    {brief_analysis && (
-                        <>
-                            <div style={sec}>Brief</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
-                                {[
-                                    { label: "Produit",    val: brief_analysis.product_type },
-                                    { label: "Quantité",   val: brief_analysis.quantity_detected ? brief_analysis.quantity_detected + " ex." : null },
-                                    { label: "Dimensions", val: brief_analysis.dimensions },
-                                    { label: "Support",    val: brief_analysis.material },
-                                    { label: "Finitions",  val: brief_analysis.finish },
-                                    { label: "Délai",      val: brief_analysis.delivery_deadline },
-                                ].filter((i) => i.val).map((item) => (
-                                    <div key={item.label}>
-                                        <div style={lbl}>{item.label}</div>
-                                        <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{item.val}</div>
+                    {/* Briefs */}
+                    <div style={sec}>Briefs</div>
+                    {briefsLoading ? (
+                        <p style={{ fontSize: 13, color: C.muted }}>Chargement des briefs...</p>
+                    ) : briefs.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            {briefs.map((brief: any, bIdx: number) => {
+                                const analysis = brief.brief_analysis
+                                const fileUrl = brief.file_url || brief.brief_file_url
+                                const { Icon: BriefIcon, label: fileLabel } = fileUrl ? getBriefIcon(fileUrl) : { Icon: File, label: "fichier" }
+                                return (
+                                    <div key={brief.id || bIdx} style={{ padding: 18, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                                        {/* Brief header */}
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <BriefIcon size={16} color={C.dark} />
+                                                <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                                    {brief.file_name || brief.original_filename || `Brief ${bIdx + 1}`}
+                                                </span>
+                                                {brief.file_type && (
+                                                    <span style={{ fontSize: 11, color: C.muted, backgroundColor: C.white, padding: "2px 8px", borderRadius: 4 }}>
+                                                        {brief.file_type}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                {brief.created_at && (
+                                                    <span style={{ fontSize: 12, color: C.muted }}>{formatDate(brief.created_at)}</span>
+                                                )}
+                                                {fileUrl && (
+                                                    <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                                                        <Download size={13} /> Télécharger
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Products table (new multi-product format) */}
+                                        {analysis?.products && Array.isArray(analysis.products) && analysis.products.length > 0 ? (
+                                            <div style={{ overflowX: "auto" }}>
+                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                                    <thead>
+                                                        <tr>
+                                                            {["Produit", "Quantité", "Dimensions", "Support", "Finitions"].map((h) => (
+                                                                <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {analysis.products.map((p: any, pIdx: number) => (
+                                                            <tr key={pIdx}>
+                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, fontWeight: 500, color: C.dark }}>{p.product_type || p.name || "—"}</td>
+                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.quantity || p.quantity_detected || "—"}</td>
+                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.dimensions || "—"}</td>
+                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.material || p.support || "—"}</td>
+                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.finish || p.finitions || "—"}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : analysis ? (
+                                            /* Fallback: single product (ancien format) */
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px" }}>
+                                                {[
+                                                    { label: "Produit",    val: analysis.product_type },
+                                                    { label: "Quantité",   val: analysis.quantity_detected ? analysis.quantity_detected + " ex." : null },
+                                                    { label: "Dimensions", val: analysis.dimensions },
+                                                    { label: "Support",    val: analysis.material },
+                                                    { label: "Finitions",  val: analysis.finish },
+                                                    { label: "Délai",      val: analysis.delivery_deadline },
+                                                ].filter((i) => i.val).map((item) => (
+                                                    <div key={item.label}>
+                                                        <div style={lbl}>{item.label}</div>
+                                                        <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{item.val}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        {/* Raw extraction */}
+                                        {analysis?.raw_extraction && (
+                                            <div style={{ marginTop: 12, backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
+                                                <div style={lbl}>Extraction brute</div>
+                                                <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, marginTop: 4 }}>{analysis.raw_extraction}</div>
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
-                            </div>
+                                )
+                            })}
+                        </div>
+                    ) : brief_analysis ? (
+                        /* Fallback: pas de /briefs mais brief_analysis existe sur le projet */
+                        <div style={{ padding: 18, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                            {brief_analysis.products && Array.isArray(brief_analysis.products) && brief_analysis.products.length > 0 ? (
+                                <div style={{ overflowX: "auto" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                        <thead>
+                                            <tr>
+                                                {["Produit", "Quantité", "Dimensions", "Support", "Finitions"].map((h) => (
+                                                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {brief_analysis.products.map((p: any, pIdx: number) => (
+                                                <tr key={pIdx}>
+                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, fontWeight: 500, color: C.dark }}>{p.product_type || p.name || "—"}</td>
+                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.quantity || p.quantity_detected || "—"}</td>
+                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.dimensions || "—"}</td>
+                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.material || p.support || "—"}</td>
+                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.finish || p.finitions || "—"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px" }}>
+                                    {[
+                                        { label: "Produit",    val: brief_analysis.product_type },
+                                        { label: "Quantité",   val: brief_analysis.quantity_detected ? brief_analysis.quantity_detected + " ex." : null },
+                                        { label: "Dimensions", val: brief_analysis.dimensions },
+                                        { label: "Support",    val: brief_analysis.material },
+                                        { label: "Finitions",  val: brief_analysis.finish },
+                                        { label: "Délai",      val: brief_analysis.delivery_deadline },
+                                    ].filter((i) => i.val).map((item) => (
+                                        <div key={item.label}>
+                                            <div style={lbl}>{item.label}</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{item.val}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             {brief_analysis.raw_extraction && (
-                                <div style={{ marginTop: 16, backgroundColor: C.bg, borderRadius: 10, padding: 16, border: "1px solid " + C.border }}>
-                                    <div style={lbl}>Extraction brute du brief</div>
-                                    <div style={{ fontSize: 14, color: C.dark, lineHeight: 1.6, marginTop: 6 }}>{brief_analysis.raw_extraction}</div>
+                                <div style={{ marginTop: 12, backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
+                                    <div style={lbl}>Extraction brute</div>
+                                    <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, marginTop: 4 }}>{brief_analysis.raw_extraction}</div>
                                 </div>
                             )}
                             {project.brief_file_url && (() => {
-                                const url = project.brief_file_url as string
-                                const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || ""
-                                const isImage = ["jpg","jpeg","png","webp"].includes(ext)
-                                const isSpreadsheet = ["xlsx","xls","csv"].includes(ext)
-                                const isPresentation = ext === "pptx"
-                                const BriefIcon = isImage ? FileImage : isSpreadsheet ? FileSpreadsheet : isPresentation ? FileType : FileText
-                                const label = isImage ? "image" : isSpreadsheet ? "tableur" : isPresentation ? "présentation" : ext === "pdf" ? "PDF" : ext.toUpperCase() || "fichier"
+                                const { Icon: BIcon, label: bLabel } = getBriefIcon(project.brief_file_url)
                                 return (
-                                    <a
-                                        href={url}
-                                        target="_blank"
-                                        style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 16, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
-                                    >
-                                        <BriefIcon size={16} /> Télécharger le brief ({label})
+                                    <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                                        <BIcon size={14} /> Télécharger ({bLabel})
                                     </a>
                                 )
                             })()}
-                        </>
+                        </div>
+                    ) : (
+                        <p style={{ fontSize: 13, color: C.muted }}>Aucun brief uploadé.</p>
                     )}
+
+                    {/* Add brief button + upload zone */}
+                    <div style={{ marginTop: 12 }}>
+                        {!showUpload ? (
+                            <button
+                                onClick={() => setShowUpload(true)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px dashed " + C.border, borderRadius: 8, background: "none", fontSize: 13, fontWeight: 600, color: C.muted, cursor: "pointer" }}
+                            >
+                                <Plus size={14} /> Ajouter un brief
+                            </button>
+                        ) : (
+                            <div
+                                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                                onDragLeave={() => setDragOver(false)}
+                                onDrop={handleDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                    padding: 32, borderRadius: 10,
+                                    border: `2px dashed ${dragOver ? C.yellow : C.border}`,
+                                    backgroundColor: dragOver ? "rgba(244,207,21,0.06)" : C.bg,
+                                    textAlign: "center", cursor: "pointer",
+                                    transition: "border-color 0.2s, background-color 0.2s",
+                                }}
+                            >
+                                <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileSelect} />
+                                <Upload size={24} color={C.muted} style={{ marginBottom: 8 }} />
+                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                    {uploading ? "Upload en cours..." : "Glissez un fichier ou cliquez pour sélectionner"}
+                                </div>
+                                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>PDF, image, tableur...</div>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Plan de production */}
                     {brief_analysis?.production_plan && (() => {
