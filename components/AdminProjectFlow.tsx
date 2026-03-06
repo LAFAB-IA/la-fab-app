@@ -882,19 +882,24 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                         {renderConsultationStatus(c.status)}
                                     </div>
-                                    {c.status !== "replied" && c.status !== "responded" && c.status !== "draft" && (
+                                    {c.status !== "replied" && c.status !== "responded" && (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); sendReminder(c.consultation_id) }}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                sendReminder(c.consultation_id)
+                                                setMsg("reminder_" + c.consultation_id, "ok", "Relance envoyée")
+                                            }}
                                             style={{
                                                 marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4,
                                                 padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
                                                 border: "1px solid #e8d88e", background: "#fef9e0", color: "#b89a00",
-                                                cursor: "pointer",
+                                                cursor: "pointer", opacity: 1, pointerEvents: "auto",
                                             }}
                                         >
                                             <Bell size={10} /> Relancer
                                         </button>
                                     )}
+                                    {renderMsg("reminder_" + c.consultation_id)}
                                 </div>
                             )
                         })}
@@ -1276,7 +1281,12 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                 ref={(el) => { stepRefs.current[step.key] = el }}
                                 tabIndex={-1}
                                 onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
+                                onClick={(e) => {
+                                    e.preventDefault(); e.stopPropagation()
+                                    const next = isExpanded ? null : step.key
+                                    setExpandedStep(next)
+                                    if (next) { setTimeout(() => { stepRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 50) }
+                                }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
