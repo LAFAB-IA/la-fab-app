@@ -6,7 +6,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -428,6 +428,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     {/* Plan de production */}
                     {brief_analysis?.production_plan && (() => {
                         const plan = brief_analysis.production_plan
+                        const deliveryAddress = brief_analysis?.delivery?.address || brief_analysis?.delivery_address
                         return (
                             <>
                                 <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
@@ -437,10 +438,49 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                     Optimisé par l&apos;IA — {plan.total_lots} lots
                                 </div>
 
+                                {/* Route visualization */}
+                                {plan.lots?.length > 0 && (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", padding: "16px 0", marginBottom: 16 }}>
+                                        {/* Start: Brief client */}
+                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
+                                            <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: C.bg, border: `2px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <FileText size={16} color={C.dark} />
+                                            </div>
+                                            <span style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center" }}>Brief client</span>
+                                        </div>
+                                        {/* Lots */}
+                                        {plan.lots.map((lot: any) => (
+                                            <React.Fragment key={lot.lot_number}>
+                                                <div style={{ width: 32, height: 2, backgroundColor: C.yellow, flexShrink: 0 }} />
+                                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
+                                                    <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: C.yellow, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                        <Factory size={16} color={C.dark} />
+                                                    </div>
+                                                    <span style={{ fontSize: 10, fontWeight: 600, color: C.dark, marginTop: 4, textAlign: "center", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {lot.recommended_supplier || `Lot ${lot.lot_number}`}
+                                                    </span>
+                                                    {lot.supplier_recommendation?.city && (
+                                                        <span style={{ fontSize: 9, color: C.muted }}>{lot.supplier_recommendation.city}</span>
+                                                    )}
+                                                </div>
+                                            </React.Fragment>
+                                        ))}
+                                        {/* End: Delivery */}
+                                        <div style={{ width: 32, height: 2, backgroundColor: C.yellow, flexShrink: 0 }} />
+                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
+                                            <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#e8f8ee", border: "2px solid #a8dbb8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <MapPin size={16} color="#1a7a3c" />
+                                            </div>
+                                            <span style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center", maxWidth: 90 }}>
+                                                {deliveryAddress || "Livraison"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                                     {plan.lots?.map((lot: any) => (
                                         <div key={lot.lot_number} style={{
-                                            borderLeft: `3px solid ${lot.is_amalgame ? C.yellow : C.border}`,
                                             borderRadius: 10,
                                             padding: "16px 18px",
                                             backgroundColor: C.bg,
@@ -457,6 +497,11 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                             {lot.recommended_supplier}
                                                         </span>
                                                     )}
+                                                    {lot.supplier_recommendation?.tier && (
+                                                        <span style={{ fontSize: 10, fontWeight: 600, color: C.yellow, backgroundColor: "rgba(244,207,21,0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                                                            {lot.supplier_recommendation.tier}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 {lot.estimated_delay_days != null && (
                                                     <span style={{ fontSize: 12, color: C.muted }}>
@@ -464,6 +509,34 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {/* Supplier recommendation details */}
+                                            {(lot.supplier_recommendation || lot.supplier_id) && (
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, padding: "8px 10px", backgroundColor: C.white, borderRadius: 6, border: `1px solid ${C.border}` }}>
+                                                    <Factory size={13} color={C.muted} />
+                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>
+                                                        {lot.supplier_recommendation?.name || lot.recommended_supplier || "Fournisseur"}
+                                                    </span>
+                                                    {lot.supplier_recommendation?.city && (
+                                                        <span style={{ fontSize: 11, color: C.muted }}>
+                                                            <MapPin size={11} style={{ verticalAlign: "middle", marginRight: 2 }} />
+                                                            {lot.supplier_recommendation.city}
+                                                        </span>
+                                                    )}
+                                                    {lot.supplier_recommendation?.trust_score != null && (
+                                                        <span style={{ fontSize: 11, fontWeight: 600, color: "#1a7a3c", backgroundColor: "#e8f8ee", padding: "1px 6px", borderRadius: 4 }}>
+                                                            Score : {lot.supplier_recommendation.trust_score}/100
+                                                        </span>
+                                                    )}
+                                                    {deliveryAddress && lot.supplier_recommendation?.city && (
+                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: C.muted, marginLeft: "auto" }}>
+                                                            <MapPin size={10} />{lot.supplier_recommendation.city}
+                                                            <ArrowRight size={10} />
+                                                            <MapPin size={10} />{deliveryAddress}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {/* Amalgame badge */}
                                             {lot.is_amalgame && (
@@ -536,38 +609,60 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
                     {/* Informations */}
                     <div style={sec}>Informations</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
-                        <div>
-                            <div style={lbl}>Quantité</div>
-                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{brief_analysis?.quantity_detected ?? quantity ?? "—"} ex.</div>
-                        </div>
-                        {pricing && (
-                            <>
+                    {(() => {
+                        const products = brief_analysis?.products
+                        const hasProducts = Array.isArray(products) && products.length > 0
+                        const totalProducts = hasProducts ? products.length : (brief_analysis?.product_type ? 1 : 0)
+                        const totalQty = hasProducts
+                            ? products.reduce((s: number, p: any) => s + (parseInt(p.quantity || p.quantity_detected || "0") || 0), 0)
+                            : (parseInt(brief_analysis?.quantity_detected || quantity || "0") || 0)
+                        const plan = brief_analysis?.production_plan
+                        const estimatedHT = plan?.total_estimated_ht
+                        return (
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
                                 <div>
-                                    <div style={lbl}>Sous-total HT</div>
-                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{pricing.total_net != null ? formatPrice(pricing.total_net) : "En attente"}</div>
-                                </div>
-                                <div>
-                                    <div style={lbl}>TVA (20%)</div>
-                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>
-                                        {pricing.total_net != null ? formatPrice(pricing.total_net * 0.2) : "—"}
+                                    <div style={lbl}>Produits</div>
+                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                        {totalProducts} ligne{totalProducts > 1 ? "s" : ""}
                                     </div>
                                 </div>
                                 <div>
-                                    <div style={lbl}>Total TTC</div>
-                                    <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
-                                        {pricing.total_net != null ? formatPrice(pricing.total_net * 1.2) : "En attente"}
+                                    <div style={lbl}>Quantité totale</div>
+                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                        {totalQty > 0 ? `${totalQty} ex.` : "—"}
                                     </div>
                                 </div>
-                            </>
-                        )}
-                        <div>
-                            <div style={lbl}>Date de création</div>
-                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
-                                {formatDate(created_at)}
+                                <div>
+                                    <div style={lbl}>Estimation HT</div>
+                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 600 }}>
+                                        {estimatedHT != null ? formatPrice(estimatedHT) : "Estimation en cours..."}
+                                    </div>
+                                </div>
+                                {estimatedHT != null && (
+                                    <>
+                                        <div>
+                                            <div style={lbl}>TVA estimée (20%)</div>
+                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>
+                                                {formatPrice(estimatedHT * 0.2)}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Total TTC estimé</div>
+                                            <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
+                                                {formatPrice(estimatedHT * 1.2)}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                                <div>
+                                    <div style={lbl}>Date de création</div>
+                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                        {formatDate(created_at)}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        )
+                    })()}
 
                     {/* Devis */}
                     {quote_url && (

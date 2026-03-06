@@ -28,10 +28,11 @@ export default function CreateProject() {
     const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
     const [catalogLoaded, setCatalogLoaded] = useState(false)
 
-    // Mode A — brief upload
-    const [briefFile, setBriefFile] = useState<File | null>(null)
+    // Mode A — brief upload (multi-file)
+    const [briefFiles, setBriefFiles] = useState<File[]>([])
     const [dragOver, setDragOver] = useState(false)
     const [briefError, setBriefError] = useState("")
+    const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; status: string } | null>(null)
 
     // Mode B — describe
     const [productQuery, setProductQuery] = useState("")
@@ -39,7 +40,7 @@ export default function CreateProject() {
     const [showSuggestions, setShowSuggestions] = useState(false)
     const [quantity, setQuantity] = useState("")
     const [specs, setSpecs] = useState("")
-    const [descFile, setDescFile] = useState<File | null>(null)
+    const [descFiles, setDescFiles] = useState<File[]>([])
     const [descDragOver, setDescDragOver] = useState(false)
     const [descFileError, setDescFileError] = useState("")
     const [descError, setDescError] = useState("")
@@ -94,34 +95,48 @@ export default function CreateProject() {
         return (bytes / (1024 * 1024)).toFixed(1) + " Mo"
     }
 
-    // Mode A handlers
-    function handleBriefFile(f: File) {
-        const err = validateFile(f)
-        if (err) { setBriefError(err); return }
+    // Mode A handlers (multi-file)
+    function handleBriefFiles(files: FileList | File[]) {
         setBriefError("")
-        setBriefFile(f)
+        const newFiles: File[] = []
+        for (const f of Array.from(files)) {
+            const err = validateFile(f)
+            if (err) { setBriefError(err); return }
+            newFiles.push(f)
+        }
+        setBriefFiles((prev) => [...prev, ...newFiles])
+    }
+
+    function removeBriefFile(idx: number) {
+        setBriefFiles((prev) => prev.filter((_, i) => i !== idx))
     }
 
     const handleBriefDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault()
         setDragOver(false)
-        const f = e.dataTransfer.files[0]
-        if (f) handleBriefFile(f)
+        if (e.dataTransfer.files.length > 0) handleBriefFiles(e.dataTransfer.files)
     }, [])
 
-    // Mode B handlers
-    function handleDescFile(f: File) {
-        const err = validateFile(f)
-        if (err) { setDescFileError(err); return }
+    // Mode B handlers (multi-file)
+    function handleDescFiles(files: FileList | File[]) {
         setDescFileError("")
-        setDescFile(f)
+        const newFiles: File[] = []
+        for (const f of Array.from(files)) {
+            const err = validateFile(f)
+            if (err) { setDescFileError(err); return }
+            newFiles.push(f)
+        }
+        setDescFiles((prev) => [...prev, ...newFiles])
+    }
+
+    function removeDescFile(idx: number) {
+        setDescFiles((prev) => prev.filter((_, i) => i !== idx))
     }
 
     const handleDescDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault()
         setDescDragOver(false)
-        const f = e.dataTransfer.files[0]
-        if (f) handleDescFile(f)
+        if (e.dataTransfer.files.length > 0) handleDescFiles(e.dataTransfer.files)
     }, [])
 
     // Autocomplete filtering
@@ -142,14 +157,15 @@ export default function CreateProject() {
         setShowSuggestions(false)
     }
 
-    // Submit Mode A
+    // Submit Mode A (multi-file)
     async function submitBrief() {
-        if (!briefFile) { setBriefError("Déposez un fichier."); return }
+        if (briefFiles.length === 0) { setBriefError("Déposez au moins un fichier."); return }
         setSubmitting(true)
         setSubmitError("")
 
         try {
             // 1. Create project
+            setUploadProgress({ current: 0, total: briefFiles.length, status: "Création du projet..." })
             const res = await fetch(`${API_URL}/api/project/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
@@ -159,30 +175,37 @@ export default function CreateProject() {
             if (!data.ok && !data.project_id) {
                 setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
+                setUploadProgress(null)
                 return
             }
             const projectId = data.project_id
 
-            // 2. Upload brief
-            const formData = new FormData()
-            formData.append("file", briefFile)
-            const uploadRes = await fetch(`${API_URL}/api/project/${projectId}/upload-brief`, {
-                method: "POST",
-                headers: { Authorization: "Bearer " + token },
-                body: formData,
-            })
-            const uploadData = await uploadRes.json()
-            if (!uploadRes.ok && !uploadData.ok) {
-                setSubmitError(uploadData.message || "Erreur lors de l'upload du brief.")
-                setSubmitting(false)
-                return
+            // 2. Upload each file sequentially
+            for (let i = 0; i < briefFiles.length; i++) {
+                setUploadProgress({ current: i + 1, total: briefFiles.length, status: `Upload ${i + 1}/${briefFiles.length}...` })
+                const formData = new FormData()
+                formData.append("file", briefFiles[i])
+                const uploadRes = await fetch(`${API_URL}/api/project/${projectId}/upload-brief`, {
+                    method: "POST",
+                    headers: { Authorization: "Bearer " + token },
+                    body: formData,
+                })
+                const uploadData = await uploadRes.json()
+                if (!uploadRes.ok && !uploadData.ok) {
+                    setSubmitError(uploadData.message || `Erreur upload fichier ${i + 1}.`)
+                    setSubmitting(false)
+                    setUploadProgress(null)
+                    return
+                }
             }
 
+            setUploadProgress({ current: briefFiles.length, total: briefFiles.length, status: "Analyse IA en cours..." })
             setSuccess(true)
             setTimeout(() => router.push(`/projet/${projectId}`), 2000)
         } catch {
             setSubmitError("Erreur réseau. Veuillez réessayer.")
             setSubmitting(false)
+            setUploadProgress(null)
         }
     }
 
@@ -221,15 +244,19 @@ export default function CreateProject() {
             }
             const projId = data.project_id
 
-            // 2. Upload brief if file selected
-            if (descFile && projId) {
-                const formData = new FormData()
-                formData.append("file", descFile)
-                await fetch(`${API_URL}/api/project/${projId}/upload-brief`, {
-                    method: "POST",
-                    headers: { Authorization: "Bearer " + token },
-                    body: formData,
-                })
+            // 2. Upload briefs if files selected
+            if (descFiles.length > 0 && projId) {
+                for (let i = 0; i < descFiles.length; i++) {
+                    setUploadProgress({ current: i + 1, total: descFiles.length, status: `Upload ${i + 1}/${descFiles.length}...` })
+                    const formData = new FormData()
+                    formData.append("file", descFiles[i])
+                    await fetch(`${API_URL}/api/project/${projId}/upload-brief`, {
+                        method: "POST",
+                        headers: { Authorization: "Bearer " + token },
+                        body: formData,
+                    })
+                }
+                setUploadProgress({ current: descFiles.length, total: descFiles.length, status: "Analyse IA en cours..." })
             }
 
             setSuccess(true)
@@ -317,65 +344,88 @@ export default function CreateProject() {
                             L'analyse automatique extrait les spécifications de votre document
                         </p>
 
-                        {/* Drop zone */}
-                        {!briefFile ? (
-                            <div
-                                onDrop={handleBriefDrop}
-                                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-                                onDragLeave={() => setDragOver(false)}
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                    border: `2px dashed ${dragOver ? C.yellow : C.border}`,
-                                    borderRadius: 16, padding: "60px 20px",
-                                    textAlign: "center", cursor: "pointer",
-                                    backgroundColor: dragOver ? "#fef9e0" : C.bg,
-                                    transition: "all 0.2s", marginBottom: 16,
-                                    minHeight: 220, display: "flex", flexDirection: "column",
-                                    alignItems: "center", justifyContent: "center",
-                                }}
-                            >
-                                <div style={{ marginBottom: 16 }}><FileUp size={56} style={{ color: C.muted, opacity: 0.7 }} /></div>
-                                <p style={{ fontSize: 16, color: C.dark, fontWeight: 600, margin: "0 0 8px" }}>
-                                    Glissez votre brief ici ou cliquez pour sélectionner
-                                </p>
-                                <div style={{
-                                    padding: "8px 20px", borderRadius: 8, backgroundColor: C.yellow,
-                                    color: C.dark, fontSize: 13, fontWeight: 700, display: "inline-block",
-                                }}>
-                                    Parcourir les fichiers
-                                </div>
-                                <p style={{ fontSize: 11, color: C.muted, margin: "12px 0 0" }}>PDF, Excel, Word, PowerPoint, images, texte — 20 MB max</p>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept={ACCEPTED_ATTR}
-                                    style={{ display: "none" }}
-                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBriefFile(f) }}
-                                />
-                            </div>
-                        ) : (
-                            <div style={{
-                                display: "flex", alignItems: "center", gap: 12,
-                                padding: "16px 18px", borderRadius: 12,
-                                backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
-                                marginBottom: 16,
-                            }}>
-                                <div><FileText size={32} style={{ color: "#1a7a3c" }} /></div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {briefFile.name}
+                        {/* Drop zone (multi-file) */}
+                        <div
+                            onDrop={handleBriefDrop}
+                            onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                            onDragLeave={() => setDragOver(false)}
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                                border: `2px dashed ${dragOver ? C.yellow : C.border}`,
+                                borderRadius: 16, padding: briefFiles.length > 0 ? "24px 20px" : "60px 20px",
+                                textAlign: "center", cursor: "pointer",
+                                backgroundColor: dragOver ? "#fef9e0" : C.bg,
+                                transition: "all 0.2s", marginBottom: 16,
+                                minHeight: briefFiles.length > 0 ? 80 : 220,
+                                display: "flex", flexDirection: "column",
+                                alignItems: "center", justifyContent: "center",
+                            }}
+                        >
+                            <div style={{ marginBottom: 8 }}><FileUp size={briefFiles.length > 0 ? 28 : 56} style={{ color: C.muted, opacity: 0.7 }} /></div>
+                            <p style={{ fontSize: briefFiles.length > 0 ? 13 : 16, color: C.dark, fontWeight: 600, margin: "0 0 6px" }}>
+                                {briefFiles.length > 0 ? "Ajouter d'autres fichiers" : "Glissez vos briefs ici ou cliquez pour sélectionner"}
+                            </p>
+                            {briefFiles.length === 0 && (
+                                <>
+                                    <div style={{ padding: "8px 20px", borderRadius: 8, backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, display: "inline-block" }}>
+                                        Parcourir les fichiers
                                     </div>
-                                    <div style={{ fontSize: 12, color: C.muted }}>{formatSize(briefFile.size)}</div>
+                                    <p style={{ fontSize: 11, color: C.muted, margin: "12px 0 0" }}>PDF, Excel, Word, PowerPoint, images, texte — 20 MB max — Plusieurs fichiers acceptés</p>
+                                </>
+                            )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept={ACCEPTED_ATTR}
+                                multiple
+                                style={{ display: "none" }}
+                                onChange={(e) => { if (e.target.files) handleBriefFiles(e.target.files); e.target.value = "" }}
+                            />
+                        </div>
+
+                        {/* File list */}
+                        {briefFiles.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                                {briefFiles.map((f, idx) => (
+                                    <div key={`${f.name}-${idx}`} style={{
+                                        display: "flex", alignItems: "center", gap: 10,
+                                        padding: "10px 14px", borderRadius: 10,
+                                        backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
+                                    }}>
+                                        <FileText size={20} style={{ color: "#1a7a3c", flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                {f.name}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: C.muted }}>{formatSize(f.size)}</div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); removeBriefFile(idx) }}
+                                            style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, color: "#c0392b", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <div style={{ fontSize: 12, color: C.muted, textAlign: "right" }}>
+                                    {briefFiles.length} fichier{briefFiles.length > 1 ? "s" : ""} sélectionné{briefFiles.length > 1 ? "s" : ""}
                                 </div>
-                                <button
-                                    onClick={() => { setBriefFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
-                                    style={{
-                                        padding: "6px 14px", borderRadius: 6, border: "1px solid " + C.border,
-                                        backgroundColor: C.white, color: "#c0392b", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                                    }}
-                                >
-                                    Supprimer
-                                </button>
+                            </div>
+                        )}
+
+                        {/* Upload progress bar */}
+                        {uploadProgress && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 6 }}>
+                                    {uploadProgress.status}
+                                </div>
+                                <div style={{ width: "100%", height: 6, backgroundColor: C.bg, borderRadius: 3, overflow: "hidden" }}>
+                                    <div style={{
+                                        width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                                        height: "100%", backgroundColor: C.yellow, borderRadius: 3,
+                                        transition: "width 0.3s ease",
+                                    }} />
+                                </div>
                             </div>
                         )}
 
@@ -384,15 +434,15 @@ export default function CreateProject() {
 
                         <button
                             onClick={submitBrief}
-                            disabled={submitting || !briefFile}
+                            disabled={submitting || briefFiles.length === 0}
                             style={{
                                 ...primaryBtnStyle,
-                                opacity: submitting || !briefFile ? 0.6 : 1,
-                                cursor: submitting || !briefFile ? "not-allowed" : "pointer",
+                                opacity: submitting || briefFiles.length === 0 ? 0.6 : 1,
+                                cursor: submitting || briefFiles.length === 0 ? "not-allowed" : "pointer",
                                 marginTop: 8,
                             }}
                         >
-                            {submitting ? "Création en cours..." : "Créer le projet"}
+                            {submitting ? "Création en cours..." : `Créer le projet (${briefFiles.length} fichier${briefFiles.length > 1 ? "s" : ""})`}
                         </button>
                     </div>
                 )}
@@ -488,62 +538,79 @@ export default function CreateProject() {
                             />
                         </div>
 
-                        {/* Optional brief upload (smaller) */}
+                        {/* Optional brief upload (multi-file) */}
                         <div style={{ marginBottom: 20 }}>
                             <label style={labelStyle}>
-                                Brief <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel)</span>
+                                Briefs <span style={{ color: C.muted, fontWeight: 400 }}>(optionnel — plusieurs fichiers acceptés)</span>
                             </label>
-                            {!descFile ? (
-                                <div
-                                    onDrop={handleDescDrop}
-                                    onDragOver={(e) => { e.preventDefault(); setDescDragOver(true) }}
-                                    onDragLeave={() => setDescDragOver(false)}
-                                    onClick={() => fileInputRefB.current?.click()}
-                                    style={{
-                                        border: `2px dashed ${descDragOver ? C.yellow : C.border}`,
-                                        borderRadius: 10, padding: "20px 16px",
-                                        textAlign: "center", cursor: "pointer",
-                                        backgroundColor: descDragOver ? "#fef9e0" : C.bg,
-                                        transition: "all 0.2s",
-                                    }}
-                                >
-                                    <p style={{ fontSize: 13, color: C.muted, margin: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                        <FileUp size={14} />Glissez un fichier ici ou cliquez — 20 MB max
-                                    </p>
-                                    <input
-                                        ref={fileInputRefB}
-                                        type="file"
-                                        accept={ACCEPTED_ATTR}
-                                        style={{ display: "none" }}
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDescFile(f) }}
-                                    />
-                                </div>
-                            ) : (
-                                <div style={{
-                                    display: "flex", alignItems: "center", gap: 10,
-                                    padding: "10px 14px", borderRadius: 10,
-                                    backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
-                                }}>
-                                    <div><FileText size={20} style={{ color: "#1a7a3c" }} /></div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                            {descFile.name}
+                            <div
+                                onDrop={handleDescDrop}
+                                onDragOver={(e) => { e.preventDefault(); setDescDragOver(true) }}
+                                onDragLeave={() => setDescDragOver(false)}
+                                onClick={() => fileInputRefB.current?.click()}
+                                style={{
+                                    border: `2px dashed ${descDragOver ? C.yellow : C.border}`,
+                                    borderRadius: 10, padding: "20px 16px",
+                                    textAlign: "center", cursor: "pointer",
+                                    backgroundColor: descDragOver ? "#fef9e0" : C.bg,
+                                    transition: "all 0.2s",
+                                }}
+                            >
+                                <p style={{ fontSize: 13, color: C.muted, margin: 0, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                    <FileUp size={14} />Glissez des fichiers ici ou cliquez — 20 MB max
+                                </p>
+                                <input
+                                    ref={fileInputRefB}
+                                    type="file"
+                                    accept={ACCEPTED_ATTR}
+                                    multiple
+                                    style={{ display: "none" }}
+                                    onChange={(e) => { if (e.target.files) handleDescFiles(e.target.files); e.target.value = "" }}
+                                />
+                            </div>
+                            {descFiles.length > 0 && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                                    {descFiles.map((f, idx) => (
+                                        <div key={`${f.name}-${idx}`} style={{
+                                            display: "flex", alignItems: "center", gap: 8,
+                                            padding: "8px 12px", borderRadius: 8,
+                                            backgroundColor: "#e8f8ee", border: "1px solid #a8dbb8",
+                                        }}>
+                                            <FileText size={16} style={{ color: "#1a7a3c", flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {f.name}
+                                                </div>
+                                                <div style={{ fontSize: 10, color: C.muted }}>{formatSize(f.size)}</div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); removeDescFile(idx) }}
+                                                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid " + C.border, backgroundColor: C.white, color: "#c0392b", fontSize: 10, cursor: "pointer" }}
+                                            >
+                                                <X size={10} />
+                                            </button>
                                         </div>
-                                        <div style={{ fontSize: 11, color: C.muted }}>{formatSize(descFile.size)}</div>
-                                    </div>
-                                    <button
-                                        onClick={() => { setDescFile(null); if (fileInputRefB.current) fileInputRefB.current.value = "" }}
-                                        style={{
-                                            padding: "4px 10px", borderRadius: 6, border: "1px solid " + C.border,
-                                            backgroundColor: C.white, color: "#c0392b", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                                        }}
-                                    >
-                                        ✕
-                                    </button>
+                                    ))}
                                 </div>
                             )}
                             {descFileError && <p style={{ ...errorStyle, marginTop: 4 }}>{descFileError}</p>}
                         </div>
+
+                        {/* Upload progress bar (Mode B) */}
+                        {uploadProgress && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 6 }}>
+                                    {uploadProgress.status}
+                                </div>
+                                <div style={{ width: "100%", height: 6, backgroundColor: C.bg, borderRadius: 3, overflow: "hidden" }}>
+                                    <div style={{
+                                        width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                                        height: "100%", backgroundColor: C.yellow, borderRadius: 3,
+                                        transition: "width 0.3s ease",
+                                    }} />
+                                </div>
+                            </div>
+                        )}
 
                         {descError && <p style={errorStyle}>{descError}</p>}
                         {submitError && <p style={errorStyle}>{submitError}</p>}
