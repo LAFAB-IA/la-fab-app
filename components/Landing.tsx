@@ -1,10 +1,15 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
-import { Bot, FileText, BarChart3, CreditCard, MessageSquare, FolderOpen } from "lucide-react"
+import {
+    FileUp, Route, BarChart3, Rocket,
+    Brain, Layers, Shield, Activity, BadgeCheck, Leaf,
+    Users,
+} from "lucide-react"
 
 const C = {
     dark:   "#3A4040",
+    darkGradEnd: "#2d3333",
     yellow: "#F4CF15",
     white:  "#FAFFFD",
     bg:     "#f0f0ee",
@@ -12,58 +17,38 @@ const C = {
     border: "#e0e0de",
 }
 
-// ─── Hook animation au scroll ─────────────────────────────────────────────────
-function useInView(threshold = 0.15) {
-    const ref = useRef(null)
+/* ── Fade-in au scroll ─────────────────────────────────────────────────────── */
+
+function useFadeIn(threshold = 0.15) {
+    const ref = useRef<HTMLDivElement>(null)
     const [visible, setVisible] = useState(false)
     useEffect(() => {
-        const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true) }, { threshold })
-        if (ref.current) obs.observe(ref.current)
+        const el = ref.current
+        if (!el) return
+        const obs = new IntersectionObserver(
+            ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } },
+            { threshold },
+        )
+        obs.observe(el)
         return () => obs.disconnect()
-    }, [])
-    return [ref, visible]
+    }, [threshold])
+    return { ref, visible }
 }
 
-// ─── Composants sections ──────────────────────────────────────────────────────
-
-function FadeIn({ children, delay = 0 }) {
-    const [ref, visible] = useInView()
+function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+    const { ref, visible } = useFadeIn()
     return (
         <div ref={ref} style={{
             opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(24px)",
-            transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s`,
+            transform: visible ? "translateY(0)" : "translateY(20px)",
+            transition: `opacity 0.5s ease ${delay}s, transform 0.5s ease ${delay}s`,
         }}>
             {children}
         </div>
     )
 }
 
-function Step({ number, title, desc }) {
-    return (
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", backgroundColor: C.yellow, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: 18, color: C.dark, fontFamily: "'DM Serif Display', serif" }}>
-                {number}
-            </div>
-            <div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: C.dark, marginBottom: 6, fontFamily: "'DM Serif Display', serif" }}>{title}</div>
-                <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.65 }}>{desc}</div>
-            </div>
-        </div>
-    )
-}
-
-function Feature({ icon, title, desc }) {
-    return (
-        <div style={{ backgroundColor: C.white, borderRadius: 12, padding: "28px 24px", border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-            <div style={{ marginBottom: 14, color: C.dark }}>{icon}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 8, fontFamily: "'DM Serif Display', serif" }}>{title}</div>
-            <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.65 }}>{desc}</div>
-        </div>
-    )
-}
-
-// ─── Landing ──────────────────────────────────────────────────────────────────
+/* ── Landing ───────────────────────────────────────────────────────────────── */
 
 export default function Landing() {
     const [scrolled, setScrolled] = useState(false)
@@ -76,15 +61,13 @@ export default function Landing() {
 
     return (
         <>
-            {/* Google Fonts */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap');
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body { background: ${C.bg}; }
                 ::selection { background: ${C.yellow}; color: ${C.dark}; }
             `}</style>
 
-            <div style={{ fontFamily: "'DM Sans', sans-serif", color: C.dark, backgroundColor: C.bg, overflowX: "hidden" }}>
+            <div style={{ fontFamily: "'Inter', sans-serif", color: C.dark, overflowX: "hidden" }}>
 
                 {/* ── NAV ── */}
                 <nav style={{
@@ -93,224 +76,329 @@ export default function Landing() {
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     backgroundColor: scrolled ? "rgba(250,255,253,0.95)" : "transparent",
                     backdropFilter: scrolled ? "blur(12px)" : "none",
-                    borderBottom: scrolled ? "1px solid " + C.border : "none",
+                    borderBottom: scrolled ? `1px solid ${C.border}` : "none",
                     transition: "all 0.3s ease",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 28, height: 28, backgroundColor: C.yellow, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{
+                            width: 28, height: 28, backgroundColor: C.yellow, borderRadius: 6,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
                             <span style={{ fontSize: 14, fontWeight: 800, color: C.dark }}>LF</span>
                         </div>
-                        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: C.dark }}>LA FAB</span>
+                        <span style={{ fontSize: 20, fontWeight: 700, color: scrolled ? C.dark : C.white }}>
+                            LA FAB
+                        </span>
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <a href="/login" style={{ padding: "8px 18px", fontSize: 14, fontWeight: 600, color: C.dark, textDecoration: "none", borderRadius: 8 }}>
+                        <a href="/login" style={{
+                            padding: "8px 18px", fontSize: 14, fontWeight: 600,
+                            color: scrolled ? C.dark : C.white, textDecoration: "none", borderRadius: 8,
+                        }}>
                             Se connecter
                         </a>
-                        <a href="/login" style={{ padding: "8px 20px", fontSize: 14, fontWeight: 700, color: C.dark, textDecoration: "none", backgroundColor: C.yellow, borderRadius: 8 }}>
+                        <a href="/login" style={{
+                            padding: "8px 20px", fontSize: 14, fontWeight: 700,
+                            color: C.dark, textDecoration: "none",
+                            backgroundColor: C.yellow, borderRadius: 8,
+                        }}>
                             Démarrer
                         </a>
                     </div>
                 </nav>
 
-                {/* ── HERO ── */}
-                <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 24px 80px", position: "relative", overflow: "hidden" }}>
-
-                    {/* Fond décoratif */}
-                    <div style={{ position: "absolute", top: "15%", right: "-5%", width: 420, height: 420, borderRadius: "50%", backgroundColor: C.yellow, opacity: 0.12, filter: "blur(80px)", pointerEvents: "none" }} />
-                    <div style={{ position: "absolute", bottom: "10%", left: "-8%", width: 320, height: 320, borderRadius: "50%", backgroundColor: C.dark, opacity: 0.06, filter: "blur(60px)", pointerEvents: "none" }} />
-
-                    {/* Grille décorative */}
-                    <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(${C.border} 1px, transparent 1px), linear-gradient(90deg, ${C.border} 1px, transparent 1px)`, backgroundSize: "60px 60px", opacity: 0.4, pointerEvents: "none" }} />
-
-                    <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
-
-                        <div style={{
-                            display: "inline-block", backgroundColor: C.yellow, color: C.dark,
-                            padding: "5px 16px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-                            letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 28,
-                            animation: "fadeDown 0.6s ease both",
-                        }}>
-                            Impression professionnelle
-                        </div>
-
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 1 — HERO
+                ══════════════════════════════════════════════════════════════════ */}
+                <section style={{
+                    minHeight: "100vh",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "100px 24px 80px",
+                    background: `linear-gradient(160deg, ${C.dark} 0%, ${C.darkGradEnd} 100%)`,
+                    textAlign: "center",
+                }}>
+                    <div style={{ maxWidth: 760, margin: "0 auto" }}>
                         <h1 style={{
-                            fontFamily: "'DM Serif Display', serif",
-                            fontSize: "clamp(44px, 8vw, 80px)",
-                            fontWeight: 400,
-                            lineHeight: 1.1,
-                            color: C.dark,
-                            marginBottom: 24,
-                            animation: "fadeUp 0.7s ease 0.1s both",
+                            fontSize: "clamp(32px, 5vw, 48px)",
+                            fontWeight: 600,
+                            lineHeight: 1.15,
+                            color: C.white,
+                            marginBottom: 20,
                         }}>
-                            Vos projets print,<br />
-                            <em style={{ color: C.muted }}>sans friction.</em>
+                            LA FAB orchestre vos projets d&#39;impression
                         </h1>
 
                         <p style={{
-                            fontSize: "clamp(16px, 2.5vw, 19px)",
-                            color: C.muted,
-                            lineHeight: 1.7,
-                            maxWidth: 520,
-                            margin: "0 auto 40px",
-                            animation: "fadeUp 0.7s ease 0.2s both",
+                            fontSize: 18, lineHeight: 1.6,
+                            color: "rgba(250,255,253,0.7)",
+                            maxWidth: 600, margin: "0 auto 40px",
                         }}>
-                            Déposez votre brief, recevez un devis en 24h, validez et suivez votre production — tout depuis un seul espace.
+                            La plateforme B2B qui connecte vos briefs aux meilleurs fournisseurs.
+                            De l&#39;impression au packaging, en passant par la menuiserie et la métallurgie.
                         </p>
 
-                        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 0.7s ease 0.3s both" }}>
-                            <a href="/login" style={{
-                                padding: "14px 32px", backgroundColor: C.dark, color: C.white,
-                                borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: "none",
-                                boxShadow: "0 4px 20px rgba(58,64,64,0.2)",
-                                transition: "transform 0.15s, box-shadow 0.15s",
-                            }}
-                                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(58,64,64,0.28)" }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(58,64,64,0.2)" }}
-                            >
-                                Déposer un brief →
-                            </a>
-                            <a href="#comment" style={{
-                                padding: "14px 28px", backgroundColor: C.white, color: C.dark,
-                                borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: "none",
-                                border: "1px solid " + C.border,
+                        {/* CTA buttons */}
+                        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
+                            <a href="/projet/nouveau" style={{
+                                padding: "16px 32px", backgroundColor: C.yellow, color: C.dark,
+                                borderRadius: 8, fontSize: 16, fontWeight: 700, textDecoration: "none",
+                                border: "none",
                             }}>
-                                Comment ça marche
+                                Déposer un brief
+                            </a>
+                            <a href="#comment-ca-marche" style={{
+                                padding: "16px 32px", color: C.yellow,
+                                borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none",
+                                border: `1px solid ${C.yellow}`, backgroundColor: "transparent",
+                            }}>
+                                Découvrir la plateforme
                             </a>
                         </div>
 
-                        {/* Stats */}
-                        <div style={{ display: "flex", gap: 40, justifyContent: "center", marginTop: 64, flexWrap: "wrap", animation: "fadeUp 0.7s ease 0.4s both" }}>
-                            {[
-                                { val: "24h",    label: "Délai de réponse" },
-                                { val: "100%",   label: "Suivi en temps réel" },
-                                { val: "Pro",    label: "Qualité garantie" },
-                            ].map((s) => (
-                                <div key={s.val} style={{ textAlign: "center" }}>
-                                    <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 32, color: C.dark, lineHeight: 1 }}>{s.val}</div>
-                                    <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{s.label}</div>
-                                </div>
-                            ))}
+                        {/* Social proof */}
+                        <div style={{
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                            color: C.yellow, fontSize: 14,
+                        }}>
+                            <Users size={16} />
+                            <span>Déjà 50+ projets gérés — Rejoignez nos clients satisfaits</span>
                         </div>
                     </div>
                 </section>
 
-                {/* ── COMMENT ÇA MARCHE ── */}
-                <section id="comment" style={{ padding: "96px 24px", backgroundColor: C.white }}>
-                    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 2 — COMMENT ÇA MARCHE
+                ══════════════════════════════════════════════════════════════════ */}
+                <section id="comment-ca-marche" style={{ padding: "96px 24px", backgroundColor: C.white }}>
+                    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
                         <FadeIn>
-                            <div style={{ textAlign: "center", marginBottom: 56 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Processus</div>
-                                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: "clamp(32px, 5vw, 48px)", fontWeight: 400, color: C.dark, lineHeight: 1.2 }}>
-                                    Simple comme bonjour.
-                                </h2>
-                            </div>
+                            <h2 style={{ fontSize: 32, fontWeight: 600, color: C.dark, textAlign: "center", marginBottom: 64 }}>
+                                Comment ça marche
+                            </h2>
                         </FadeIn>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: 36, maxWidth: 520, margin: "0 auto" }}>
-                            {[
-                                { n: 1, title: "Déposez votre brief", desc: "Uploadez votre PDF ou décrivez votre besoin. Notre IA analyse automatiquement les spécifications : format, quantité, finitions, délai." },
-                                { n: 2, title: "Recevez votre devis", desc: "Sous 24h, vous recevez un devis détaillé et personnalisé. Consultez-le, posez vos questions, validez en un clic." },
-                                { n: 3, title: "On s'occupe du reste", desc: "Une fois validé, suivez l'avancement de votre production en temps réel depuis votre espace client. Livraison garantie." },
-                            ].map((s, i) => (
-                                <FadeIn key={s.n} delay={i * 0.12}>
-                                    <Step number={s.n} title={s.title} desc={s.desc} />
+                        {/* Steps */}
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap", gap: 0 }}>
+                            {([
+                                { n: 1, icon: <FileUp size={24} />, title: "Déposez votre brief", desc: "Uploadez votre cahier des charges. Notre IA l'analyse en quelques secondes." },
+                                { n: 2, icon: <Route size={24} />, title: "Matching fournisseurs", desc: "Notre algorithme sélectionne les fournisseurs les plus pertinents selon vos critères." },
+                                { n: 3, icon: <BarChart3 size={24} />, title: "Comparez les offres", desc: "Recevez et comparez les devis de nos fournisseurs vérifiés." },
+                                { n: 4, icon: <Rocket size={24} />, title: "Lancez la production", desc: "Validez, payez, et suivez votre projet en temps réel." },
+                            ] as const).map((step, i) => (
+                                <FadeIn key={step.n} delay={i * 0.1}>
+                                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                                        <div style={{ textAlign: "center", width: 200, padding: "0 12px" }}>
+                                            <div style={{
+                                                width: 52, height: 52, borderRadius: "50%",
+                                                backgroundColor: C.yellow, color: C.dark,
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                margin: "0 auto 12px", fontWeight: 700, fontSize: 20,
+                                            }}>
+                                                {step.n}
+                                            </div>
+                                            <div style={{ color: C.yellow, marginBottom: 8, display: "flex", justifyContent: "center" }}>
+                                                {step.icon}
+                                            </div>
+                                            <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 6 }}>
+                                                {step.title}
+                                            </div>
+                                            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+                                                {step.desc}
+                                            </div>
+                                        </div>
+                                        {/* Connector line */}
+                                        {i < 3 && (
+                                            <div style={{
+                                                width: 48, height: 2, backgroundColor: C.border,
+                                                marginTop: 26, flexShrink: 0,
+                                            }} />
+                                        )}
+                                    </div>
                                 </FadeIn>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* ── FEATURES ── */}
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 3 — AVANTAGES
+                ══════════════════════════════════════════════════════════════════ */}
                 <section style={{ padding: "96px 24px", backgroundColor: C.bg }}>
-                    <div style={{ maxWidth: 960, margin: "0 auto" }}>
+                    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
                         <FadeIn>
-                            <div style={{ textAlign: "center", marginBottom: 56 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Fonctionnalités</div>
-                                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: "clamp(32px, 5vw, 48px)", fontWeight: 400, color: C.dark, lineHeight: 1.2 }}>
-                                    Tout ce qu'il faut,<br />rien de superflu.
-                                </h2>
-                            </div>
+                            <h2 style={{ fontSize: 32, fontWeight: 600, color: C.dark, textAlign: "center", marginBottom: 56 }}>
+                                Pourquoi choisir LA FAB
+                            </h2>
                         </FadeIn>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-                            {[
-                                { icon: <Bot size={32} />, title: "Analyse IA du brief", desc: "Notre IA extrait automatiquement toutes les specs de votre document — format, quantité, finitions, délai. Zéro saisie manuelle." },
-                                { icon: <FileText size={32} />, title: "Devis instantané", desc: "Recevez un devis PDF professionnel, détaillé et signable directement depuis votre espace client." },
-                                { icon: <BarChart3 size={32} />, title: "Suivi en temps réel", desc: "De la validation à la livraison, suivez chaque étape de votre commande avec des notifications automatiques." },
-                                { icon: <CreditCard size={32} />, title: "Paiement sécurisé", desc: "Réglez vos factures en ligne via Stripe. Simple, rapide, sécurisé. Historique complet disponible." },
-                                { icon: <MessageSquare size={32} />, title: "Messagerie intégrée", desc: "Échangez directement avec notre équipe sur chaque projet. Toutes les communications centralisées." },
-                                { icon: <FolderOpen size={32} />, title: "Espace fichiers", desc: "BAT, fichiers de production, bons de livraison — tout est stocké et accessible depuis votre compte." },
-                            ].map((f, i) => (
-                                <FadeIn key={f.title} delay={i * 0.08}>
-                                    <Feature {...f} />
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, 1fr)",
+                            gap: 20,
+                        }}>
+                            {([
+                                { icon: <Brain size={28} />, title: "IA intégrée", desc: "Notre intelligence artificielle analyse vos briefs, extrait les spécifications, et optimise le routing fournisseurs." },
+                                { icon: <Layers size={28} />, title: "Multi-métiers", desc: "Impression, menuiserie, métallurgie, logistique, packaging — tous vos besoins en un seul endroit." },
+                                { icon: <Shield size={28} />, title: "Paiement sécurisé", desc: "Paiement Stripe avec acompte 30/70. Vos transactions sont sécurisées et tracées." },
+                                { icon: <Activity size={28} />, title: "Suivi temps réel", desc: "Suivez chaque étape de vos projets. Notifications instantanées, messagerie intégrée." },
+                                { icon: <BadgeCheck size={28} />, title: "Fournisseurs vérifiés", desc: "Réseau de fournisseurs qualifiés avec scores de confiance et historique vérifié." },
+                                { icon: <Leaf size={28} />, title: "CO2 optimisé", desc: "Routing intelligent qui privilégie la proximité géographique pour réduire l'empreinte carbone." },
+                            ]).map((card, i) => (
+                                <FadeIn key={card.title} delay={i * 0.07}>
+                                    <div style={{
+                                        backgroundColor: C.white, borderRadius: 12,
+                                        padding: "28px 24px",
+                                        boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
+                                    }}>
+                                        <div style={{ color: C.yellow, marginBottom: 14 }}>{card.icon}</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 8 }}>{card.title}</div>
+                                        <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.6 }}>{card.desc}</div>
+                                    </div>
                                 </FadeIn>
                             ))}
                         </div>
                     </div>
+
+                    {/* Responsive: 2 cols tablet, 1 col mobile */}
+                    <style>{`
+                        @media (max-width: 900px) {
+                            section:nth-of-type(3) > div > div:last-child {
+                                grid-template-columns: repeat(2, 1fr) !important;
+                            }
+                        }
+                        @media (max-width: 580px) {
+                            section:nth-of-type(3) > div > div:last-child {
+                                grid-template-columns: 1fr !important;
+                            }
+                        }
+                    `}</style>
                 </section>
 
-                {/* ── CTA ── */}
-                <section style={{ padding: "96px 24px" }}>
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 4 — CHIFFRES CLÉS
+                ══════════════════════════════════════════════════════════════════ */}
+                <section style={{
+                    padding: "80px 24px",
+                    background: C.dark,
+                }}>
                     <FadeIn>
-                        <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center", backgroundColor: C.dark, borderRadius: 24, padding: "64px 48px", position: "relative", overflow: "hidden" }}>
-
-                            {/* Décoration */}
-                            <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", backgroundColor: C.yellow, opacity: 0.15, pointerEvents: "none" }} />
-                            <div style={{ position: "absolute", bottom: -60, left: -30, width: 240, height: 240, borderRadius: "50%", backgroundColor: C.yellow, opacity: 0.08, pointerEvents: "none" }} />
-
-                            <div style={{ position: "relative", zIndex: 1 }}>
-                                <div style={{ display: "inline-block", backgroundColor: "rgba(244,207,21,0.15)", color: C.yellow, padding: "5px 16px", borderRadius: 20, fontSize: 12, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 24 }}>
-                                    Commencer maintenant
+                        <div style={{
+                            maxWidth: 900, margin: "0 auto",
+                            display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 40,
+                            textAlign: "center",
+                        }}>
+                            {([
+                                { val: "50+", label: "projets gérés" },
+                                { val: "18", label: "fournisseurs vérifiés" },
+                                { val: "< 24h", label: "délai de réponse moyen" },
+                                { val: "98%", label: "taux de satisfaction" },
+                            ]).map((s) => (
+                                <div key={s.label}>
+                                    <div style={{ fontSize: 48, fontWeight: 700, color: C.yellow, lineHeight: 1 }}>
+                                        {s.val}
+                                    </div>
+                                    <div style={{ fontSize: 14, color: C.white, marginTop: 8 }}>
+                                        {s.label}
+                                    </div>
                                 </div>
-                                <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: "clamp(28px, 5vw, 44px)", fontWeight: 400, color: C.white, lineHeight: 1.2, marginBottom: 20 }}>
-                                    Votre prochain projet<br />commence ici.
-                                </h2>
-                                <p style={{ fontSize: 16, color: "rgba(250,255,253,0.65)", lineHeight: 1.7, marginBottom: 36, maxWidth: 440, margin: "0 auto 36px" }}>
-                                    Créez votre compte gratuitement et déposez votre premier brief en moins de 2 minutes.
-                                </p>
-                                <a href="/login" style={{
-                                    display: "inline-block", padding: "15px 36px",
-                                    backgroundColor: C.yellow, color: C.dark,
-                                    borderRadius: 12, fontSize: 15, fontWeight: 700,
-                                    textDecoration: "none",
-                                    boxShadow: "0 4px 24px rgba(244,207,21,0.35)",
+                            ))}
+                        </div>
+                    </FadeIn>
+                </section>
+
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 5 — CTA FINAL
+                ══════════════════════════════════════════════════════════════════ */}
+                <section style={{ padding: "96px 24px", backgroundColor: C.white, textAlign: "center" }}>
+                    <FadeIn>
+                        <div style={{ maxWidth: 600, margin: "0 auto" }}>
+                            <h2 style={{ fontSize: 36, fontWeight: 600, color: C.dark, lineHeight: 1.2, marginBottom: 16 }}>
+                                Prêt à lancer votre prochain projet ?
+                            </h2>
+                            <p style={{ fontSize: 17, color: C.muted, lineHeight: 1.6, marginBottom: 36 }}>
+                                Créez votre compte gratuitement et déposez votre premier brief en moins de 2 minutes.
+                            </p>
+                            <a href="/login" style={{
+                                display: "inline-block", padding: "16px 40px",
+                                backgroundColor: C.yellow, color: C.dark,
+                                borderRadius: 8, fontSize: 16, fontWeight: 700,
+                                textDecoration: "none",
+                                boxShadow: "0 4px 20px rgba(244,207,21,0.3)",
+                            }}>
+                                Créer mon compte
+                            </a>
+                            <div style={{ marginTop: 20 }}>
+                                <a href="/supplier/register" style={{
+                                    fontSize: 14, color: C.muted, textDecoration: "underline",
                                 }}>
-                                    Créer mon compte →
+                                    Vous êtes fournisseur ?
                                 </a>
                             </div>
                         </div>
                     </FadeIn>
                 </section>
 
-                {/* ── FOOTER ── */}
-                <footer style={{ borderTop: "1px solid " + C.border, padding: "32px 24px", backgroundColor: C.white }}>
-                    <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 24, height: 24, backgroundColor: C.yellow, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <span style={{ fontSize: 11, fontWeight: 800, color: C.dark }}>LF</span>
+                {/* ══════════════════════════════════════════════════════════════════
+                    FOOTER
+                ══════════════════════════════════════════════════════════════════ */}
+                <footer style={{ backgroundColor: C.dark, padding: "48px 24px 32px" }}>
+                    <div style={{
+                        maxWidth: 960, margin: "0 auto",
+                        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32,
+                        alignItems: "start",
+                    }}>
+                        {/* Col 1 — Logo */}
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <div style={{
+                                    width: 24, height: 24, backgroundColor: C.yellow, borderRadius: 5,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                }}>
+                                    <span style={{ fontSize: 11, fontWeight: 800, color: C.dark }}>LF</span>
+                                </div>
+                                <span style={{ fontSize: 16, fontWeight: 700, color: C.white }}>LA FAB</span>
                             </div>
-                            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: C.dark }}>LA FAB</span>
+                            <p style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", lineHeight: 1.5 }}>
+                                La plateforme qui orchestre vos projets
+                            </p>
                         </div>
-                        <div style={{ fontSize: 13, color: C.muted }}>© 2026 LA FAB — Impression professionnelle</div>
-                        <div style={{ display: "flex", gap: 20 }}>
-                            <a href="/login" style={{ fontSize: 13, color: C.muted, textDecoration: "none" }}>Connexion</a>
-                            <a href="mailto:contact@lafab.fr" style={{ fontSize: 13, color: C.muted, textDecoration: "none" }}>Contact</a>
+
+                        {/* Col 2 — Liens */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <a href="/login" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Connexion</a>
+                            <a href="/supplier/register" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Espace fournisseur</a>
+                            <a href="mailto:contact@lafab-360.fr" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Contact</a>
+                        </div>
+
+                        {/* Col 3 — Contact */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "right" }}>
+                            <span style={{ fontSize: 13, color: "rgba(250,255,253,0.6)" }}>contact@lafab-360.fr</span>
+                            <span style={{ fontSize: 13, color: "rgba(250,255,253,0.6)" }}>lafab-360.fr</span>
                         </div>
                     </div>
+
+                    <div style={{
+                        maxWidth: 960, margin: "32px auto 0", paddingTop: 24,
+                        borderTop: "1px solid rgba(250,255,253,0.1)",
+                        textAlign: "center", fontSize: 12, color: "rgba(250,255,253,0.4)",
+                    }}>
+                        © 2026 LA FAB — Tous droits réservés
+                    </div>
+
+                    {/* Responsive footer */}
+                    <style>{`
+                        @media (max-width: 640px) {
+                            footer > div:first-child {
+                                grid-template-columns: 1fr !important;
+                                text-align: center;
+                            }
+                            footer > div:first-child > div:last-child {
+                                text-align: center !important;
+                            }
+                        }
+                    `}</style>
                 </footer>
-
             </div>
-
-            <style>{`
-                @keyframes fadeUp {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-                @keyframes fadeDown {
-                    from { opacity: 0; transform: translateY(-12px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
         </>
     )
 }

@@ -10,9 +10,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LA FAB — La plateforme qui orchestre vos projets",
+  title: "LA FAB — La plateforme B2B qui orchestre vos projets d'impression",
   description:
-    "Plateforme B2B de mise en relation clients/fournisseurs pour l'impression, la menuiserie, la métallurgie et la logistique événementielle.",
+    "Connectez vos briefs aux meilleurs fournisseurs. Impression, menuiserie, métallurgie, logistique. IA intégrée, paiement sécurisé, suivi temps réel.",
+  openGraph: {
+    title: "LA FAB — La plateforme B2B qui orchestre vos projets d'impression",
+    description:
+      "Connectez vos briefs aux meilleurs fournisseurs. Impression, menuiserie, métallurgie, logistique. IA intégrée, paiement sécurisé, suivi temps réel.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
