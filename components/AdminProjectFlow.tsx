@@ -32,6 +32,7 @@ interface Consultation {
     email_subject?: string
     email_body?: string
     matched_products?: any[]
+    reply_message?: string
 }
 
 interface Validation {
@@ -438,147 +439,125 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 {renderMsg("sendAll")}
                 {consultations.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            {consultations.length} fournisseur(s) route(s)
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                            {consultations.length} fournisseur(s) routé(s)
                         </div>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: Object.keys(rtColWidths).length > 0 ? "fixed" : "auto" }}>
-                            <thead>
-                                <tr>
-                                    {rtColOrder.map((col) => {
-                                        const label = ROUTING_COL_LABELS[col]
-                                        const isActions = col === "actions"
-                                        const isExpand = col === "expand"
-                                        const draggable = !isExpand && !isActions
-                                        return (
-                                            <th
-                                                key={col}
-                                                draggable={draggable}
-                                                onDragStart={() => draggable && setRtDragCol(col)}
-                                                onDragOver={(e) => { if (draggable) { e.preventDefault(); setRtDragOverCol(col) } }}
-                                                onDragLeave={() => setRtDragOverCol(null)}
-                                                onDrop={() => handleRtColumnDrop(col)}
-                                                style={{
-                                                    position: "relative",
-                                                    textAlign: isActions ? "center" : "left",
-                                                    padding: "6px 10px",
-                                                    fontSize: 11,
-                                                    fontWeight: 700,
-                                                    color: C.muted,
-                                                    borderBottom: "1px solid " + C.border,
-                                                    textTransform: "uppercase",
-                                                    width: isExpand ? 30 : (rtColWidths[col] || "auto"),
-                                                    cursor: draggable ? "grab" : "default",
-                                                    userSelect: "none",
-                                                    whiteSpace: "nowrap",
-                                                    borderLeft: rtDragOverCol === col ? "2px solid " + C.yellow : "none",
-                                                }}
-                                            >
-                                                {label}
-                                                {/* Resize handle */}
-                                                {!isExpand && (
-                                                    <div
-                                                        onMouseDown={(e) => {
-                                                            e.stopPropagation()
-                                                            e.preventDefault()
-                                                            const th = e.currentTarget.parentElement
-                                                            if (!th) return
-                                                            setRtResizing({ col, startX: e.clientX, startW: th.offsetWidth })
-                                                        }}
-                                                        style={{
-                                                            position: "absolute", right: 0, top: 0, bottom: 0, width: 4,
-                                                            cursor: "col-resize", backgroundColor: "transparent",
-                                                        }}
-                                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = C.border)}
-                                                        onMouseLeave={(e) => { if (!rtResizing) e.currentTarget.style.backgroundColor = "transparent" }}
-                                                    />
-                                                )}
-                                            </th>
-                                        )
-                                    })}
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <div style={{ display: "flex", gap: 0, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", minHeight: 280 }}>
+                            {/* Left: supplier list (40%) */}
+                            <div style={{ width: "40%", borderRight: "1px solid " + C.border, overflowY: "auto", maxHeight: 500 }}>
                                 {consultations.map((c) => {
-                                    const isRowExpanded = expandedConsultation === c.consultation_id
-
-                                    const cellContent: Record<RoutingCol, React.ReactNode> = {
-                                        expand: isRowExpanded ? <ChevronUp size={14} color={C.muted} /> : <ChevronDown size={14} color={C.muted} />,
-                                        supplier: (
-                                            <>
-                                                <div style={{ fontWeight: 500, color: C.dark }}>{c.supplier_name || c.supplier_id.slice(0, 10)}</div>
-                                                {c.supplier_email && <div style={{ fontSize: 11, color: C.muted }}>{c.supplier_email}</div>}
-                                            </>
-                                        ),
-                                        status: renderConsultationStatus(c.status),
-                                        sent: <span style={{ fontSize: 12, color: C.muted }}>{c.sent_at ? formatDate(c.sent_at) : "\u2014"}</span>,
-                                        actions: c.status === "draft" ? renderBtn("Envoyer", () => setConfirmSendConsultation(c), "send_" + c.consultation_id, <Send size={12} />, "primary") : null,
-                                    }
-
+                                    const isSelected = expandedConsultation === c.consultation_id
                                     return (
-                                        <React.Fragment key={c.consultation_id}>
-                                            <tr
-                                                onClick={() => setExpandedConsultation(isRowExpanded ? null : c.consultation_id)}
-                                                style={{ cursor: "pointer", transition: "background 0.15s" }}
-                                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fafaf8")}
-                                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                                            >
-                                                {rtColOrder.map((col) => (
-                                                    <td
-                                                        key={col}
-                                                        onClick={col === "actions" ? (e) => e.stopPropagation() : undefined}
-                                                        style={{
-                                                            padding: col === "expand" ? "8px 6px" : "8px 10px",
-                                                            borderBottom: "1px solid #f0f0ee",
-                                                            textAlign: col === "actions" ? "center" : "left",
-                                                            width: col === "expand" ? 30 : undefined,
-                                                        }}
-                                                    >
-                                                        {cellContent[col]}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                            {isRowExpanded && (
-                                                <tr>
-                                                    <td colSpan={rtColOrder.length} style={{ padding: "12px 16px", backgroundColor: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
-                                                        {c.email_subject && (
-                                                            <div style={{ marginBottom: 10 }}>
-                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Objet</div>
-                                                                <div style={{ fontSize: 13, color: C.dark }}>{c.email_subject}</div>
-                                                            </div>
-                                                        )}
-                                                        {c.matched_products && c.matched_products.length > 0 && (
-                                                            <div style={{ marginBottom: 10 }}>
-                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Produits</div>
-                                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                                                    {c.matched_products.map((p: any, idx: number) => (
-                                                                        <span key={idx} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.white, border: "1px solid " + C.border, color: C.dark }}>
-                                                                            {p.name || p.product_name || p.label || JSON.stringify(p)}
-                                                                            {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {c.email_body && (
-                                                            <div>
-                                                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Message</div>
-                                                                <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
-                                                                    {c.email_body}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {!c.email_subject && !c.email_body && !c.matched_products?.length && (
-                                                            <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun detail disponible pour cette consultation.</div>
-                                                        )}
-                                                        {renderMsg("send_" + c.consultation_id)}
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
+                                        <div
+                                            key={c.consultation_id}
+                                            onClick={() => setExpandedConsultation(isSelected ? null : c.consultation_id)}
+                                            style={{
+                                                padding: "12px 14px", cursor: "pointer",
+                                                backgroundColor: isSelected ? "#fafaf8" : C.white,
+                                                borderBottom: "1px solid " + C.bg,
+                                                borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
+                                            }}
+                                        >
+                                            <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>
+                                                {c.supplier_name || c.supplier_id.slice(0, 10)}
+                                            </div>
+                                            {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                {renderConsultationStatus(c.status)}
+                                                {c.status === "draft" && (
+                                                    <span onClick={(e) => { e.stopPropagation(); setConfirmSendConsultation(c) }} style={{ fontSize: 11, fontWeight: 600, color: C.yellow, cursor: "pointer" }}>
+                                                        Envoyer
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     )
                                 })}
-                            </tbody>
-                        </table>
+                            </div>
+                            {/* Right: detail panel (60%) */}
+                            <div style={{ width: "60%", padding: "16px 20px", overflowY: "auto", maxHeight: 500, backgroundColor: "#fafaf8" }}>
+                                {(() => {
+                                    const sel = consultations.find((c) => c.consultation_id === expandedConsultation)
+                                    if (!sel) return (
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, fontSize: 13 }}>
+                                            Sélectionnez un fournisseur
+                                        </div>
+                                    )
+                                    const detailLbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }
+                                    return (
+                                        <>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                                                <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+                                                    {sel.supplier_name || sel.supplier_id.slice(0, 10)}
+                                                </div>
+                                                {renderConsultationStatus(sel.status)}
+                                            </div>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 16 }}>
+                                                <div>
+                                                    <div style={detailLbl}>Date d'envoi</div>
+                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.sent_at ? formatDate(sel.sent_at) : "—"}</div>
+                                                </div>
+                                                <div>
+                                                    <div style={detailLbl}>Date de réponse</div>
+                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.responded_at ? formatDate(sel.responded_at) : "—"}</div>
+                                                </div>
+                                                {sel.response_price != null && (
+                                                    <div>
+                                                        <div style={detailLbl}>Prix proposé</div>
+                                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(sel.response_price)}</div>
+                                                    </div>
+                                                )}
+                                                {sel.response_delay && (
+                                                    <div>
+                                                        <div style={detailLbl}>Délai proposé</div>
+                                                        <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {sel.matched_products && sel.matched_products.length > 0 && (
+                                                <div style={{ marginBottom: 14 }}>
+                                                    <div style={detailLbl}>Produits matchés</div>
+                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                                        {sel.matched_products.map((p: any, idx: number) => (
+                                                            <span key={idx} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.white, border: "1px solid " + C.border, color: C.dark }}>
+                                                                {p.name || p.product_name || p.label || JSON.stringify(p)}
+                                                                {p.quantity ? ` × ${p.quantity}` : ""}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {sel.email_subject && (
+                                                <div style={{ marginBottom: 14 }}>
+                                                    <div style={detailLbl}>Objet du message</div>
+                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.email_subject}</div>
+                                                </div>
+                                            )}
+                                            {sel.email_body && (
+                                                <div style={{ marginBottom: 14 }}>
+                                                    <div style={detailLbl}>Message envoyé</div>
+                                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                                                        {sel.email_body}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {(sel as any).reply_message && (
+                                                <div style={{ marginBottom: 14 }}>
+                                                    <div style={detailLbl}>Réponse du fournisseur</div>
+                                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#f0faf0", borderRadius: 8, border: "1px solid #c6e6c6", maxHeight: 200, overflowY: "auto" }}>
+                                                        {(sel as any).reply_message}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {!sel.email_subject && !sel.email_body && !sel.matched_products?.length && (
+                                                <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun détail disponible pour cette consultation.</div>
+                                            )}
+                                            {renderMsg("send_" + sel.consultation_id)}
+                                        </>
+                                    )
+                                })()}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
