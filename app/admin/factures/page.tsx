@@ -68,6 +68,7 @@ function AdminInvoices() {
     const [sortKey, setSortKey] = useState<"date" | "amount" | "due">("date")
     const [sortAsc, setSortAsc] = useState(false)
     const [page, setPage] = useState(0)
+    const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
     const PAGE_SIZE = 20
 
     useEffect(() => {
@@ -450,9 +451,9 @@ function AdminInvoices() {
                                     {inv.due_at ? formatDate(inv.due_at) : "—"}
                                 </div>
                                 <div style={{ display: "flex", gap: 4 }}>
-                                    <a href={`/facture/${inv.id}`} title="Voir" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+                                    <button onClick={() => setSelectedInvoice(inv)} title="Voir" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
                                         <Eye size={12} color={C.muted} />
-                                    </a>
+                                    </button>
                                     {inv.pdf_url && (
                                         <a href={inv.pdf_url} target="_blank" title="PDF" style={{ width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: C.dark, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
                                             <Download size={12} color={C.white} />
@@ -495,6 +496,110 @@ function AdminInvoices() {
                     </div>
                 )}
             </div>
+
+            {/* ══════════════════════════════════════════════════════════════
+                DRAWER — Détail facture
+            ══════════════════════════════════════════════════════════════ */}
+            {selectedInvoice && (() => {
+                const inv = selectedInvoice
+                const isSplit = inv.payment_type === "split"
+                const depositPaid = inv.payment_step === "deposit_paid" || inv.payment_step === "fully_paid"
+                const balancePaid = inv.payment_step === "fully_paid"
+                const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }
+                const val: React.CSSProperties = { fontSize: 14, fontWeight: 500, color: C.dark }
+
+                return (
+                    <div onClick={() => setSelectedInvoice(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", zIndex: 9999, display: "flex", justifyContent: "flex-end" }}>
+                        <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "90vw", height: "100%", backgroundColor: C.white, boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", overflowY: "auto", padding: 32 }}>
+
+                            {/* Header */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <FileText size={18} color={C.dark} />
+                                    <span style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>Détail facture</span>
+                                </div>
+                                <button onClick={() => setSelectedInvoice(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                                    <XCircle size={20} color={C.muted} />
+                                </button>
+                            </div>
+
+                            {/* Infos grid */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 24px", marginBottom: 28 }}>
+                                <div>
+                                    <div style={lbl}>N° Facture</div>
+                                    <div style={{ ...val, fontWeight: 700 }}>{inv.invoice_number || "—"}</div>
+                                </div>
+                                <div>
+                                    <div style={lbl}>Statut</div>
+                                    <StatusBadge status={inv.status} type="invoice" />
+                                </div>
+                                <div>
+                                    <div style={lbl}>Client</div>
+                                    <div style={val}>{inv.client_name || inv.client_email || "—"}</div>
+                                </div>
+                                <div>
+                                    <div style={lbl}>Projet</div>
+                                    <div style={{ ...val, fontSize: 12 }}>{inv.project_id || "—"}</div>
+                                </div>
+                                <div>
+                                    <div style={lbl}>Montant TTC</div>
+                                    <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{formatPrice(Number(inv.total || 0))}</div>
+                                </div>
+                                <div>
+                                    <div style={lbl}>Échéance</div>
+                                    <div style={{ ...val, color: inv.due_at && new Date(inv.due_at) < now && inv.status !== "paid" ? "#c0392b" : C.dark }}>
+                                        {inv.due_at ? formatDate(inv.due_at) : "—"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Paiement */}
+                            <div style={{ background: C.bg, borderRadius: 10, padding: 20, marginBottom: 28 }}>
+                                <div style={{ ...lbl, marginBottom: 12 }}>Type de paiement</div>
+                                {isSplit ? (
+                                    <div>
+                                        <span style={{ padding: "4px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, backgroundColor: "#fef9e0", color: "#b89a00", border: "1px solid #f4cf1588" }}>
+                                            Scindé
+                                        </span>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+                                            <div style={{ background: C.white, borderRadius: 8, padding: 14 }}>
+                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Acompte</div>
+                                                <div style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{formatPrice(Number(inv.deposit_amount || 0))}</div>
+                                                <div style={{ fontSize: 11, marginTop: 4, color: depositPaid ? "#16a34a" : "#b89a00", fontWeight: 600 }}>
+                                                    {depositPaid ? "Payé ✓" : "En attente"}
+                                                </div>
+                                            </div>
+                                            <div style={{ background: C.white, borderRadius: 8, padding: 14 }}>
+                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 4 }}>Solde</div>
+                                                <div style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{formatPrice(Number(inv.balance_amount || 0))}</div>
+                                                <div style={{ fontSize: 11, marginTop: 4, color: balancePaid ? "#16a34a" : "#b89a00", fontWeight: 600 }}>
+                                                    {balancePaid ? "Payé ✓" : "En attente"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span style={{ padding: "4px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, backgroundColor: C.bg, color: C.muted, border: "1px solid " + C.border }}>
+                                        Comptant
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* PDF button */}
+                            {inv.pdf_url && (
+                                <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                                    width: "100%", padding: "12px 0", borderRadius: 8,
+                                    backgroundColor: C.dark, color: C.white, fontSize: 14, fontWeight: 600,
+                                    textDecoration: "none", border: "none", cursor: "pointer",
+                                }}>
+                                    <Download size={16} /> Télécharger le PDF
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                )
+            })()}
 
             {/* Responsive */}
             <style>{`
