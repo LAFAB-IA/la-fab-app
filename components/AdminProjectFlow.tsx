@@ -85,6 +85,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [expandedConsultation, setExpandedConsultation] = useState<string | null>(null)
     const [confirmSendConsultation, setConfirmSendConsultation] = useState<Consultation | null>(null)
     const [confirmSendAll, setConfirmSendAll] = useState(false)
+    const [aiReplyDraft, setAiReplyDraft] = useState<string>("")
+    const [aiReplyGenerating, setAiReplyGenerating] = useState(false)
+    const [aiReplySending, setAiReplySending] = useState(false)
 
     /* routing table columns — resizable & reorderable */
     const ROUTING_COLS = ["expand", "supplier", "status", "sent", "actions"] as const
@@ -329,6 +332,54 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         setAiGeneratingLines(false)
     }
 
+    /* ─────── AI reply for supplier ─────── */
+    async function generateAIReply(consultation: Consultation) {
+        setAiReplyGenerating(true)
+        setAiReplyDraft("")
+        try {
+            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+                method: "POST",
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    project_id: projectId,
+                    message: `Génère une réponse professionnelle à ce fournisseur suite à sa réponse : "${consultation.reply_message}". Contexte projet : ${JSON.stringify(briefAnalysis?.production_plan || {})}. Réponds uniquement avec le texte du mail, sans objet, sans signature.`,
+                    context: { consultation, production_plan: briefAnalysis?.production_plan || null },
+                }),
+            })
+            const data = await r.json()
+            if (data.ok && data.reply) {
+                setAiReplyDraft(data.reply)
+            } else {
+                setMsg("reply_" + consultation.consultation_id, "err", data.error || "Erreur IA")
+            }
+        } catch { setMsg("reply_" + consultation.consultation_id, "err", "Erreur réseau") }
+        setAiReplyGenerating(false)
+    }
+
+    async function sendAdminReply(consultationId: string) {
+        if (!aiReplyDraft.trim() || aiReplySending) return
+        setAiReplySending(true)
+        try {
+            const r = await fetch(`${API_URL}/api/consultation/${consultationId}/admin-reply`, {
+                method: "POST",
+                headers: authHeaders(true),
+                body: JSON.stringify({ reply_message: aiReplyDraft.trim() }),
+            })
+            const data = await r.json()
+            if (data.ok) {
+                setMsg("reply_" + consultationId, "ok", "Réponse envoyée")
+                setAiReplyDraft("")
+                // Update consultation status in real time
+                setConsultations((prev) =>
+                    prev.map((c) => c.consultation_id === consultationId ? { ...c, status: data.consultation?.status || "replied", ...data.consultation } : c)
+                )
+            } else {
+                setMsg("reply_" + consultationId, "err", data.error || "Erreur envoi")
+            }
+        } catch { setMsg("reply_" + consultationId, "err", "Erreur réseau") }
+        setAiReplySending(false)
+    }
+
     /* ─────── line items ─────── */
     function addLine() {
         setLineItems((prev) => [...prev, { description: "", quantity: 1, unit_price: 0 }])
@@ -495,7 +546,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     return (
                                         <div
                                             key={c.consultation_id}
-                                            onClick={() => setExpandedConsultation(isSelected ? null : c.consultation_id)}
+                                            onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft("") }}
                                             style={{
                                                 padding: "12px 14px", cursor: "pointer",
                                                 backgroundColor: isSelected ? "#fafaf8" : C.white,
@@ -586,15 +637,61 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                     </div>
                                                 </div>
                                             )}
-                                            {(sel as any).reply_message && (
+                                            {sel.reply_message && (
                                                 <div style={{ marginBottom: 14 }}>
-                                                    <div style={detailLbl}>Réponse du fournisseur</div>
+                                                    <div style={detailLbl}>Réponse reçue</div>
                                                     <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#f0faf0", borderRadius: 8, border: "1px solid #c6e6c6", maxHeight: 200, overflowY: "auto" }}>
-                                                        {(sel as any).reply_message}
+                                                        {sel.reply_message}
                                                     </div>
+                                                    {/* AI reply generation */}
+                                                    <div style={{ marginTop: 10 }}>
+                                                        <button
+                                                            onClick={() => generateAIReply(sel)}
+                                                            disabled={aiReplyGenerating}
+                                                            style={{
+                                                                display: "inline-flex", alignItems: "center", gap: 6,
+                                                                padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                                border: "1px solid " + C.border, background: aiReplyGenerating ? "#fef9e0" : C.white,
+                                                                color: C.dark, cursor: aiReplyGenerating ? "not-allowed" : "pointer",
+                                                            }}
+                                                        >
+                                                            {aiReplyGenerating ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
+                                                            {aiReplyGenerating ? "Génération..." : "Générer une réponse IA"}
+                                                        </button>
+                                                    </div>
+                                                    {aiReplyDraft && (
+                                                        <div style={{ marginTop: 10 }}>
+                                                            <div style={detailLbl}>Réponse à envoyer</div>
+                                                            <textarea
+                                                                value={aiReplyDraft}
+                                                                onChange={(e) => setAiReplyDraft(e.target.value)}
+                                                                rows={6}
+                                                                style={{
+                                                                    width: "100%", padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
+                                                                    border: "1px solid " + C.border, borderRadius: 8, color: C.dark,
+                                                                    resize: "vertical", outline: "none", boxSizing: "border-box",
+                                                                }}
+                                                            />
+                                                            <button
+                                                                onClick={() => sendAdminReply(sel.consultation_id)}
+                                                                disabled={aiReplySending || !aiReplyDraft.trim()}
+                                                                style={{
+                                                                    marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
+                                                                    padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                                    border: "none", background: C.yellow, color: C.dark,
+                                                                    cursor: aiReplySending ? "not-allowed" : "pointer",
+                                                                    opacity: aiReplySending ? 0.7 : 1,
+                                                                }}
+                                                            >
+                                                                {aiReplySending ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
+                                                                {aiReplySending ? "Envoi..." : "Envoyer cette réponse"}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {renderMsg("reply_" + sel.consultation_id)}
                                                 </div>
                                             )}
-                                            {!sel.email_subject && !sel.email_body && !sel.matched_products?.length && (
+                                            {!sel.email_subject && !sel.email_body && !sel.matched_products?.length && !sel.reply_message && (
                                                 <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun détail disponible pour cette consultation.</div>
                                             )}
                                             {renderMsg("send_" + sel.consultation_id)}
