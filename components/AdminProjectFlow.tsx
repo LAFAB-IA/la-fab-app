@@ -33,6 +33,7 @@ interface Consultation {
     email_body?: string
     matched_products?: any[]
     reply_message?: string
+    reminders_count?: number
 }
 
 interface Validation {
@@ -88,6 +89,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [aiReplyDraft, setAiReplyDraft] = useState<string>("")
     const [aiReplyGenerating, setAiReplyGenerating] = useState(false)
     const [aiReplySending, setAiReplySending] = useState(false)
+    const [inlineAiInput, setInlineAiInput] = useState("")
+    const [inlineAiReply, setInlineAiReply] = useState("")
+    const [inlineAiLoading, setInlineAiLoading] = useState(false)
 
     /* routing table columns — resizable & reorderable */
     const ROUTING_COLS = ["expand", "supplier", "status", "sent", "actions"] as const
@@ -380,6 +384,31 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         setAiReplySending(false)
     }
 
+    async function askInlineAI(consultation: Consultation) {
+        if (!inlineAiInput.trim() || inlineAiLoading) return
+        setInlineAiLoading(true)
+        setInlineAiReply("")
+        try {
+            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+                method: "POST",
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    project_id: projectId,
+                    message: inlineAiInput.trim(),
+                    context: { consultation, production_plan: briefAnalysis?.production_plan || null },
+                }),
+            })
+            const data = await r.json()
+            if (data.ok && data.reply) {
+                setInlineAiReply(data.reply)
+            } else {
+                setInlineAiReply("Erreur : " + (data.error || "Impossible de contacter l'assistant."))
+            }
+        } catch { setInlineAiReply("Erreur réseau. Réessayez.") }
+        setInlineAiLoading(false)
+        setInlineAiInput("")
+    }
+
     /* ─────── line items ─────── */
     function addLine() {
         setLineItems((prev) => [...prev, { description: "", quantity: 1, unit_price: 0 }])
@@ -546,7 +575,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     return (
                                         <div
                                             key={c.consultation_id}
-                                            onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft("") }}
+                                            onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft(""); setInlineAiReply(""); setInlineAiInput("") }}
                                             style={{
                                                 padding: "12px 14px", cursor: "pointer",
                                                 backgroundColor: isSelected ? "#fafaf8" : C.white,
@@ -754,11 +783,11 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     <div style={{ width: "40%", borderRight: "1px solid " + C.border, overflowY: "auto", maxHeight: 500 }}>
                         {allForPanel.map((c) => {
                             const isSelected = expandedConsultation === c.consultation_id
-                            const hasReplied = c.status === "responded" || c.status === "replied"
+                            const hasReplied = c.status === "responded" || c.status === "replied" || c.reply_message != null
                             return (
                                 <div
                                     key={c.consultation_id}
-                                    onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft("") }}
+                                    onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft(""); setInlineAiReply(""); setInlineAiInput("") }}
                                     style={{
                                         padding: "12px 14px", cursor: "pointer",
                                         backgroundColor: isSelected ? "#fafaf8" : C.white,
@@ -795,7 +824,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     Sélectionnez un fournisseur
                                 </div>
                             )
-                            const hasReplied = sel.status === "responded" || sel.status === "replied"
+                            const hasReplied = sel.status === "responded" || sel.status === "replied" || sel.reply_message != null
                             return (
                                 <>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -825,6 +854,16 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                 <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
                                             </div>
                                         )}
+                                        <div>
+                                            <div style={detailLbl}>Jours depuis l'envoi</div>
+                                            <div style={{ fontSize: 13, color: C.dark }}>
+                                                {sel.sent_at ? Math.max(0, Math.floor((Date.now() - new Date(sel.sent_at).getTime()) / 86400000)) + " j" : "—"}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={detailLbl}>Relances envoyées</div>
+                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.reminders_count ?? 0}</div>
+                                        </div>
                                     </div>
 
                                     {/* Supplier reply */}
@@ -889,6 +928,44 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                             En attente de réponse de ce fournisseur.
                                         </div>
                                     )}
+                                    {/* Inline AI assistant */}
+                                    <div style={{ marginTop: 16, padding: "14px 16px", backgroundColor: C.white, borderRadius: 10, border: "1px solid " + C.border }}>
+                                        <div style={{ ...detailLbl, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                                            <Brain size={12} /> Assistant IA
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                            <input
+                                                value={inlineAiInput}
+                                                onChange={(e) => setInlineAiInput(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === "Enter") askInlineAI(sel) }}
+                                                placeholder="Poser une question sur cette consultation..."
+                                                style={{
+                                                    flex: 1, padding: "8px 12px", fontSize: 12, border: "1px solid " + C.border,
+                                                    borderRadius: 6, color: C.dark, outline: "none",
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => askInlineAI(sel)}
+                                                disabled={inlineAiLoading || !inlineAiInput.trim()}
+                                                style={{
+                                                    padding: "8px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                    border: "none", background: C.yellow, color: C.dark,
+                                                    cursor: inlineAiLoading ? "not-allowed" : "pointer",
+                                                    opacity: inlineAiLoading ? 0.7 : 1,
+                                                    display: "inline-flex", alignItems: "center", gap: 5,
+                                                }}
+                                            >
+                                                {inlineAiLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
+                                                {inlineAiLoading ? "..." : "Demander"}
+                                            </button>
+                                        </div>
+                                        {inlineAiReply && (
+                                            <div style={{ marginTop: 10, fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                                                {inlineAiReply}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {renderMsg("reminder_" + sel.consultation_id)}
                                 </>
                             )
@@ -1147,7 +1224,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                             {/* Step header */}
                             <div
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setExpandedStep(isExpanded ? null : step.key) }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
