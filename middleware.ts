@@ -9,6 +9,8 @@ const PROTECTED_ROUTES = [
   "/admin",
   "/notifications",
   "/profil",
+  "/supplier/dashboard",
+  "/supplier/consultations",
 ];
 
 const PUBLIC_ROUTES = ["/login", "/", "/supplier/register", "/auth/callback"];

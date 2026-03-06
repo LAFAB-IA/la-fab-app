@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(null);
     setUser(null);
     setIsAuthenticated(false);
-    router.push("/login");
+    router.push("/");
   };
 
   return (

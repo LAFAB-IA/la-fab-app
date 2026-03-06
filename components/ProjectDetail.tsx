@@ -608,7 +608,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     })()}
 
                     {/* Informations */}
-                    <div style={sec}>Informations</div>
                     {(() => {
                         const products = brief_analysis?.products
                         const hasProducts = Array.isArray(products) && products.length > 0
@@ -618,49 +617,106 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             : (parseInt(brief_analysis?.quantity_detected || quantity || "0") || 0)
                         const plan = brief_analysis?.production_plan
                         const estimatedHT = plan?.total_estimated_ht
+                        const hasRealPricing = pricing?.total_net != null && Number(pricing.total_net) > 0
+                        const showEstimate = !hasRealPricing && estimatedHT != null
+
                         return (
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
-                                <div>
-                                    <div style={lbl}>Produits</div>
-                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
-                                        {totalProducts} ligne{totalProducts > 1 ? "s" : ""}
-                                    </div>
+                            <>
+                                <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
+                                    {showEstimate ? "Estimation (basée sur l'analyse IA)" : "Informations"}
+                                    {showEstimate && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.dark, backgroundColor: C.yellow, padding: "2px 8px", borderRadius: 4 }}>
+                                            Estimation IA
+                                        </span>
+                                    )}
                                 </div>
-                                <div>
-                                    <div style={lbl}>Quantité totale</div>
-                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
-                                        {totalQty > 0 ? `${totalQty} ex.` : "—"}
+
+                                {hasRealPricing ? (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+                                        <div>
+                                            <div style={lbl}>Produits</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalProducts} ligne{totalProducts > 1 ? "s" : ""}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Quantité totale</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalQty > 0 ? `${totalQty} ex.` : "—"}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Sous-total HT</div>
+                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 600 }}>{formatPrice(pricing.total_net)}</div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>TVA (20%)</div>
+                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{formatPrice(pricing.total_net * 0.2)}</div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Total TTC</div>
+                                            <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>{formatPrice(pricing.total_net * 1.2)}</div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Date de création</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <div style={lbl}>Estimation HT</div>
-                                    <div style={{ fontSize: 16, color: C.dark, fontWeight: 600 }}>
-                                        {estimatedHT != null ? formatPrice(estimatedHT) : "Estimation en cours..."}
-                                    </div>
-                                </div>
-                                {estimatedHT != null && (
-                                    <>
+                                ) : showEstimate ? (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+                                        <div>
+                                            <div style={lbl}>Produits</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalProducts} ligne{totalProducts > 1 ? "s" : ""}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Quantité totale</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalQty > 0 ? `${totalQty} ex.` : "—"}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Estimation HT</div>
+                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 600 }}>{formatPrice(estimatedHT)}</div>
+                                        </div>
                                         <div>
                                             <div style={lbl}>TVA estimée (20%)</div>
-                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>
-                                                {formatPrice(estimatedHT * 0.2)}
-                                            </div>
+                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{formatPrice(estimatedHT * 0.2)}</div>
                                         </div>
                                         <div>
                                             <div style={lbl}>Total TTC estimé</div>
-                                            <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>
-                                                {formatPrice(estimatedHT * 1.2)}
+                                            <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>{formatPrice(estimatedHT * 1.2)}</div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Date de création</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+                                        <div>
+                                            <div style={lbl}>Produits</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalProducts > 0 ? `${totalProducts} ligne${totalProducts > 1 ? "s" : ""}` : "—"}
                                             </div>
                                         </div>
-                                    </>
-                                )}
-                                <div>
-                                    <div style={lbl}>Date de création</div>
-                                    <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
-                                        {formatDate(created_at)}
+                                        <div>
+                                            <div style={lbl}>Quantité totale</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                                                {totalQty > 0 ? `${totalQty} ex.` : "—"}
+                                            </div>
+                                        </div>
+                                        <div style={{ gridColumn: "1 / -1" }}>
+                                            <div style={{ fontSize: 14, color: C.muted, fontStyle: "italic" }}>En attente de devis</div>
+                                        </div>
+                                        <div>
+                                            <div style={lbl}>Date de création</div>
+                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
+                                )}
+                            </>
                         )
                     })()}
 
