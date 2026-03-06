@@ -6,7 +6,7 @@ import { formatPrice, formatDate } from "@/lib/format"
 import {
     Route, MessageSquare, FileText, CheckSquare, CreditCard,
     Send, RefreshCw, ChevronDown, ChevronUp, Bell, Download,
-    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle
+    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain
 } from "lucide-react"
 
 const { useState, useEffect, useCallback } = React
@@ -123,9 +123,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
     /* invoice step state */
     const [lineItems, setLineItems] = useState<LineItem[]>([{ description: "", quantity: 1, unit_price: 0 }])
-    const [paymentType, setPaymentType] = useState<"full" | "split">("full")
     const [dueDays, setDueDays] = useState(30)
     const [invoiceResult, setInvoiceResult] = useState<any>(null)
+    const [aiGeneratingLines, setAiGeneratingLines] = useState(false)
 
     const activeStepIndex = STATUS_STEP_MAP[projectStatus] ?? 0
 
@@ -269,7 +269,6 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 body: JSON.stringify({
                     project_id: projectId,
                     line_items: validItems,
-                    payment_type: paymentType,
                     due_days: dueDays,
                 }),
             })
@@ -282,6 +281,52 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             }
         } catch { setMsg("invoice", "err", "Erreur reseau") }
         setLoad("invoice", false)
+    }
+
+    async function generateLinesViaAI() {
+        if (aiGeneratingLines) return
+        setAiGeneratingLines(true)
+        setMsg("invoice", "ok", "")
+        try {
+            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+                method: "POST",
+                headers: authHeaders(true),
+                body: JSON.stringify({
+                    project_id: projectId,
+                    message: "Genere les lignes de facturation a partir du plan de production et des briefs. Reponds UNIQUEMENT avec un JSON array (sans markdown, sans texte avant/apres) au format: [{\"description\": \"...\", \"quantity\": N, \"unit_price\": N}]. Chaque ligne doit avoir une description claire du produit/prestation, la quantite et un prix unitaire HT estime en euros.",
+                    context: {
+                        briefs: briefAnalysis || null,
+                        production_plan: briefAnalysis?.production_plan || null,
+                    },
+                }),
+            })
+            const data = await r.json()
+            if (data.ok && data.reply) {
+                // Extract JSON array from AI response
+                const text = data.reply.trim()
+                const start = text.indexOf("[")
+                const end = text.lastIndexOf("]")
+                if (start !== -1 && end !== -1) {
+                    const parsed = JSON.parse(text.slice(start, end + 1))
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        const items: LineItem[] = parsed.map((item: any) => ({
+                            description: String(item.description || ""),
+                            quantity: Number(item.quantity) || 1,
+                            unit_price: Number(item.unit_price) || 0,
+                        }))
+                        setLineItems(items)
+                        setMsg("invoice", "ok", `${items.length} ligne(s) generee(s) par l'IA`)
+                    } else {
+                        setMsg("invoice", "err", "L'IA n'a pas retourne de lignes valides")
+                    }
+                } else {
+                    setMsg("invoice", "err", "Format de reponse IA invalide")
+                }
+            } else {
+                setMsg("invoice", "err", data.error || "Erreur IA")
+            }
+        } catch { setMsg("invoice", "err", "Erreur reseau") }
+        setAiGeneratingLines(false)
     }
 
     /* ─────── line items ─────── */
@@ -791,8 +836,24 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         return (
             <div>
                 {/* Line items */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Lignes de facturation
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        Lignes de facturation
+                    </div>
+                    <button
+                        onClick={generateLinesViaAI}
+                        disabled={aiGeneratingLines}
+                        style={{
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            border: "1px solid " + C.border, background: aiGeneratingLines ? "#fef9e0" : C.white,
+                            color: C.dark, cursor: aiGeneratingLines ? "not-allowed" : "pointer",
+                            opacity: aiGeneratingLines ? 0.7 : 1,
+                        }}
+                    >
+                        {aiGeneratingLines ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
+                        {aiGeneratingLines ? "Generation..." : "Generer les lignes via IA"}
+                    </button>
                 </div>
                 {lineItems.map((li, idx) => (
                     <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -843,31 +904,19 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     </div>
                 </div>
 
-                {/* Payment options */}
-                <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer", color: C.dark }}>
-                            <input type="radio" name="paymentType" value="full" checked={paymentType === "full"} onChange={() => setPaymentType("full")} />
-                            Paiement integral
-                        </label>
-                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer", color: C.dark }}>
-                            <input type="radio" name="paymentType" value="split" checked={paymentType === "split"} onChange={() => setPaymentType("split")} />
-                            Paiement echelonne
-                        </label>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <label style={{ fontSize: 12, color: C.muted }}>Echeance :</label>
-                        <select
-                            value={dueDays}
-                            onChange={(e) => setDueDays(Number(e.target.value))}
-                            style={{ padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none" }}
-                        >
-                            <option value={15}>15 jours</option>
-                            <option value={30}>30 jours</option>
-                            <option value={45}>45 jours</option>
-                            <option value={60}>60 jours</option>
-                        </select>
-                    </div>
+                {/* Due days */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+                    <label style={{ fontSize: 12, color: C.muted }}>Echeance :</label>
+                    <select
+                        value={dueDays}
+                        onChange={(e) => setDueDays(Number(e.target.value))}
+                        style={{ padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none" }}
+                    >
+                        <option value={15}>15 jours</option>
+                        <option value={30}>30 jours</option>
+                        <option value={45}>45 jours</option>
+                        <option value={60}>60 jours</option>
+                    </select>
                 </div>
 
                 {/* Generate button */}
