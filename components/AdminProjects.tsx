@@ -4,7 +4,7 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
-import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil, Brain, Send, Loader2 } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import AdminProjectFlow from "@/components/AdminProjectFlow"
 import Drawer from "@/components/shared/Drawer"
@@ -43,6 +43,13 @@ export default function AdminProjects() {
     // Delete confirmation
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState(false)
+
+    // AI Assistant panel
+    const [aiPanelOpen, setAiPanelOpen] = useState(false)
+    const [aiMessages, setAiMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([])
+    const [aiInput, setAiInput] = useState("")
+    const [aiLoading, setAiLoading] = useState(false)
+    const aiChatEndRef = React.useRef<HTMLDivElement>(null)
 
     // Column management
     const DEFAULT_COLUMNS = ["project", "client", "product", "status", "date", "actions"]
@@ -154,6 +161,40 @@ export default function AdminProjects() {
     function sortIndicator(key: SortKey) {
         if (sortKey !== key) return ""
         return sortDir === "asc" ? " \u25B2" : " \u25BC"
+    }
+
+    async function handleAiSend() {
+        if (!aiInput.trim() || aiLoading || !drawerProjectId || !token) return
+        const userMsg = aiInput.trim()
+        setAiInput("")
+        setAiMessages((prev) => [...prev, { role: "user", content: userMsg }])
+        setAiLoading(true)
+        try {
+            const project = projects.find((p) => p.project_id === drawerProjectId)
+            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    project_id: drawerProjectId,
+                    message: userMsg,
+                    messages: aiMessages,
+                    context: {
+                        briefs: project?.brief_analysis || null,
+                        production_plan: project?.brief_analysis?.production_plan || null,
+                    },
+                }),
+            })
+            const data = await r.json()
+            if (data.ok) {
+                setAiMessages((prev) => [...prev, { role: "assistant", content: data.reply }])
+            } else {
+                setAiMessages((prev) => [...prev, { role: "assistant", content: "Erreur : " + (data.error || "Impossible de contacter l'assistant.") }])
+            }
+        } catch {
+            setAiMessages((prev) => [...prev, { role: "assistant", content: "Erreur reseau. Reessayez." }])
+        }
+        setAiLoading(false)
+        setTimeout(() => aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100)
     }
 
     const filtered = projects.filter((p) => {
@@ -471,7 +512,19 @@ export default function AdminProjects() {
             >
                 {drawerProjectId && (
                     <>
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12 }}>
+                            <button
+                                onClick={() => { setAiPanelOpen((v) => !v); if (!aiPanelOpen) setAiMessages([]) }}
+                                style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                    border: "1px solid " + (aiPanelOpen ? C.yellow : C.border),
+                                    background: aiPanelOpen ? "#fef9e0" : C.white, color: C.dark,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <Brain size={13} /> Assistant IA
+                            </button>
                             <a
                                 href={`/projet/${drawerProjectId}`}
                                 style={{
@@ -484,6 +537,78 @@ export default function AdminProjects() {
                                 <ExternalLink size={13} /> Ouvrir en pleine page
                             </a>
                         </div>
+
+                        {/* AI Assistant Chat Panel */}
+                        {aiPanelOpen && (
+                            <div style={{ marginBottom: 16, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", background: "#fafaf8" }}>
+                                <div style={{ padding: "10px 14px", background: C.dark, color: C.white, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                                    <Brain size={14} /> Assistant IA — Projet
+                                </div>
+                                <div style={{ maxHeight: 350, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                                    {aiMessages.length === 0 && (
+                                        <div style={{ textAlign: "center", color: C.muted, fontSize: 13, padding: 20 }}>
+                                            Posez une question sur ce projet...
+                                        </div>
+                                    )}
+                                    {aiMessages.map((msg, idx) => {
+                                        const isUser = msg.role === "user"
+                                        return (
+                                            <div key={idx} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
+                                                <div style={{
+                                                    maxWidth: "75%",
+                                                    padding: "10px 14px",
+                                                    borderRadius: 12,
+                                                    backgroundColor: isUser ? C.dark : C.white,
+                                                    color: isUser ? C.white : C.dark,
+                                                    fontSize: 13,
+                                                    lineHeight: 1.5,
+                                                    border: isUser ? "none" : "1px solid " + C.border,
+                                                    whiteSpace: "pre-wrap",
+                                                }}>
+                                                    {!isUser && (
+                                                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 4 }}>
+                                                            Assistant IA
+                                                        </div>
+                                                    )}
+                                                    {msg.content}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                    {aiLoading && (
+                                        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                                            <div style={{ padding: "10px 14px", borderRadius: 12, backgroundColor: C.white, border: "1px solid " + C.border, fontSize: 13, color: C.muted }}>
+                                                <Loader2 size={14} style={{ animation: "spin 1s linear infinite", verticalAlign: "middle", marginRight: 6 }} />
+                                                Reflexion...
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div ref={aiChatEndRef} />
+                                </div>
+                                <div style={{ borderTop: "1px solid " + C.border, padding: 10, display: "flex", gap: 8 }}>
+                                    <input
+                                        value={aiInput}
+                                        onChange={(e) => setAiInput(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiSend() } }}
+                                        placeholder="Poser une question sur ce projet..."
+                                        style={{ flex: 1, padding: "9px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, backgroundColor: C.white, outline: "none", fontFamily: "Inter, sans-serif" }}
+                                    />
+                                    <button
+                                        onClick={handleAiSend}
+                                        disabled={aiLoading || !aiInput.trim()}
+                                        style={{
+                                            padding: "9px 16px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 700,
+                                            backgroundColor: aiLoading || !aiInput.trim() ? C.muted : C.yellow, color: C.dark,
+                                            cursor: aiLoading || !aiInput.trim() ? "not-allowed" : "pointer",
+                                            display: "inline-flex", alignItems: "center", gap: 4,
+                                        }}
+                                    >
+                                        <Send size={13} /> Envoyer
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <ProjectDetail projectId={drawerProjectId} onClose={() => { setDrawerOpen(false); setDrawerProjectId(null) }} />
                         <div style={{ marginTop: 28, paddingTop: 20, borderTop: "2px solid " + C.yellow }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 14 }}>Flux de gestion</div>
