@@ -724,76 +724,177 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     function renderResponses() {
-        const responded = consultations.filter((c) => c.status === "responded")
-        const pending = consultations.filter((c) => c.status === "sent" || c.status === "pending")
+        const responded = consultations.filter((c) => c.status === "responded" || c.status === "replied")
+        const pending = consultations.filter((c) => c.status !== "responded" && c.status !== "replied")
+        const allForPanel = [...responded, ...pending]
+
+        if (consultations.length === 0) {
+            return (
+                <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                    Aucune consultation trouvée. Lancez le routage en étape 1.
+                </div>
+            )
+        }
+
+        const detailLbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }
+
         return (
             <div>
                 <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
                     <div style={{ fontSize: 13, color: C.dark }}>
-                        <span style={{ fontWeight: 600 }}>{responded.length}</span> reponse(s)
+                        <span style={{ fontWeight: 600 }}>{responded.length}</span> réponse(s)
                     </div>
                     <div style={{ fontSize: 13, color: C.muted }}>
                         <span style={{ fontWeight: 600 }}>{pending.length}</span> en attente
                     </div>
                 </div>
 
-                {responded.length > 0 && (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
-                        <thead>
-                            <tr>
-                                {["Fournisseur", "Prix propose", "Delai", "Repondu le"].map((h) => (
-                                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {responded.map((c) => (
-                                <tr key={c.consultation_id}>
-                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontWeight: 500, color: C.dark }}>
+                <div style={{ display: "flex", gap: 0, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", minHeight: 280 }}>
+                    {/* Left: supplier list (40%) */}
+                    <div style={{ width: "40%", borderRight: "1px solid " + C.border, overflowY: "auto", maxHeight: 500 }}>
+                        {allForPanel.map((c) => {
+                            const isSelected = expandedConsultation === c.consultation_id
+                            const hasReplied = c.status === "responded" || c.status === "replied"
+                            return (
+                                <div
+                                    key={c.consultation_id}
+                                    onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft("") }}
+                                    style={{
+                                        padding: "12px 14px", cursor: "pointer",
+                                        backgroundColor: isSelected ? "#fafaf8" : C.white,
+                                        borderBottom: "1px solid " + C.bg,
+                                        borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
+                                        opacity: hasReplied ? 1 : 0.5,
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>
                                         {c.supplier_name || c.supplier_id.slice(0, 10)}
-                                    </td>
-                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontWeight: 600, color: C.dark }}>
-                                        {c.response_price ? formatPrice(c.response_price) : "—"}
-                                    </td>
-                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", color: C.muted }}>
-                                        {c.response_delay || "—"}
-                                    </td>
-                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontSize: 12, color: C.muted }}>
-                                        {c.responded_at ? formatDate(c.responded_at) : "—"}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-
-                {pending.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Relancer les fournisseurs en attente
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                            {pending.map((c) => (
-                                <div key={c.consultation_id}>
-                                    {renderBtn(
-                                        c.supplier_name || c.supplier_id.slice(0, 8),
-                                        () => sendReminder(c.consultation_id),
-                                        "reminder_" + c.consultation_id,
-                                        <Bell size={13} />,
-                                        "secondary"
-                                    )}
+                                    </div>
+                                    {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        {renderConsultationStatus(c.status)}
+                                        {!hasReplied && (
+                                            <span
+                                                onClick={(e) => { e.stopPropagation(); sendReminder(c.consultation_id) }}
+                                                style={{ fontSize: 11, fontWeight: 600, color: "#b89a00", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
+                                            >
+                                                <Bell size={10} /> Relancer
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                        {renderMsg("reminder")}
+                            )
+                        })}
                     </div>
-                )}
+                    {/* Right: detail panel (60%) */}
+                    <div style={{ width: "60%", padding: "16px 20px", overflowY: "auto", maxHeight: 500, backgroundColor: "#fafaf8" }}>
+                        {(() => {
+                            const sel = allForPanel.find((c) => c.consultation_id === expandedConsultation)
+                            if (!sel) return (
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, fontSize: 13 }}>
+                                    Sélectionnez un fournisseur
+                                </div>
+                            )
+                            const hasReplied = sel.status === "responded" || sel.status === "replied"
+                            return (
+                                <>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                                        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+                                            {sel.supplier_name || sel.supplier_id.slice(0, 10)}
+                                        </div>
+                                        {renderConsultationStatus(sel.status)}
+                                    </div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 16 }}>
+                                        <div>
+                                            <div style={detailLbl}>Date d'envoi</div>
+                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.sent_at ? formatDate(sel.sent_at) : "—"}</div>
+                                        </div>
+                                        <div>
+                                            <div style={detailLbl}>Date de réponse</div>
+                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.responded_at ? formatDate(sel.responded_at) : "—"}</div>
+                                        </div>
+                                        {sel.response_price != null && (
+                                            <div>
+                                                <div style={detailLbl}>Prix proposé</div>
+                                                <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(sel.response_price)}</div>
+                                            </div>
+                                        )}
+                                        {sel.response_delay && (
+                                            <div>
+                                                <div style={detailLbl}>Délai proposé</div>
+                                                <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
+                                            </div>
+                                        )}
+                                    </div>
 
-                {consultations.length === 0 && (
-                    <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
-                        Aucune consultation trouvee. Lancez le routage en etape 1.
+                                    {/* Supplier reply */}
+                                    {hasReplied && sel.reply_message ? (
+                                        <div style={{ marginBottom: 14 }}>
+                                            <div style={detailLbl}>Réponse reçue</div>
+                                            <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#f0faf0", borderRadius: 8, border: "1px solid #c6e6c6", maxHeight: 200, overflowY: "auto" }}>
+                                                {sel.reply_message}
+                                            </div>
+                                            <div style={{ marginTop: 10 }}>
+                                                <button
+                                                    onClick={() => generateAIReply(sel)}
+                                                    disabled={aiReplyGenerating}
+                                                    style={{
+                                                        display: "inline-flex", alignItems: "center", gap: 6,
+                                                        padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                        border: "1px solid " + C.border, background: aiReplyGenerating ? "#fef9e0" : C.white,
+                                                        color: C.dark, cursor: aiReplyGenerating ? "not-allowed" : "pointer",
+                                                    }}
+                                                >
+                                                    {aiReplyGenerating ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
+                                                    {aiReplyGenerating ? "Génération..." : "Générer une réponse IA"}
+                                                </button>
+                                            </div>
+                                            {aiReplyDraft && (
+                                                <div style={{ marginTop: 10 }}>
+                                                    <div style={detailLbl}>Réponse à envoyer</div>
+                                                    <textarea
+                                                        value={aiReplyDraft}
+                                                        onChange={(e) => setAiReplyDraft(e.target.value)}
+                                                        rows={6}
+                                                        style={{
+                                                            width: "100%", padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
+                                                            border: "1px solid " + C.border, borderRadius: 8, color: C.dark,
+                                                            resize: "vertical", outline: "none", boxSizing: "border-box",
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={() => sendAdminReply(sel.consultation_id)}
+                                                        disabled={aiReplySending || !aiReplyDraft.trim()}
+                                                        style={{
+                                                            marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
+                                                            padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                            border: "none", background: C.yellow, color: C.dark,
+                                                            cursor: aiReplySending ? "not-allowed" : "pointer",
+                                                            opacity: aiReplySending ? 0.7 : 1,
+                                                        }}
+                                                    >
+                                                        {aiReplySending ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
+                                                        {aiReplySending ? "Envoi..." : "Envoyer cette réponse"}
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {renderMsg("reply_" + sel.consultation_id)}
+                                        </div>
+                                    ) : hasReplied ? (
+                                        <div style={{ padding: 16, textAlign: "center", color: C.muted, fontSize: 13, fontStyle: "italic" }}>
+                                            Ce fournisseur a répondu mais aucun message n'est disponible.
+                                        </div>
+                                    ) : (
+                                        <div style={{ padding: 16, textAlign: "center", color: C.muted, fontSize: 13, fontStyle: "italic" }}>
+                                            En attente de réponse de ce fournisseur.
+                                        </div>
+                                    )}
+                                    {renderMsg("reminder_" + sel.consultation_id)}
+                                </>
+                            )
+                        })()}
                     </div>
-                )}
+                </div>
             </div>
         )
     }
@@ -1046,7 +1147,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                             {/* Step header */}
                             <div
-                                onClick={() => setExpandedStep(isExpanded ? null : step.key)}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedStep(isExpanded ? null : step.key) }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
                                     padding: "14px 16px",
