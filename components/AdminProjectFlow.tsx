@@ -881,15 +881,20 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                         {renderConsultationStatus(c.status)}
-                                        {!hasReplied && (c.status === "sent" || c.status === "pending") && (
-                                            <span
-                                                onClick={(e) => { e.stopPropagation(); sendReminder(c.consultation_id) }}
-                                                style={{ fontSize: 11, fontWeight: 600, color: "#b89a00", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, opacity: 1 }}
-                                            >
-                                                <Bell size={10} /> Relancer
-                                            </span>
-                                        )}
                                     </div>
+                                    {c.status !== "replied" && c.status !== "responded" && c.status !== "draft" && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); sendReminder(c.consultation_id) }}
+                                            style={{
+                                                marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4,
+                                                padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
+                                                border: "1px solid #e8d88e", background: "#fef9e0", color: "#b89a00",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <Bell size={10} /> Relancer
+                                        </button>
+                                    )}
                                 </div>
                             )
                         })}
