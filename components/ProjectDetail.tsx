@@ -6,7 +6,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -214,6 +214,115 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             })()}
                         </>
                     )}
+
+                    {/* Plan de production */}
+                    {brief_analysis?.production_plan && (() => {
+                        const plan = brief_analysis.production_plan
+                        return (
+                            <>
+                                <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
+                                    <Route size={14} /> Plan de production
+                                </div>
+                                <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+                                    Optimisé par l&apos;IA — {plan.total_lots} lots
+                                </div>
+
+                                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                    {plan.lots?.map((lot: any) => (
+                                        <div key={lot.lot_number} style={{
+                                            borderLeft: `3px solid ${lot.is_amalgame ? C.yellow : C.border}`,
+                                            borderRadius: 10,
+                                            padding: "16px 18px",
+                                            backgroundColor: C.bg,
+                                            border: `1px solid ${C.border}`,
+                                            borderLeftWidth: 3,
+                                            borderLeftColor: lot.is_amalgame ? C.yellow : C.border,
+                                        }}>
+                                            {/* Lot header */}
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                    <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>Lot {lot.lot_number}</span>
+                                                    {lot.recommended_supplier && (
+                                                        <span style={{ fontSize: 11, fontWeight: 600, color: C.white, backgroundColor: C.dark, padding: "2px 8px", borderRadius: 4 }}>
+                                                            {lot.recommended_supplier}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {lot.estimated_delay_days != null && (
+                                                    <span style={{ fontSize: 12, color: C.muted }}>
+                                                        Délai estimé : {lot.estimated_delay_days} jours
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Amalgame badge */}
+                                            {lot.is_amalgame && (
+                                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "6px 10px", backgroundColor: "rgba(244,207,21,0.12)", borderRadius: 6 }}>
+                                                    <Layers size={14} color={C.yellow} />
+                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>Amalgame</span>
+                                                    {lot.amalgame_reason && (
+                                                        <span style={{ fontSize: 12, color: C.muted, marginLeft: 4 }}>— {lot.amalgame_reason}</span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Products list */}
+                                            {lot.products?.map((p: any, idx: number) => (
+                                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderTop: idx > 0 ? `1px solid ${C.border}` : "none" }}>
+                                                    <div>
+                                                        <span style={{ fontSize: 13, fontWeight: 500, color: C.dark }}>{p.name}</span>
+                                                        {p.quantity && <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>× {p.quantity}</span>}
+                                                    </div>
+                                                    {p.estimated_price_ht != null && (
+                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(p.estimated_price_ht)} HT</span>
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                            {/* Lot total */}
+                                            {lot.total_estimated_ht != null && (
+                                                <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8, marginTop: 4, borderTop: `1px solid ${C.border}` }}>
+                                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Total : {formatPrice(lot.total_estimated_ht)} HT</span>
+                                                </div>
+                                            )}
+
+                                            {/* Supplier reason */}
+                                            {lot.supplier_reason && (
+                                                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, fontStyle: "italic" }}>
+                                                    {lot.supplier_reason}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Global total */}
+                                {plan.total_estimated_ht != null && (
+                                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Total estimé : {formatPrice(plan.total_estimated_ht)} HT</span>
+                                    </div>
+                                )}
+
+                                {/* Optimization notes */}
+                                {plan.optimization_notes && (
+                                    <div style={{ marginTop: 12, fontSize: 13, color: C.muted, lineHeight: 1.6, backgroundColor: C.bg, borderRadius: 8, padding: 12 }}>
+                                        {plan.optimization_notes}
+                                    </div>
+                                )}
+
+                                {/* Risks */}
+                                {plan.risks?.length > 0 && (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                                        {plan.risks.map((risk: string, idx: number) => (
+                                            <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#e67e22", backgroundColor: "rgba(230,126,34,0.1)", padding: "4px 10px", borderRadius: 6 }}>
+                                                <AlertTriangle size={12} /> {risk}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
 
                     {/* Informations */}
                     <div style={sec}>Informations</div>

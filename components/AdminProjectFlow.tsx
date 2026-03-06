@@ -6,7 +6,7 @@ import { formatPrice, formatDate } from "@/lib/format"
 import {
     Route, MessageSquare, FileText, CheckSquare, CreditCard,
     Send, RefreshCw, ChevronDown, ChevronUp, Bell, Download,
-    Check, X, Clock, Loader2, Plus, Trash2
+    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle
 } from "lucide-react"
 
 const { useState, useEffect, useCallback } = React
@@ -16,6 +16,7 @@ interface Props {
     projectId: string
     projectStatus: string
     token: string
+    briefAnalysis?: any
 }
 
 interface Consultation {
@@ -68,7 +69,7 @@ const STATUS_STEP_MAP: Record<string, number> = {
 }
 
 /* ─────── component ─────── */
-export default function AdminProjectFlow({ projectId, projectStatus, token }: Props) {
+export default function AdminProjectFlow({ projectId, projectStatus, token, briefAnalysis }: Props) {
     const [expandedStep, setExpandedStep] = useState<StepKey | null>(null)
     const [consultations, setConsultations] = useState<Consultation[]>([])
     const [validations, setValidations] = useState<Validation[]>([])
@@ -289,12 +290,83 @@ export default function AdminProjectFlow({ projectId, projectStatus, token }: Pr
     }
 
     /* ─────── step content renderers ─────── */
+    function renderProductionPlan() {
+        const plan = briefAnalysis?.production_plan
+        if (!plan) return null
+        return (
+            <div style={{ marginBottom: 16, padding: 16, borderRadius: 10, backgroundColor: "#fefce8", border: "1px solid #fef08a" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <Route size={14} color="#b89a00" />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>L&apos;IA recommande ce plan de production :</span>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{plan.total_lots} lot(s)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {plan.lots?.map((lot: any) => (
+                        <div key={lot.lot_number} style={{
+                            padding: "10px 12px", borderRadius: 8,
+                            backgroundColor: C.white,
+                            borderLeft: `3px solid ${lot.is_amalgame ? C.yellow : C.border}`,
+                        }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Lot {lot.lot_number}</span>
+                                    {lot.recommended_supplier && (
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: C.white, backgroundColor: C.dark, padding: "1px 6px", borderRadius: 4 }}>
+                                            {lot.recommended_supplier}
+                                        </span>
+                                    )}
+                                    {lot.is_amalgame && (
+                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 600, color: C.dark, backgroundColor: C.yellow, padding: "1px 6px", borderRadius: 4 }}>
+                                            <Layers size={10} /> Amalgame
+                                        </span>
+                                    )}
+                                </div>
+                                {lot.estimated_delay_days != null && (
+                                    <span style={{ fontSize: 11, color: C.muted }}>{lot.estimated_delay_days}j</span>
+                                )}
+                            </div>
+                            {lot.products?.map((p: any, idx: number) => (
+                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.dark, padding: "2px 0" }}>
+                                    <span>{p.name} {p.quantity ? `× ${p.quantity}` : ""}</span>
+                                    {p.estimated_price_ht != null && <span style={{ fontWeight: 600 }}>{formatPrice(p.estimated_price_ht)} HT</span>}
+                                </div>
+                            ))}
+                            {lot.total_estimated_ht != null && (
+                                <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: C.dark, marginTop: 4, paddingTop: 4, borderTop: "1px solid " + C.border }}>
+                                    {formatPrice(lot.total_estimated_ht)} HT
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                {plan.total_estimated_ht != null && (
+                    <div style={{ textAlign: "right", fontSize: 14, fontWeight: 700, color: C.dark, marginTop: 10 }}>
+                        Total estimé : {formatPrice(plan.total_estimated_ht)} HT
+                    </div>
+                )}
+                {plan.optimization_notes && (
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{plan.optimization_notes}</div>
+                )}
+                {plan.risks?.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                        {plan.risks.map((risk: string, idx: number) => (
+                            <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#e67e22", backgroundColor: "rgba(230,126,34,0.1)", padding: "3px 8px", borderRadius: 4 }}>
+                                <AlertTriangle size={11} /> {risk}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     function renderRouting() {
         const pendingCount = consultations.filter((c) => c.status === "pending" || c.status === "created").length
         return (
             <div>
+                {renderProductionPlan()}
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                    {renderBtn("Lancer le routage", routeSuppliers, "route", <Route size={14} />)}
+                    {renderBtn("Lancer le routage IA", routeSuppliers, "route", <Route size={14} />)}
                     {consultations.length > 0 && renderBtn(`Envoyer tout (${pendingCount})`, sendAll, "sendAll", <Send size={14} />, "secondary", pendingCount === 0)}
                 </div>
                 {renderMsg("route")}

@@ -368,6 +368,7 @@ export default function AdminProjects() {
                                                         projectId={project.project_id}
                                                         projectStatus={project.status}
                                                         token={token!}
+                                                        briefAnalysis={project.brief_analysis}
                                                     />
                                                 </td>
                                             </tr>
@@ -415,6 +416,7 @@ export default function AdminProjects() {
                                 projectId={drawerProjectId}
                                 projectStatus={projects.find((p) => p.project_id === drawerProjectId)?.status || "created"}
                                 token={token!}
+                                briefAnalysis={projects.find((p) => p.project_id === drawerProjectId)?.brief_analysis}
                             />
                         </div>
                     </>
