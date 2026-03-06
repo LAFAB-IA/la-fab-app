@@ -34,6 +34,8 @@ interface Consultation {
     matched_products?: any[]
     reply_message?: string
     reminders_count?: number
+    supplier_trade?: string
+    supplier_category?: string
 }
 
 interface Validation {
@@ -650,10 +652,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                 borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
                                             }}
                                         >
-                                            <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>
-                                                {c.supplier_name || c.supplier_id.slice(0, 10)}
-                                            </div>
-                                            {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
+                                            {renderSupplierListItem(c)}
                                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                 {renderConsultationStatus(c.status)}
                                                 {c.status === "draft" && (
@@ -814,6 +813,27 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         )
     }
 
+    function renderSupplierListItem(c: Consultation) {
+        const name = c.supplier_name || c.supplier_id
+        const trade = c.supplier_trade || c.supplier_category
+        return (
+            <>
+                <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>{name}</div>
+                {trade && <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{trade}</div>}
+                {c.supplier_email && <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>{c.supplier_email}</div>}
+                {c.matched_products && c.matched_products.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+                        {c.matched_products.map((p: any, idx: number) => (
+                            <span key={idx} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 500, background: C.bg, border: "1px solid " + C.border, color: C.dark }}>
+                                {p.name || p.product_name || p.label || "Produit"}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </>
+        )
+    }
+
     function renderConsultationStatus(status: string) {
         const cfg: Record<string, { label: string; bg: string; color: string }> = {
             draft: { label: "Brouillon", bg: "#fef9e0", color: "#b89a00" },
@@ -875,10 +895,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         opacity: hasReplied ? 1 : 0.6,
                                     }}
                                 >
-                                    <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>
-                                        {c.supplier_name || c.supplier_id.slice(0, 10)}
-                                    </div>
-                                    {c.supplier_email && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{c.supplier_email}</div>}
+                                    {renderSupplierListItem(c)}
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                         {renderConsultationStatus(c.status)}
                                     </div>
