@@ -135,16 +135,17 @@ export default function AdminProjects() {
         if (!token) return
         setDeleting(true)
         try {
-            const r = await fetch(`${API_URL}/api/admin/projects/${projectId}`, {
-                method: "PATCH",
-                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "deleted" }),
+            const r = await fetch(`${API_URL}/api/project/${projectId}`, {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + token },
             })
             const data = await r.json()
             if (data.ok) {
                 setProjects((prev) => prev.filter((p) => p.project_id !== projectId))
+            } else {
+                console.error("Erreur suppression projet:", data.error || "Erreur inconnue")
             }
-        } catch { /* silent */ }
+        } catch (err) { console.error("Erreur réseau suppression projet:", err) }
         setDeleting(false)
         setDeleteConfirmId(null)
     }
@@ -488,14 +489,14 @@ export default function AdminProjects() {
                         <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 400, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={(e) => e.stopPropagation()}>
                             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer ce projet ?</h3>
                             <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", lineHeight: 1.5 }}>
-                                Cette action est irréversible. Le projet sera marqué comme supprimé.
+                                Confirmer la suppression du projet <strong style={{ color: C.dark }}>{deleteConfirmId.slice(0, 12)}</strong> ? Cette action est irréversible.
                             </p>
                             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                                 <button onClick={() => setDeleteConfirmId(null)} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                                     Annuler
                                 </button>
                                 <button onClick={() => handleDeleteProject(deleteConfirmId)} disabled={deleting} style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: "#991b1b", color: C.white, fontSize: 13, fontWeight: 600, cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}>
-                                    {deleting ? "Suppression..." : "Supprimer"}
+                                    {deleting ? "Suppression..." : "Confirmer la suppression"}
                                 </button>
                             </div>
                         </div>

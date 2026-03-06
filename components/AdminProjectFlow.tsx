@@ -1285,7 +1285,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     e.preventDefault(); e.stopPropagation()
                                     const next = isExpanded ? null : step.key
                                     setExpandedStep(next)
-                                    if (next) { setTimeout(() => { stepRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 50) }
+                                    if (next) { setTimeout(() => { stepRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 100) }
                                 }}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12,
