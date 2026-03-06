@@ -203,7 +203,9 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         </div>
     )
 
-    const { status, product, quantity, pricing, brief_analysis, created_at, quote_url, quote_number } = project
+    const { status, product, quantity, pricing, brief_analysis: _projectBriefAnalysis, created_at, quote_url, quote_number } = project
+    // Prefer brief_analysis from fetched briefs (richer data with production_plan) over project-level one
+    const brief_analysis = briefs?.[0]?.brief_analysis ?? _projectBriefAnalysis
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif" }}>
