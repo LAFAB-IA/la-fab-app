@@ -207,7 +207,7 @@ export default function AdminProjects() {
 
     const thStyle: React.CSSProperties = {
         backgroundColor: "#F8F8F6",
-        color: "#3A4040",
+        color: "#000000",
         borderBottom: "1px solid #e8e8e6",
         fontSize: 11,
         fontWeight: 700,

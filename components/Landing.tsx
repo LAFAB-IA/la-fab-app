@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 
 const C = {
-    dark:   "#3A4040",
+    dark:   "#000000",
     darkGradEnd: "#2d3333",
     yellow: "#F4CF15",
     white:  "#FAFFFD",

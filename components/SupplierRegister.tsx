@@ -312,7 +312,7 @@ export default function SupplierRegister() {
                                 onClick={() => handleOAuth("google")}
                                 disabled={!!oauthLoading}
                                 style={{
-                                    width: "100%", padding: "12px", backgroundColor: "#FAFFFD", color: "#3A4040",
+                                    width: "100%", padding: "12px", backgroundColor: "#FAFFFD", color: "#000000",
                                     border: "1px solid #e0e0de", borderRadius: 8, fontSize: 14, fontWeight: 500,
                                     cursor: oauthLoading ? "not-allowed" : "pointer",
                                     display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
@@ -589,7 +589,7 @@ export default function SupplierRegister() {
 
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "10px 14px", border: "1px solid #e0e0de",
-    borderRadius: 8, fontSize: 14, backgroundColor: "#FAFFFD", color: "#3A4040",
+    borderRadius: 8, fontSize: 14, backgroundColor: "#FAFFFD", color: "#000000",
     boxSizing: "border-box", outline: "none", fontFamily: "Inter, sans-serif",
 }
 

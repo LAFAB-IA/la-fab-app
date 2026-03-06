@@ -635,20 +635,20 @@ export default function CreateProject() {
 
 // Shared styles
 const labelStyle: React.CSSProperties = {
-    display: "block", fontSize: 13, fontWeight: 600, color: "#3A4040",
+    display: "block", fontSize: 13, fontWeight: 600, color: "#000000",
     marginBottom: 6,
 }
 
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "10px 14px", borderRadius: 8,
     border: "1px solid #e0e0de", fontSize: 14, fontFamily: "Inter, sans-serif",
-    color: "#3A4040", backgroundColor: "#FAFFFD", outline: "none",
+    color: "#000000", backgroundColor: "#FAFFFD", outline: "none",
     boxSizing: "border-box",
 }
 
 const primaryBtnStyle: React.CSSProperties = {
     padding: "12px 24px", borderRadius: 8, border: "none",
-    backgroundColor: "#F4CF15", color: "#3A4040", fontSize: 14,
+    backgroundColor: "#F4CF15", color: "#000000", fontSize: 14,
     fontWeight: 700, cursor: "pointer", width: "100%",
 }
 

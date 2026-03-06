@@ -16,18 +16,18 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace("/");
       return;
     }
     if (requiredRole && user?.role !== requiredRole) {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [isLoading, isAuthenticated, user, requiredRole, router]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#f0f0ee]">
-        <div className="w-10 h-10 border-4 border-[#F4CF15] border-t-[#3A4040] rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#F4CF15] border-t-[#000000] rounded-full animate-spin" />
       </div>
     );
   }
