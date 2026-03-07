@@ -4,7 +4,14 @@ function decodeJwtRole(token: string): string | null {
   try {
     const payload = token.split(".")[1];
     const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return decoded.role ?? decoded.user?.role ?? null;
+    return (
+      decoded.role ??
+      decoded.user_role ??
+      decoded.user?.role ??
+      decoded.user_metadata?.role ??
+      decoded.app_metadata?.role ??
+      null
+    );
   } catch {
     return null;
   }
