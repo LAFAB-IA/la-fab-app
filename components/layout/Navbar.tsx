@@ -175,22 +175,6 @@ export default function Navbar() {
             {isAuthenticated ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 
-                    {/* Admin link */}
-                    {user?.role === "admin" && (
-                        <a
-                            href="/admin/dashboard"
-                            style={{
-                                color: C.yellow, textDecoration: "none", fontSize: 13,
-                                fontWeight: 700, letterSpacing: 0.5,
-                                padding: "5px 12px", borderRadius: 6,
-                                border: "1px solid rgba(244,207,21,0.3)",
-                                cursor: "pointer",
-                            }}
-                        >
-                            Admin
-                        </a>
-                    )}
-
                     {/* ── Cloche notifications ── */}
                     <div ref={notifRef} style={{ position: "relative" }}>
                         <button

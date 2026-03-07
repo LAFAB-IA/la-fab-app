@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 interface AuthGuardProps {
@@ -10,36 +9,46 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-  const { isLoading, isAuthenticated, realRole, user } = useAuth();
-  const router = useRouter();
-
-  // Use realRole (from backend) with fallback to user.role (may be overridden)
-  const effectiveRole = realRole || user?.role || null;
+  const { isLoading, isAuthenticated, realRole } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
-    console.log("[AuthGuard] isAuthenticated:", isAuthenticated, "realRole:", realRole, "user.role:", user?.role, "effectiveRole:", effectiveRole, "requiredRole:", requiredRole);
     if (!isAuthenticated) {
-      router.replace("/login");
+      window.location.href = "/login";
       return;
     }
-    if (requiredRole && effectiveRole && effectiveRole !== requiredRole) {
-      console.log("[AuthGuard] BLOCKED — effectiveRole", effectiveRole, "!==", requiredRole);
-      router.replace("/projets");
+    // Only redirect if realRole is loaded AND doesn't match
+    if (requiredRole && realRole && realRole !== requiredRole) {
+      console.log("[AuthGuard] BLOCKED — realRole:", realRole, "!== requiredRole:", requiredRole);
+      window.location.href = "/projets";
     }
-  }, [isLoading, isAuthenticated, effectiveRole, requiredRole, router]);
+  }, [isLoading, isAuthenticated, realRole, requiredRole]);
 
+  // Still loading auth → spinner
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f0f0ee]">
-        <div className="w-10 h-10 border-4 border-[#F4CF15] border-t-[#000000] rounded-full animate-spin" />
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        minHeight: "60vh",
+      }}>
+        <div style={{
+          width: 40, height: 40,
+          border: "4px solid #F4CF15",
+          borderTop: "4px solid #000000",
+          borderRadius: "50%",
+          animation: "auth-spin 1s linear infinite",
+        }} />
+        <style>{`@keyframes auth-spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     );
   }
 
+  // Not authenticated → don't render (redirect in useEffect)
   if (!isAuthenticated) return null;
-  // If effectiveRole is null (not yet loaded), don't block — show content
-  if (requiredRole && effectiveRole && effectiveRole !== requiredRole) return null;
+
+  // realRole not yet loaded → show content (don't block)
+  // realRole loaded but wrong → don't render (redirect in useEffect)
+  if (requiredRole && realRole && realRole !== requiredRole) return null;
 
   return <>{children}</>;
 }
