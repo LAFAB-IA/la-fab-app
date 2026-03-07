@@ -16,11 +16,11 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      router.replace("/");
+      router.replace("/login");
       return;
     }
     if (requiredRole && user?.role !== requiredRole) {
-      router.replace("/");
+      router.replace("/login");
     }
   }, [isLoading, isAuthenticated, user, requiredRole, router]);
 

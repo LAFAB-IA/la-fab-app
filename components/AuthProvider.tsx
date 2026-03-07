@@ -49,6 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
+  /** Where to go after login — honours ?redirect= from middleware */
+  function getPostLoginPath(role: string): string {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect && redirect.startsWith("/")) return redirect;
+    }
+    return redirectForRole(role);
+  }
+
   useEffect(() => {
     const storedToken = getToken();
     if (!storedToken) {
@@ -104,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(redirectForRole(meData.user.role));
+    router.push(getPostLoginPath(meData.user.role));
   };
 
   const signup = async (
@@ -137,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(redirectForRole(meData.user.role));
+    router.push(getPostLoginPath(meData.user.role));
   };
 
   const logout = async () => {
