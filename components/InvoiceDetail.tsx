@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
-import { FileText, Clock, CreditCard, Download } from "lucide-react"
+import { FileText, Clock, CreditCard, Download, Eye } from "lucide-react"
+import PdfViewerModal from "@/components/ui/PdfViewerModal"
 import { formatPrice, formatDate } from "@/lib/format"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
@@ -37,6 +38,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
     const [error, setError] = useState("")
     const [payingStep, setPayingStep] = useState<string | null>(null)
     const [payError, setPayError] = useState("")
+    const [pdfModalOpen, setPdfModalOpen] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
@@ -238,11 +240,14 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
                     {/* Actions */}
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                         <button
-                            onClick={handleDownloadPdf}
+                            onClick={() => {
+                                if (invoice?.pdf_url) { setPdfModalOpen(true); return }
+                                handleDownloadPdf()
+                            }}
                             className="btn-secondary"
                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", backgroundColor: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                         >
-                            <Download size={14} />Télécharger le PDF
+                            <Eye size={14} />Voir le PDF
                         </button>
 
                         {/* Split: deposit pending */}
@@ -298,6 +303,15 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
 
                 </div>
             </div>
+
+            {invoice?.pdf_url && (
+                <PdfViewerModal
+                    url={invoice.pdf_url}
+                    isOpen={pdfModalOpen}
+                    onClose={() => setPdfModalOpen(false)}
+                    title={`Facture ${invoice.invoice_number || ""}`}
+                />
+            )}
         </div>
     )
 }

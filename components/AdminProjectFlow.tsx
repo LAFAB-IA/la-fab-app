@@ -6,8 +6,9 @@ import { formatPrice, formatDate } from "@/lib/format"
 import {
     Route, MessageSquare, FileText, CheckSquare, CreditCard,
     Send, RefreshCw, ChevronDown, ChevronUp, Bell, Download,
-    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain
+    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain, Eye
 } from "lucide-react"
+import PdfViewerModal from "@/components/ui/PdfViewerModal"
 
 const { useState, useEffect, useCallback } = React
 
@@ -94,6 +95,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [inlineAiInput, setInlineAiInput] = useState("")
     const [inlineAiReply, setInlineAiReply] = useState("")
     const [inlineAiLoading, setInlineAiLoading] = useState(false)
+    const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
     const stepRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
 
     /* routing table columns — resizable & reorderable */
@@ -1060,20 +1062,18 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                     {renderBtn("Generer le devis client", generateQuote, "quote", <FileText size={14} />)}
                     {quoteUrl && (
-                        <a
-                            href={quoteUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={() => setPdfModal({ url: quoteUrl, title: `Devis ${quoteNumber || ""}` })}
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: 6,
                                 padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
                                 border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                textDecoration: "none",
+                                cursor: "pointer",
                             }}
                         >
-                            <Download size={14} />
-                            Telecharger {quoteNumber || "le devis"}
-                        </a>
+                            <Eye size={14} />
+                            Voir {quoteNumber || "le devis"}
+                        </button>
                     )}
                 </div>
                 {renderMsg("quote")}
@@ -1165,20 +1165,18 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         </div>
                     </div>
                     {invoiceResult.pdf_url && (
-                        <a
-                            href={invoiceResult.pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={() => setPdfModal({ url: invoiceResult.pdf_url!, title: `Facture ${invoiceResult.invoice?.invoice_number || ""}` })}
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: 6,
                                 padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
                                 border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                textDecoration: "none",
+                                cursor: "pointer",
                             }}
                         >
-                            <Download size={14} />
-                            Telecharger la facture PDF
-                        </a>
+                            <Eye size={14} />
+                            Voir la facture PDF
+                        </button>
                     )}
                 </div>
             )
@@ -1560,6 +1558,15 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     </div>
                 )
             })()}
+
+            {pdfModal && (
+                <PdfViewerModal
+                    url={pdfModal.url}
+                    isOpen={true}
+                    onClose={() => setPdfModal(null)}
+                    title={pdfModal.title}
+                />
+            )}
         </div>
     )
 }

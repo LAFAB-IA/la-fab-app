@@ -11,6 +11,7 @@ import {
     Search, ChevronDown, FileText, Download, ExternalLink, BarChart3,
     Users, XCircle, Loader2, Send, Eye, ChevronLeft, ChevronRight,
 } from "lucide-react"
+import PdfViewerModal from "@/components/ui/PdfViewerModal"
 
 const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
 
@@ -69,6 +70,7 @@ function AdminInvoices() {
     const [sortAsc, setSortAsc] = useState(false)
     const [page, setPage] = useState(0)
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+    const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
     const PAGE_SIZE = 20
 
     useEffect(() => {
@@ -455,9 +457,9 @@ function AdminInvoices() {
                                         <Eye size={12} color={C.muted} />
                                     </button>
                                     {inv.pdf_url && (
-                                        <a href={inv.pdf_url} target="_blank" title="PDF" className="btn-icon" style={{ width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: C.dark, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
-                                            <Download size={12} color={C.white} />
-                                        </a>
+                                        <button onClick={() => setPdfModal({ url: inv.pdf_url, title: `Facture ${inv.invoice_number || ""}` })} title="Voir PDF" className="btn-icon" style={{ width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: C.dark, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                                            <FileText size={12} color={C.white} />
+                                        </button>
                                     )}
                                     {inv.status !== "paid" && inv.status !== "draft" && inv.status !== "cancelled" && (
                                         <button title="Relancer" className="btn-danger" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #f5c6c6", backgroundColor: "#fde8e8", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
@@ -587,19 +589,28 @@ function AdminInvoices() {
 
                             {/* PDF button */}
                             {inv.pdf_url && (
-                                <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" style={{
+                                <button onClick={() => { setSelectedInvoice(null); setPdfModal({ url: inv.pdf_url, title: `Facture ${inv.invoice_number || ""}` }); }} style={{
                                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                                     width: "100%", padding: "12px 0", borderRadius: 8,
                                     backgroundColor: C.dark, color: C.white, fontSize: 14, fontWeight: 600,
                                     textDecoration: "none", border: "none", cursor: "pointer",
                                 }}>
-                                    <Download size={16} /> Télécharger le PDF
-                                </a>
+                                    <Eye size={16} /> Voir le PDF
+                                </button>
                             )}
                         </div>
                     </div>
                 )
             })()}
+
+            {pdfModal && (
+                <PdfViewerModal
+                    url={pdfModal.url}
+                    isOpen={true}
+                    onClose={() => setPdfModal(null)}
+                    title={pdfModal.title}
+                />
+            )}
 
             {/* Responsive */}
             <style>{`

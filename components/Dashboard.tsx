@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
-import { Clock, XCircle, FileText, CheckCircle2, ClipboardList, Link2, FolderOpen, MessageSquare } from "lucide-react"
+import { Clock, XCircle, FileText, CheckCircle2, ClipboardList, Link2, FolderOpen, MessageSquare, Eye } from "lucide-react"
+import PdfViewerModal from "@/components/ui/PdfViewerModal"
 import { formatPrice, formatDate } from "@/lib/format"
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ export default function Dashboard() {
     const [orderLoading, setOrderLoading] = useState(false)
     const [orderConfirmed, setOrderConfirmed] = useState(false)
     const [orderError, setOrderError] = useState(null)
+    const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
 
     const searchParams = useSearchParams()
     const projectId = searchParams.get("project_id")
@@ -245,13 +247,12 @@ export default function Dashboard() {
                                     Devis n° <strong>{quoteNumber}</strong>
                                 </div>
                             )}
-                            <a
-                                href={quoteUrl}
-                                target="_blank"
-                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.dark, color: C.white, borderRadius: 8, padding: "14px 24px", fontWeight: 600, fontSize: 15, textDecoration: "none", marginBottom: 12 }}
+                            <button
+                                onClick={() => setPdfModal({ url: quoteUrl as string, title: `Devis ${quoteNumber || ""}` })}
+                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.dark, color: C.white, borderRadius: 8, padding: "14px 24px", fontWeight: 600, fontSize: 15, border: "none", cursor: "pointer", width: "100%", marginBottom: 12 }}
                             >
-                                <FileText size={16} /> Télécharger le devis
-                            </a>
+                                <Eye size={16} /> Voir mon devis
+                            </button>
                             {!orderConfirmed && status !== "validated" && status !== "in_production" && status !== "delivered" && (
                                 <button
                                     onClick={handleValidateOrder}
@@ -333,6 +334,15 @@ export default function Dashboard() {
                 </div>
 
             </div>
+
+            {pdfModal && (
+                <PdfViewerModal
+                    url={pdfModal.url}
+                    isOpen={true}
+                    onClose={() => setPdfModal(null)}
+                    title={pdfModal.title}
+                />
+            )}
         </div>
     )
 }
