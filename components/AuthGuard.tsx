@@ -10,21 +10,24 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-  const { isLoading, isAuthenticated, realRole } = useAuth();
+  const { isLoading, isAuthenticated, realRole, user } = useAuth();
   const router = useRouter();
+
+  // Use realRole (from backend) with fallback to user.role (may be overridden)
+  const effectiveRole = realRole || user?.role || null;
 
   useEffect(() => {
     if (isLoading) return;
-    console.log("[AuthGuard] isAuthenticated:", isAuthenticated, "realRole:", realRole, "requiredRole:", requiredRole);
+    console.log("[AuthGuard] isAuthenticated:", isAuthenticated, "realRole:", realRole, "user.role:", user?.role, "effectiveRole:", effectiveRole, "requiredRole:", requiredRole);
     if (!isAuthenticated) {
       router.replace("/login");
       return;
     }
-    if (requiredRole && realRole !== requiredRole) {
-      console.log("[AuthGuard] BLOCKED — realRole", realRole, "!==", requiredRole);
-      router.replace("/login");
+    if (requiredRole && effectiveRole && effectiveRole !== requiredRole) {
+      console.log("[AuthGuard] BLOCKED — effectiveRole", effectiveRole, "!==", requiredRole);
+      router.replace("/projets");
     }
-  }, [isLoading, isAuthenticated, realRole, requiredRole, router]);
+  }, [isLoading, isAuthenticated, effectiveRole, requiredRole, router]);
 
   if (isLoading) {
     return (
@@ -35,7 +38,8 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) return null;
-  if (requiredRole && realRole !== requiredRole) return null;
+  // If effectiveRole is null (not yet loaded), don't block — show content
+  if (requiredRole && effectiveRole && effectiveRole !== requiredRole) return null;
 
   return <>{children}</>;
 }
