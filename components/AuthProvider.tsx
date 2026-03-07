@@ -111,7 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const meData = await meRes.json();
 
     const role = meData.user?.role || meData.role || "client";
-    console.log("[AUTH] login /me response:", JSON.stringify(meData), "→ role:", role);
+    console.log("[AUTH] login /me full response:", JSON.stringify(meData));
+    console.log("[AUTH] role reçu:", role, "→ redirect vers:", redirectForRole(role));
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
