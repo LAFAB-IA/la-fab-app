@@ -4,14 +4,20 @@ function decodeJwtRole(token: string): string | null {
   try {
     const payload = token.split(".")[1];
     const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return (
-      decoded.role ??
-      decoded.user_role ??
-      decoded.user?.role ??
+    // Supabase JWT has decoded.role = "authenticated" (auth role, not app role)
+    // App role is in user_metadata or app_metadata
+    const appRole =
       decoded.user_metadata?.role ??
       decoded.app_metadata?.role ??
-      null
-    );
+      decoded.user_role ??
+      decoded.user?.role ??
+      null;
+    // Ignore Supabase auth roles like "authenticated", "anon", "service_role"
+    const topRole = decoded.role;
+    if (topRole && !["authenticated", "anon", "service_role"].includes(topRole)) {
+      return topRole;
+    }
+    return appRole;
   } catch {
     return null;
   }
@@ -33,6 +39,12 @@ const PROTECTED_PREFIXES = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("access_token")?.value;
+
+  // Debug: log middleware decisions for admin routes
+  if (pathname.startsWith("/admin")) {
+    const role = token ? decodeJwtRole(token) : null;
+    console.log("[MIDDLEWARE]", pathname, "token:", token ? "present(" + token.length + "chars)" : "MISSING", "role:", role);
+  }
 
   // ── "/" redirect for authenticated users ───────────────────────────────────
   if (pathname === "/") {
