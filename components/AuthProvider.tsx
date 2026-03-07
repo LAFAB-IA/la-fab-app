@@ -41,6 +41,20 @@ function redirectForRole(role: string): string {
   }
 }
 
+const ROLE_SWITCH_EMAILS = [
+  "yannis-93290@hotmail.fr",
+  "guillaume.bourdon.pro@gmail.com",
+];
+
+function applyRoleOverride(user: User): User {
+  if (!ROLE_SWITCH_EMAILS.includes(user.email)) return user;
+  const override = localStorage.getItem("role_override");
+  if (override && ["admin", "client", "supplier"].includes(override)) {
+    return { ...user, role: override };
+  }
+  return user;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -73,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return res.json();
       })
       .then((data) => {
-        setUser(data.user);
+        setUser(applyRoleOverride(data.user));
         setTokenState(storedToken);
         setIsAuthenticated(true);
       })
@@ -110,11 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const role = meData.user?.role || meData.role || "client";
+    const effectiveUser = applyRoleOverride(meData.user);
+    const role = effectiveUser.role || meData.role || "client";
     console.log("[AUTH] login /me full response:", JSON.stringify(meData));
     console.log("[AUTH] role reçu:", role, "→ redirect vers:", redirectForRole(role));
     setTokenState(freshToken);
-    setUser(meData.user);
+    setUser(effectiveUser);
     setIsAuthenticated(true);
     navigatePostLogin(role);
   };
@@ -146,10 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const signupRole = meData.user?.role || meData.role || "client";
+    const signupUser = applyRoleOverride(meData.user);
+    const signupRole = signupUser.role || meData.role || "client";
     console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", signupRole);
     setTokenState(freshToken);
-    setUser(meData.user);
+    setUser(signupUser);
     setIsAuthenticated(true);
     navigatePostLogin(signupRole);
   };

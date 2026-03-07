@@ -7,6 +7,7 @@ import Navbar from "@/components/layout/Navbar"
 import Sidebar from "@/components/layout/Sidebar"
 import ClientSidebar from "@/components/layout/ClientSidebar"
 import SupplierSidebar from "@/components/layout/SupplierSidebar"
+import RoleSwitcher from "@/components/layout/RoleSwitcher"
 import { C } from "@/lib/constants"
 
 const BARE_PATHS = ["/", "/login", "/supplier/register", "/auth/callback"]
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div style={{ minHeight: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column" }}>
             <Navbar />
+            <RoleSwitcher />
             <div style={{ marginTop: 60, flex: 1, display: "flex" }}>
                 {isAdmin    && isAuthenticated && <Sidebar />}
                 {isSupplier && isAuthenticated && <SupplierSidebar />}
