@@ -111,10 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
+    const role = meData.user?.role || meData.role || "client";
+    console.log("[AUTH] login /me response:", JSON.stringify(meData), "→ role:", role);
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(getPostLoginPath(meData.user.role));
+    router.push(getPostLoginPath(role));
   };
 
   const signup = async (
@@ -144,10 +146,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
+    const signupRole = meData.user?.role || meData.role || "client";
+    console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", signupRole);
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(getPostLoginPath(meData.user.role));
+    router.push(getPostLoginPath(signupRole));
   };
 
   const logout = async () => {
