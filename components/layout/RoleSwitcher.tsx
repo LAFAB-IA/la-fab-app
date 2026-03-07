@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { C } from "@/lib/constants"
 
@@ -30,13 +29,12 @@ export default function RoleSwitcher() {
     if (!isAuthenticated || !user) return null
     if (!ALLOWED_EMAILS.includes(user.email)) return null
 
-    const router = useRouter()
     const currentRole = user.role
 
     function handleSwitch(role: string) {
         if (role === currentRole) return
         localStorage.setItem("role_override", role)
-        router.push(redirectForRole(role))
+        window.location.href = redirectForRole(role)
     }
 
     return (
