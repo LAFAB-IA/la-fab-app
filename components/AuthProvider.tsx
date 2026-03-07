@@ -7,7 +7,6 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/constants";
 import { getToken, setToken, clearToken } from "@/lib/auth";
 
@@ -35,9 +34,11 @@ interface AuthContextType {
 }
 
 function redirectForRole(role: string): string {
-  if (role === "admin") return "/admin/dashboard";
-  if (role === "supplier") return "/supplier/dashboard";
-  return "/projets";
+  switch (role) {
+    case "admin": return "/admin/dashboard";
+    case "supplier": return "/supplier/dashboard";
+    default: return "/projets";
+  }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,16 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const router = useRouter();
 
-  /** Where to go after login — honours ?redirect= from middleware */
-  function getPostLoginPath(role: string): string {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get("redirect");
-      if (redirect && redirect.startsWith("/")) return redirect;
-    }
-    return redirectForRole(role);
+  /** Hard-navigate to the right dashboard — honours ?redirect= from middleware */
+  function navigatePostLogin(role: string) {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect");
+    const dest = (redirect && redirect.startsWith("/")) ? redirect : redirectForRole(role);
+    console.log("[AUTH] navigating to:", dest, "(role:", role, ")");
+    window.location.href = dest;
   }
 
   useEffect(() => {
@@ -116,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(getPostLoginPath(role));
+    navigatePostLogin(role);
   };
 
   const signup = async (
@@ -151,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(freshToken);
     setUser(meData.user);
     setIsAuthenticated(true);
-    router.push(getPostLoginPath(signupRole));
+    navigatePostLogin(signupRole);
   };
 
   const logout = async () => {
@@ -168,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenState(null);
     setUser(null);
     setIsAuthenticated(false);
-    router.push("/");
+    window.location.href = "/";
   };
 
   return (
