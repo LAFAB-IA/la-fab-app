@@ -25,7 +25,7 @@ const PROTECTED_PREFIXES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("sb_token")?.value;
+  const token = request.cookies.get("access_token")?.value;
 
   // ── "/" redirect for authenticated users ───────────────────────────────────
   if (pathname === "/") {
