@@ -190,6 +190,27 @@ export default function Planning() {
                         delivery_estimated: p.delivery_estimated,
                         delivery_deadline:  p.briefs?.[0]?.brief_analysis?.delivery_deadline,
                     })))
+
+                    // ── Pré-charger les dates souhaitées sur la grille ──
+                    // On lit les champs planning (retournés par Yannis) sur chaque projet
+                    const DESIRED_KEYS = ["validated_at", "production_start", "bat_validated_at", "delivery_estimated"]
+                    const initials: PotentialDate[] = []
+                    data.projects.forEach((p: any) => {
+                        // Les dates souhaitées peuvent être dans p.planning ou directement sur p
+                        const planning = p.planning || {}
+                        DESIRED_KEYS.forEach(k => {
+                            const raw = planning[k] || p[`desired_${k}`]
+                            if (!raw) return
+                            const isoDate = raw.includes("T") ? raw.split("T")[0] : raw
+                            // N'afficher en pointillé que si la date confirmée est différente ou absente
+                            const confirmed = p[k]
+                            const confirmedISO = confirmed ? (confirmed.includes("T") ? confirmed.split("T")[0] : confirmed) : null
+                            if (isoDate !== confirmedISO) {
+                                initials.push({ project_id: p.project_id, milestone_key: k, date: isoDate })
+                            }
+                        })
+                    })
+                    if (initials.length > 0) setPotentialDates(initials)
                 }
                 setLoading(false)
             })
@@ -231,14 +252,22 @@ export default function Planning() {
                             .then(sugg => {
                                 if (sugg.ok && sugg.planning_dates) {
                                     // Ne pas écraser les dates déjà manuellement sauvegardées
-                                    setDesiredDates(prev => {
-                                        const merged: Record<string, string> = { ...sugg.planning_dates }
-                                        // Les dates déjà en base (prefilled) ont priorité
-                                        Object.keys(prefilled).forEach(k => { if (prefilled[k]) merged[k] = prefilled[k] })
-                                        return merged
-                                    })
+                                    const merged: Record<string, string> = { ...sugg.planning_dates }
+                                    Object.keys(prefilled).forEach(k => { if (prefilled[k]) merged[k] = prefilled[k] })
+                                    setDesiredDates(merged)
+
                                     // Stocker les sources pour l'affichage des badges
                                     if (sugg.sources) setDateSources(sugg.sources)
+
+                                    // ── Sync sur la grille : ajouter les cercles pointillés ──
+                                    const DESIRED_KEYS = ["validated_at", "production_start", "bat_validated_at", "delivery_estimated"]
+                                    const newPotentials: PotentialDate[] = Object.entries(merged)
+                                        .filter(([k, v]) => !!v && DESIRED_KEYS.includes(k))
+                                        .map(([k, v]) => ({ project_id: projectId, milestone_key: k, date: (v as string).includes("T") ? (v as string).split("T")[0] : v as string }))
+                                    setPotentialDates(prev => [
+                                        ...prev.filter(p => p.project_id !== projectId),
+                                        ...newPotentials,
+                                    ])
                                 }
                                 setSuggestLoading(false)
                             })
