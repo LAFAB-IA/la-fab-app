@@ -621,6 +621,7 @@ export default function Planning() {
                                 project={drawerProject}
                                 desiredDates={desiredDates}
                                 setDesiredDates={setDesiredDates}
+                                setPotentialDates={setPotentialDates}
                                 dateSources={dateSources}
                                 suggestLoading={suggestLoading}
                                 saveLoading={saveLoading}
@@ -750,7 +751,7 @@ const SOURCE_LABELS: Record<string, { label: string; color: string; bg: string }
 }
 
 function DatesTab({
-    project, desiredDates, setDesiredDates,
+    project, desiredDates, setDesiredDates, setPotentialDates,
     dateSources, suggestLoading,
     saveLoading, saveSuccess, saveError, onSave,
     potentialDates, removePotentialDate
@@ -758,6 +759,7 @@ function DatesTab({
     project: ProjectDetail
     desiredDates: Record<string, string>
     setDesiredDates: React.Dispatch<React.SetStateAction<Record<string, string>>>
+    setPotentialDates: React.Dispatch<React.SetStateAction<PotentialDate[]>>
     dateSources: Record<string, "brief" | "supplier" | "manual">
     suggestLoading: boolean
     saveLoading: boolean
@@ -837,7 +839,20 @@ function DatesTab({
                                         type="date"
                                         value={desired}
                                         onChange={e => {
-                                            setDesiredDates(prev => ({ ...prev, [m.key]: e.target.value }))
+                                            const newDate = e.target.value
+                                            const key = m.key
+                                            const pid = project.project_id
+                                            // Mise à jour locale
+                                            setDesiredDates(prev => ({ ...prev, [key]: newDate }))
+                                            // Mise à jour immédiate sur la grille
+                                            if (newDate) {
+                                                setPotentialDates(prev => {
+                                                    const filtered = prev.filter(p => !(p.project_id === pid && p.milestone_key === key))
+                                                    return [...filtered, { project_id: pid, milestone_key: key, date: newDate }]
+                                                })
+                                            } else {
+                                                setPotentialDates(prev => prev.filter(p => !(p.project_id === pid && p.milestone_key === key)))
+                                            }
                                         }}
                                         style={{
                                             flex: 1, padding: "8px 10px", fontSize: 13, borderRadius: 8,
