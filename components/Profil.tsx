@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from "react"
-import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Save, Eye, EyeOff } from "lucide-react"
+import React, { useCallback, useEffect, useState, useRef } from "react"
+import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 
@@ -73,6 +73,8 @@ export default function Profil() {
         first_name: "", last_name: "", email: "",
         phone: "", address: "", city: "", postal_code: "",
     })
+    const [originalProfile, setOriginalProfile] = useState<ProfileData | null>(null)
+    const [isDirty, setIsDirty] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -92,6 +94,14 @@ export default function Profil() {
     const [avatarLoading, setAvatarLoading] = useState(false)
     const fileRef = useRef<HTMLInputElement>(null)
 
+    const updateProfile = useCallback((updater: (prev: ProfileData) => ProfileData) => {
+        setProfile(prev => {
+            const next = updater(prev)
+            setIsDirty(JSON.stringify(next) !== JSON.stringify(originalProfile))
+            return next
+        })
+    }, [originalProfile])
+
     // Stats commandes
     const [stats, setStats] = useState<MonthStats[]>([])
 
@@ -107,7 +117,7 @@ export default function Profil() {
             .then(data => {
                 if (data.ok && data.user) {
                     const u = data.user
-                    setProfile({
+                    const loaded: ProfileData = {
                         first_name:  u.first_name  || "",
                         last_name:   u.last_name   || "",
                         email:       u.email       || "",
@@ -116,7 +126,9 @@ export default function Profil() {
                         city:        u.city        || "",
                         postal_code: u.postal_code || "",
                         avatar_url:  u.avatar_url,
-                    })
+                    }
+                    setProfile(loaded)
+                    setOriginalProfile(loaded)
                     if (u.avatar_url) setAvatarPreview(u.avatar_url)
                 }
                 setLoading(false)
@@ -167,8 +179,12 @@ export default function Profil() {
         })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000) }
-                else setError("Échec de la sauvegarde")
+                if (data.ok) {
+                    setSaved(true)
+                    setIsDirty(false)
+                    setOriginalProfile({ ...profile })
+                    setTimeout(() => setSaved(false), 3000)
+                } else setError("Échec de la sauvegarde")
                 setSaving(false)
             })
             .catch(() => { setError("Erreur réseau"); setSaving(false) })
@@ -224,6 +240,7 @@ export default function Profil() {
             .then((data) => {
                 if (data.ok && data.avatar_url) {
                     setAvatarPreview(data.avatar_url)
+                    window.dispatchEvent(new CustomEvent("avatar-updated", { detail: { avatar_url: data.avatar_url } }))
                 }
                 setAvatarLoading(false)
             })
@@ -239,7 +256,7 @@ export default function Profil() {
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box" }}>
+        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box", paddingBottom: 100 }}>
             <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
                 {/* Header */}
@@ -289,22 +306,22 @@ export default function Profil() {
                 <Section title="Informations personnelles" icon={<User size={18} />}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
                         <Field label="Prénom">
-                            <input style={inputStyle} value={profile.first_name} onChange={e => setProfile(p => ({ ...p, first_name: e.target.value }))} placeholder="Prénom" />
+                            <input style={inputStyle} value={profile.first_name} onChange={e => updateProfile(p => ({ ...p, first_name: e.target.value }))} placeholder="Prénom" />
                         </Field>
                         <Field label="Nom">
-                            <input style={inputStyle} value={profile.last_name} onChange={e => setProfile(p => ({ ...p, last_name: e.target.value }))} placeholder="Nom" />
+                            <input style={inputStyle} value={profile.last_name} onChange={e => updateProfile(p => ({ ...p, last_name: e.target.value }))} placeholder="Nom" />
                         </Field>
                     </div>
                     <Field label="Email">
                         <div style={{ position: "relative" }}>
                             <Mail size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
-                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} placeholder="email@exemple.fr" />
+                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.email} onChange={e => updateProfile(p => ({ ...p, email: e.target.value }))} placeholder="email@exemple.fr" />
                         </div>
                     </Field>
                     <Field label="Téléphone">
                         <div style={{ position: "relative" }}>
                             <Phone size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
-                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.phone} onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" />
+                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.phone} onChange={e => updateProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" />
                         </div>
                     </Field>
                 </Section>
@@ -312,28 +329,19 @@ export default function Profil() {
                 {/* ── Adresse ── */}
                 <Section title="Adresse" icon={<MapPin size={18} />}>
                     <Field label="Adresse">
-                        <input style={inputStyle} value={profile.address} onChange={e => setProfile(p => ({ ...p, address: e.target.value }))} placeholder="Rue, numéro..." />
+                        <input style={inputStyle} value={profile.address} onChange={e => updateProfile(p => ({ ...p, address: e.target.value }))} placeholder="Rue, numéro..." />
                     </Field>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
                         <Field label="Ville">
-                            <input style={inputStyle} value={profile.city} onChange={e => setProfile(p => ({ ...p, city: e.target.value }))} placeholder="Paris" />
+                            <input style={inputStyle} value={profile.city} onChange={e => updateProfile(p => ({ ...p, city: e.target.value }))} placeholder="Paris" />
                         </Field>
                         <Field label="Code postal">
-                            <input style={inputStyle} value={profile.postal_code} onChange={e => setProfile(p => ({ ...p, postal_code: e.target.value }))} placeholder="75001" />
+                            <input style={inputStyle} value={profile.postal_code} onChange={e => updateProfile(p => ({ ...p, postal_code: e.target.value }))} placeholder="75001" />
                         </Field>
                     </div>
                 </Section>
 
-                {/* Bouton sauvegarder */}
                 {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>✗ {error}</div>}
-                <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    style={{ width: "100%", padding: "13px 24px", backgroundColor: saved ? "#e8f8ee" : saving ? C.muted : C.yellow, color: saved ? "#1a7a3c" : C.dark, border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}
-                >
-                    <Save size={16} />
-                    {saved ? "✓ Profil sauvegardé" : saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
-                </button>
 
                 {/* ── Mot de passe ── */}
                 <Section title="Mot de passe" icon={<Lock size={18} />}>
@@ -396,6 +404,36 @@ export default function Profil() {
                 </Section>
 
             </div>
+
+            {/* ── Fixed bottom save bar ── */}
+            {isDirty && (
+                <div style={{
+                    position: "fixed", bottom: 0, left: 64, right: 0, zIndex: 800,
+                    backgroundColor: "#fff", borderTop: "1px solid " + C.border,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "16px 32px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
+                }}>
+                    <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        backgroundColor: C.yellow, color: C.dark,
+                        fontWeight: 700, fontSize: 13, borderRadius: 20,
+                        padding: "6px 14px",
+                    }}>
+                        Modifications non sauvegardées
+                    </span>
+                    <button
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        style={{
+                            padding: "10px 24px", backgroundColor: C.dark, color: C.white,
+                            border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                            cursor: saving ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        {saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

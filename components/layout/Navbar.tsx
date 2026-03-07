@@ -23,6 +23,7 @@ export default function Navbar() {
     const [notifOpen, setNotifOpen] = useState(false)
     const [profileOpen, setProfileOpen] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
     const profileRef = useRef<HTMLDivElement>(null)
 
@@ -70,6 +71,27 @@ export default function Navbar() {
         } catch { /* WebSocket optional */ }
         return () => { socket?.disconnect() }
     }, [token, notifOpen, fetchNotifications])
+
+    // ── Fetch avatar from /me ─────────────────────────────────────────────────
+    useEffect(() => {
+        if (!token) return
+        fetch(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.json())
+            .then((data) => { if (data.ok && data.user?.avatar_url) setAvatarUrl(data.user.avatar_url) })
+            .catch(() => {})
+    }, [token])
+
+    // ── Listen for avatar updates ─────────────────────────────────────────────
+    useEffect(() => {
+        function handleAvatarUpdated(e: Event) {
+            const detail = (e as CustomEvent<{ avatar_url: string }>).detail
+            if (detail?.avatar_url) setAvatarUrl(detail.avatar_url)
+        }
+        window.addEventListener("avatar-updated", handleAvatarUpdated)
+        return () => window.removeEventListener("avatar-updated", handleAvatarUpdated)
+    }, [])
 
     // ── Close dropdowns on outside click ─────────────────────────────────────
     useEffect(() => {
@@ -261,9 +283,13 @@ export default function Navbar() {
                                 fontWeight: 700, fontSize: 12, border: "none",
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center",
+                                overflow: "hidden", padding: 0,
                             }}
                         >
-                            {initials || "?"}
+                            {avatarUrl
+                                ? <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="avatar" />
+                                : (initials || "?")
+                            }
                         </button>
 
                         {profileOpen && (
