@@ -90,14 +90,19 @@ function parseDate(s?: string): Date | null {
 }
 function fmtDate(s?: string) {
     if (!s) return "—"
-    return new Date(s).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+    // Forcer le parsing en heure locale (évite le décalage UTC+1)
+    const d = new Date(s.includes("T") ? s : s + "T12:00:00")
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
 }
 function fmtPrice(n?: number) {
     if (!n) return "—"
     return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n)
 }
 function toISODate(d: Date): string {
-    return d.toISOString().split("T")[0]
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -274,7 +279,7 @@ export default function Planning() {
             </div>
 
             {/* ── Légende — draggable ── */}
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 20, position: "sticky", top: 60, zIndex: 700, backgroundColor: C.bg, paddingBottom: 8, marginLeft: -24, marginRight: -24, paddingLeft: 24, paddingRight: 24 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
                     Glisser un jalon sur le planning pour ajouter une date potentielle
                 </div>
@@ -313,7 +318,7 @@ export default function Planning() {
                 <div style={{ minWidth: LABEL_W + DAYS * DAY_W }}>
 
                     {/* Header semaines */}
-                    <div style={{ display: "flex", borderBottom: "1px solid " + C.border }}>
+                    <div style={{ display: "flex", borderBottom: "1px solid " + C.border, position: "sticky", top: 0, zIndex: 10, backgroundColor: C.white }}>
                         <div style={{ width: LABEL_W, minWidth: LABEL_W, padding: "10px 16px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 1, borderRight: "1px solid " + C.border }}>
                             Projet
                         </div>
@@ -328,7 +333,7 @@ export default function Planning() {
                     </div>
 
                     {/* Header jours */}
-                    <div style={{ display: "flex", borderBottom: "2px solid " + C.border }}>
+                    <div style={{ display: "flex", borderBottom: "2px solid " + C.border, position: "sticky", top: 37, zIndex: 10, backgroundColor: C.white }}>
                         <div style={{ width: LABEL_W, minWidth: LABEL_W, borderRight: "1px solid " + C.border }} />
                         {days.map((d, i) => {
                             const isToday = isSameDay(d, today)
