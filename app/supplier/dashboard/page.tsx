@@ -83,6 +83,7 @@ function SupplierDashboardContent() {
     const [consultations, setConsultations] = useState<any[]>([])
     const [stats, setStats] = useState<any>(null)
     const [supplier, setSupplier] = useState<any>(null)
+    const [notFound, setNotFound] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
@@ -91,15 +92,21 @@ function SupplierDashboardContent() {
         fetch(API_URL + "/api/supplier-portal/dashboard", {
             headers: { Authorization: "Bearer " + token },
         })
-            .then(r => r.json())
+            .then(r => {
+                if (r.status === 404) { setNotFound(true); setLoading(false); return null }
+                return r.json()
+            })
             .then(d => {
-                if (d.ok || d.supplier || d.consultations) {
+                if (!d) return
+                if (d.error === "SUPPLIER_NOT_FOUND" || d.error?.includes?.("not found")) {
+                    setNotFound(true)
+                } else if (d.ok || d.supplier || d.consultations) {
                     setSupplier(d.supplier)
                     const raw = d.consultations ?? d.data ?? d
                     setConsultations(Array.isArray(raw) ? raw : [])
                     setStats(d.stats || {})
                 } else {
-                    setError(d.error || "Erreur serveur")
+                    setNotFound(true)
                 }
                 setLoading(false)
             })
@@ -131,6 +138,31 @@ function SupplierDashboardContent() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "Inter, sans-serif" }}>
             <Loader2 size={20} color={C.muted} style={{ animation: "spin 1s linear infinite" }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+    )
+
+    if (notFound) return (
+        <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 500, margin: "80px auto", textAlign: "center" }}>
+            <div style={{
+                background: C.white, borderRadius: 12, padding: "40px 32px",
+                boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
+            }}>
+                <Inbox size={40} color={C.muted} style={{ marginBottom: 16 }} />
+                <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 8 }}>
+                    Aucun profil fournisseur associe a ce compte.
+                </div>
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
+                    Ce compte n'est pas enregistre en tant que fournisseur sur LA FAB.
+                </div>
+                <a href="/dashboard" style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "10px 24px", borderRadius: 8,
+                    background: "#F4CF15", color: "#000000",
+                    fontSize: 14, fontWeight: 600, textDecoration: "none",
+                }}>
+                    Retour au dashboard
+                </a>
+            </div>
         </div>
     )
 
