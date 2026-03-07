@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { C } from "@/lib/constants"
 
@@ -19,7 +20,7 @@ function redirectForRole(role: string): string {
     switch (role) {
         case "admin": return "/admin/dashboard"
         case "supplier": return "/supplier/dashboard"
-        default: return "/projets"
+        default: return "/dashboard"
     }
 }
 
@@ -29,12 +30,13 @@ export default function RoleSwitcher() {
     if (!isAuthenticated || !user) return null
     if (!ALLOWED_EMAILS.includes(user.email)) return null
 
+    const router = useRouter()
     const currentRole = user.role
 
     function handleSwitch(role: string) {
         if (role === currentRole) return
         localStorage.setItem("role_override", role)
-        window.location.href = redirectForRole(role)
+        router.push(redirectForRole(role))
     }
 
     return (
