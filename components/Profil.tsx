@@ -221,7 +221,12 @@ export default function Profil() {
             body: form,
         })
             .then(r => r.json())
-            .then(() => setAvatarLoading(false))
+            .then((data) => {
+                if (data.ok && data.avatar_url) {
+                    setAvatarPreview(data.avatar_url)
+                }
+                setAvatarLoading(false)
+            })
             .catch(() => setAvatarLoading(false))
     }
 
