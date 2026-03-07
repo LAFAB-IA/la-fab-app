@@ -105,7 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  let loginInFlight = false;
   const login = async (email: string, password: string) => {
+    if (loginInFlight) return;
+    loginInFlight = true;
+    try {
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
+      if (res.status === 429) throw new Error("Trop de tentatives, veuillez patienter quelques minutes");
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || "Échec de la connexion");
     }
@@ -135,14 +140,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
     navigatePostLogin(loginRealRole);
+    } finally { loginInFlight = false; }
   };
 
+  let signupInFlight = false;
   const signup = async (
     email: string,
     password: string,
     firstName: string,
     lastName: string
   ) => {
+    if (signupInFlight) return;
+    signupInFlight = true;
+    try {
     const res = await fetch(`${API_URL}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -150,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
+      if (res.status === 429) throw new Error("Trop de tentatives, veuillez patienter quelques minutes");
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || "Échec de l'inscription");
     }
@@ -171,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
     navigatePostLogin(signupRealRole);
+    } finally { signupInFlight = false; }
   };
 
   const logout = async () => {
