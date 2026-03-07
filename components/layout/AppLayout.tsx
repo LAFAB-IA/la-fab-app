@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const isAdmin    = pathname.startsWith("/admin")
     const isSupplier = pathname.startsWith("/supplier") && user?.role === "supplier"
-    const isClient   = !isAdmin && !isSupplier && isAuthenticated && user?.role !== "admin"
+    const isClient   = !isAdmin && !isSupplier && isAuthenticated
 
     const hasSidebar = isAuthenticated && (isAdmin || isSupplier || isClient)
 

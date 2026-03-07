@@ -153,10 +153,10 @@ export default function Navbar() {
             padding: "0 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
             fontFamily: "Inter, sans-serif",
         }}>
-            {/* ── Logo ── */}
-            <Link
-                href={isAuthenticated ? (user?.role === "supplier" ? "/supplier/dashboard" : "/projets") : "/"}
-                style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
+            {/* ── Logo → landing page ── */}
+            <a
+                href="/"
+                style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", cursor: "pointer" }}
             >
                 <div style={{
                     width: 32, height: 32, borderRadius: 6, backgroundColor: C.yellow,
@@ -166,7 +166,7 @@ export default function Navbar() {
                     LF
                 </div>
                 <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
-            </Link>
+            </a>
 
             {/* ── Spacer centre ── */}
             <div style={{ flex: 1 }} />
@@ -177,14 +177,18 @@ export default function Navbar() {
 
                     {/* Admin link */}
                     {user?.role === "admin" && (
-                        <Link href="/admin/dashboard" style={{
-                            color: C.yellow, textDecoration: "none", fontSize: 13,
-                            fontWeight: 700, letterSpacing: 0.5,
-                            padding: "5px 12px", borderRadius: 6,
-                            border: "1px solid rgba(244,207,21,0.3)",
-                        }}>
+                        <a
+                            href="/admin/dashboard"
+                            style={{
+                                color: C.yellow, textDecoration: "none", fontSize: 13,
+                                fontWeight: 700, letterSpacing: 0.5,
+                                padding: "5px 12px", borderRadius: 6,
+                                border: "1px solid rgba(244,207,21,0.3)",
+                                cursor: "pointer",
+                            }}
+                        >
                             Admin
-                        </Link>
+                        </a>
                     )}
 
                     {/* ── Cloche notifications ── */}
