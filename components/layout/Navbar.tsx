@@ -23,6 +23,7 @@ export default function Navbar() {
     const [notifOpen, setNotifOpen] = useState(false)
     const [profileOpen, setProfileOpen] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const notifRef = useRef<HTMLDivElement>(null)
     const profileRef = useRef<HTMLDivElement>(null)
 
@@ -48,11 +49,46 @@ export default function Navbar() {
             .catch(() => {})
     }, [token])
 
+    // ── Fetch avatar from /api/auth/me ────────────────────────────────────────
+    const fetchAvatar = useCallback(() => {
+        console.log("[NAVBAR] fetchAvatar called, token:", !!token)
+        if (!token) return
+        fetch(`${API_URL}/api/auth/me?t=${Date.now()}`, {
+            headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok) setAvatarUrl(data.user?.avatar_url || null)
+            })
+            .catch(() => {})
+    }, [token])
+
+    // ── Listen for avatar updates via localStorage signal ───────────────────
+    useEffect(() => {
+        function onStorage(e: StorageEvent) {
+            if (e.key === "avatar_updated") fetchAvatar()
+        }
+        // Cross-tab: storage event
+        window.addEventListener("storage", onStorage)
+        // Same-tab: custom event (fired from Profil.tsx)
+        function onCustom() {
+            console.log("[NAVBAR] avatar-updated event received")
+            fetchAvatar()
+        }
+        console.log("[NAVBAR] listener avatar-updated registered")
+        window.addEventListener("avatar-updated", onCustom)
+        return () => {
+            window.removeEventListener("storage", onStorage)
+            window.removeEventListener("avatar-updated", onCustom)
+        }
+    }, [fetchAvatar])
+
     useEffect(() => {
         fetchUnread()
+        fetchAvatar()
         const interval = setInterval(fetchUnread, 30000)
         return () => clearInterval(interval)
-    }, [fetchUnread])
+    }, [fetchUnread, fetchAvatar])
 
     // ── WebSocket ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -261,9 +297,18 @@ export default function Navbar() {
                                 fontWeight: 700, fontSize: 12, border: "none",
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center",
+                                padding: 0, overflow: "hidden",
                             }}
                         >
-                            {initials || "?"}
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt="avatar"
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                initials || "?"
+                            )}
                         </button>
 
                         {profileOpen && (

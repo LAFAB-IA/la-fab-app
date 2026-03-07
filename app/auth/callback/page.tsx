@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
-import { setToken } from "@/lib/auth"
+import { setToken, setRole } from "@/lib/auth"
 import { Printer, Loader2 } from "lucide-react"
 
 export default function AuthCallback() {
@@ -79,6 +79,7 @@ export default function AuthCallback() {
     }
 
     function redirectForRole(role: string) {
+        setRole(role)
         if (role === "admin") router.push("/admin/dashboard")
         else if (role === "supplier") router.push("/supplier/dashboard")
         else router.push("/projets")

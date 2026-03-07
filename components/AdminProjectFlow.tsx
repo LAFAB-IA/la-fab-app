@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
-import { formatPrice, formatDate } from "@/lib/format"
+import { formatPrice, formatDate, formatDateShort } from "@/lib/format"
 import {
     Route, MessageSquare, FileText, CheckSquare, CreditCard,
     Send, RefreshCw, ChevronDown, ChevronUp, Bell, Download,
-    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain, Eye
+    Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain, Eye, CheckCircle
 } from "lucide-react"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
 
@@ -56,6 +56,15 @@ interface LineItem {
     unit_price: number
 }
 
+interface Quote {
+    quote_number: string
+    version: number
+    validated: boolean
+    quote_url: string
+    created_at?: string
+    generated_at?: string
+}
+
 /* ─────── step config ─────── */
 const STEPS = [
     { key: "routing", label: "Routage fournisseurs", icon: Route },
@@ -81,8 +90,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [expandedStep, setExpandedStep] = useState<StepKey | null>(null)
     const [consultations, setConsultations] = useState<Consultation[]>([])
     const [validations, setValidations] = useState<Validation[]>([])
-    const [quoteUrl, setQuoteUrl] = useState<string | null>(null)
-    const [quoteNumber, setQuoteNumber] = useState<string | null>(null)
+    const [quotes, setQuotes] = useState<Quote[]>([])
+    const [confirmValidateQuote, setConfirmValidateQuote] = useState<Quote | null>(null)
 
     const [loading, setLoading] = useState<Record<string, boolean>>({})
     const [messages, setMessages] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
@@ -184,10 +193,21 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         } catch { /* silent */ }
     }, [projectId, authHeaders])
 
+    const fetchQuotes = useCallback(async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/project/${projectId}`, { headers: authHeaders() })
+            const data = await r.json()
+            if (data.ok && data.project?.quotes) {
+                setQuotes(data.project.quotes)
+            }
+        } catch { /* silent */ }
+    }, [projectId, authHeaders])
+
     useEffect(() => {
         fetchConsultations()
         fetchValidations()
-    }, [fetchConsultations, fetchValidations])
+        fetchQuotes()
+    }, [fetchConsultations, fetchValidations, fetchQuotes])
 
     /* ─────── actions ─────── */
     async function routeSuppliers() {
@@ -257,14 +277,33 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             const r = await fetch(`${API_URL}/api/project/${projectId}/generate-quote`, { method: "POST", headers: authHeaders() })
             const data = await r.json()
             if (data.ok) {
-                setQuoteUrl(data.quote_url || null)
-                setQuoteNumber(data.quote_number || null)
                 setMsg("quote", "ok", `Devis ${data.quote_number} genere`)
+                await fetchQuotes()
             } else {
                 setMsg("quote", "err", data.error || "Erreur generation devis")
             }
         } catch { setMsg("quote", "err", "Erreur reseau") }
         setLoad("quote", false)
+    }
+
+    async function validateQuote(quote: Quote) {
+        setLoad("validate_quote", true)
+        try {
+            const r = await fetch(`${API_URL}/api/project/${projectId}/validate-quote`, {
+                method: "POST",
+                headers: authHeaders(true),
+                body: JSON.stringify({ quote_number: quote.quote_number }),
+            })
+            const data = await r.json()
+            if (data.ok) {
+                setMsg("quote", "ok", `Devis ${quote.quote_number} valide`)
+                await fetchQuotes()
+            } else {
+                setMsg("quote", "err", data.error || "Erreur validation devis")
+            }
+        } catch { setMsg("quote", "err", "Erreur reseau") }
+        setLoad("validate_quote", false)
+        setConfirmValidateQuote(null)
     }
 
     async function generateInvoice() {
@@ -1057,77 +1096,183 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     function renderQuote() {
+        const sortedQuotes = [...quotes].sort((a, b) => b.version - a.version)
+
         return (
             <div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    {renderBtn("Generer le devis client", generateQuote, "quote", <FileText size={14} />)}
-                    {quoteUrl && (
-                        <button
-                            onClick={() => setPdfModal({ url: quoteUrl, title: `Devis ${quoteNumber || ""}` })}
-                            style={{
-                                display: "inline-flex", alignItems: "center", gap: 6,
-                                padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                                border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                cursor: "pointer",
-                            }}
-                        >
-                            <Eye size={14} />
-                            Voir {quoteNumber || "le devis"}
-                        </button>
+                    {renderBtn(
+                        quotes.length === 0 ? "Generer le devis client" : "Generer une nouvelle version",
+                        generateQuote,
+                        "quote",
+                        quotes.length === 0 ? <FileText size={14} /> : <RefreshCw size={14} />,
                     )}
                 </div>
                 {renderMsg("quote")}
-                {quoteUrl && (
-                    <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 13, color: "#166534" }}>
-                        <Check size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                        Devis {quoteNumber} genere avec succes.
+
+                {/* Liste des versions */}
+                {sortedQuotes.length > 0 && (
+                    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {sortedQuotes.map((q) => (
+                            <div
+                                key={q.quote_number}
+                                style={{
+                                    display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                                    padding: "10px 14px", borderRadius: 8,
+                                    border: "1px solid " + (q.validated ? "#bbf7d0" : C.border),
+                                    background: q.validated ? "#f0fdf4" : C.white,
+                                }}
+                            >
+                                <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                    Version {q.version} — {q.quote_number}
+                                </span>
+                                <span style={{ fontSize: 12, color: C.muted }}>
+                                    — {formatDateShort(q.generated_at || q.created_at || "")}
+                                </span>
+                                <span style={{
+                                    padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                    background: q.validated ? "#e8f8ee" : "#f5f5f5",
+                                    color: q.validated ? "#166534" : "#616161",
+                                }}>
+                                    {q.validated ? (
+                                        <><CheckCircle size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />Valide</>
+                                    ) : (
+                                        <><Clock size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />En attente</>
+                                    )}
+                                </span>
+                                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                                    <button
+                                        onClick={() => setPdfModal({ url: q.quote_url, title: `Devis ${q.quote_number}` })}
+                                        style={{
+                                            display: "inline-flex", alignItems: "center", gap: 4,
+                                            padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                            border: "1px solid " + C.border, background: C.white, color: C.dark,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <Eye size={13} />
+                                        Voir
+                                    </button>
+                                    {!q.validated && (
+                                        <button
+                                            onClick={() => setConfirmValidateQuote(q)}
+                                            style={{
+                                                display: "inline-flex", alignItems: "center", gap: 4,
+                                                padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                                border: "none", background: "#166534", color: "#fff",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <Check size={13} />
+                                            Valider ce devis
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
+                )}
+
+                {/* Modale confirmation validation */}
+                {confirmValidateQuote && (
+                    <>
+                        <div onClick={() => setConfirmValidateQuote(null)} style={{
+                            position: "fixed", inset: 0, zIndex: 1500,
+                            backgroundColor: "rgba(0,0,0,0.4)",
+                        }} />
+                        <div style={{
+                            position: "fixed", top: "50%", left: "50%",
+                            transform: "translate(-50%, -50%)", zIndex: 1501,
+                            background: C.white, borderRadius: 12, padding: 24,
+                            boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+                            maxWidth: 420, width: "90vw", fontFamily: "Inter, sans-serif",
+                        }}>
+                            <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+                                Confirmer la validation
+                            </div>
+                            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                                Confirmer la validation du devis <strong>{confirmValidateQuote.quote_number}</strong> ?
+                            </div>
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                <button
+                                    onClick={() => setConfirmValidateQuote(null)}
+                                    style={{
+                                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                                        border: "1px solid " + C.border, background: C.white, color: C.dark,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={() => validateQuote(confirmValidateQuote)}
+                                    disabled={loading["validate_quote"]}
+                                    style={{
+                                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                                        border: "none", background: "#166534", color: "#fff",
+                                        cursor: loading["validate_quote"] ? "wait" : "pointer",
+                                        opacity: loading["validate_quote"] ? 0.7 : 1,
+                                    }}
+                                >
+                                    {loading["validate_quote"] ? (
+                                        <><Loader2 size={13} style={{ verticalAlign: "middle", marginRight: 4, animation: "spin 1s linear infinite" }} />Validation...</>
+                                    ) : (
+                                        <><Check size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />Confirmer</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         )
     }
 
     function renderValidation() {
-        if (validations.length === 0) {
-            return (
-                <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
-                    Aucune validation recue. Le devis doit etre genere et envoye au client.
-                </div>
-            )
-        }
+        const lastValidated = [...quotes].filter(q => q.validated).sort((a, b) => b.version - a.version)[0]
 
         return (
             <div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead>
-                        <tr>
-                            {["Fournisseur", "Prix", "Decision client", "Decision admin", "Statut final"].map((h) => (
-                                <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {validations.map((v) => (
-                            <tr key={v.id}>
-                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontWeight: 500, color: C.dark }}>
-                                    {v.supplier?.name || v.supplier_id.slice(0, 10)}
-                                </td>
-                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee", fontWeight: 600, color: C.dark }}>
-                                    {formatPrice(v.supplier_price)}
-                                </td>
-                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee" }}>
-                                    {renderDecisionBadge(v.client_decision)}
-                                </td>
-                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee" }}>
-                                    {renderDecisionBadge(v.admin_decision)}
-                                </td>
-                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f0f0ee" }}>
-                                    {renderFinalStatus(v.final_status)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                {lastValidated ? (
+                    <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 13, color: "#166534" }}>
+                        <CheckCircle size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                        Devis <strong>{lastValidated.quote_number}</strong> valide par l'admin.
+                    </div>
+                ) : (
+                    <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#fef9e0", border: "1px solid #fde68a", fontSize: 13, color: "#b89a00" }}>
+                        <Clock size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                        Aucun devis valide. Validez un devis dans l'etape precedente.
+                    </div>
+                )}
+                {renderBtn(
+                    "Simuler validation client",
+                    async () => {
+                        const target = lastValidated || quotes[0]
+                        if (!target) {
+                            setMsg("validation", "err", "Aucun devis disponible")
+                            return
+                        }
+                        setLoad("validation", true)
+                        try {
+                            const r = await fetch(`${API_URL}/api/project/${projectId}/validate-quote`, {
+                                method: "POST",
+                                headers: authHeaders(true),
+                                body: JSON.stringify({ quote_number: target.quote_number }),
+                            })
+                            const data = await r.json()
+                            if (data.ok) {
+                                setMsg("validation", "ok", "Validation client simulee")
+                                await fetchQuotes()
+                            } else {
+                                setMsg("validation", "err", data.error || "Erreur validation")
+                            }
+                        } catch { setMsg("validation", "err", "Erreur reseau") }
+                        setLoad("validation", false)
+                    },
+                    "validation",
+                    <CheckSquare size={14} />,
+                )}
+                {renderMsg("validation")}
             </div>
         )
     }
