@@ -115,7 +115,7 @@ function ClientDashboard() {
     const now = Date.now()
     for (const p of projects) {
         if (p.status === "archived" || p.status === "delivered") continue
-        const dates = p.planning_dates || []
+        const dates = Array.isArray(p.planning_dates) ? p.planning_dates : []
         for (const d of dates) {
             const t = new Date(d.date || d).getTime()
             if (t > now && (!nextMilestone || t < new Date(nextMilestone).getTime())) {
