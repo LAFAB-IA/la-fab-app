@@ -22,20 +22,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return <>{children}</>
     }
 
-    const isAdmin    = pathname.startsWith("/admin")
-    const isSupplier = pathname.startsWith("/supplier") && user?.role === "supplier"
-    const isClient   = !isAdmin && !isSupplier && isAuthenticated
+    // Sidebar basée sur user.role (qui inclut role_override via RoleSwitcher)
+    const showAdmin    = isAuthenticated && user?.role === "admin"
+    const showSupplier = isAuthenticated && user?.role === "supplier"
+    const showClient   = isAuthenticated && !showAdmin && !showSupplier
 
-    const hasSidebar = isAuthenticated && (isAdmin || isSupplier || isClient)
+    const hasSidebar = isAuthenticated
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column" }}>
             <Navbar />
             <RoleSwitcher />
             <div style={{ marginTop: 60, flex: 1, display: "flex" }}>
-                {isAdmin    && isAuthenticated && <Sidebar />}
-                {isSupplier && isAuthenticated && <SupplierSidebar />}
-                {isClient   && isAuthenticated && <ClientSidebar />}
+                {showAdmin    && <Sidebar />}
+                {showSupplier && <SupplierSidebar />}
+                {showClient   && <ClientSidebar />}
                 <main style={{
                     flex: 1,
                     padding: 24,
