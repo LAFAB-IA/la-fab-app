@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import Navbar from "@/components/layout/Navbar"
@@ -13,13 +14,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const { isAuthenticated, user } = useAuth()
 
-    // Landing, login, and public supplier register: no chrome
     if (BARE_PATHS.includes(pathname)) {
         return <>{children}</>
     }
 
     const isAdmin = pathname.startsWith("/admin")
     const isSupplier = pathname.startsWith("/supplier") && user?.role === "supplier"
+    const hasSidebar = (isAdmin || isSupplier) && isAuthenticated
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column" }}>
@@ -27,7 +28,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div style={{ marginTop: 60, flex: 1, display: "flex" }}>
                 {isAdmin && isAuthenticated && <Sidebar />}
                 {isSupplier && isAuthenticated && <SupplierSidebar />}
-                <main style={{ flex: 1, padding: 24, overflowY: "auto" }}>
+                <main style={{
+                    flex: 1,
+                    padding: 24,
+                    overflowY: "auto",
+                    marginLeft: hasSidebar ? 64 : 0,
+                    transition: "margin-left 0.22s cubic-bezier(0.4,0,0.2,1)",
+                }}>
                     {children}
                 </main>
             </div>
