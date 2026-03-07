@@ -10,7 +10,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, realRole } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,10 +19,10 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
       router.replace("/login");
       return;
     }
-    if (requiredRole && user?.role !== requiredRole) {
+    if (requiredRole && realRole !== requiredRole) {
       router.replace("/login");
     }
-  }, [isLoading, isAuthenticated, user, requiredRole, router]);
+  }, [isLoading, isAuthenticated, realRole, requiredRole, router]);
 
   if (isLoading) {
     return (
@@ -33,7 +33,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) return null;
-  if (requiredRole && user?.role !== requiredRole) return null;
+  if (requiredRole && realRole !== requiredRole) return null;
 
   return <>{children}</>;
 }

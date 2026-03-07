@@ -20,6 +20,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  realRole: string | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -59,6 +60,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [realRole, setRealRole] = useState<string | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return res.json();
       })
       .then((data) => {
+        setRealRole(data.user?.role || "client");
         setUser(applyRoleOverride(data.user));
         setTokenState(storedToken);
         setIsAuthenticated(true);
@@ -124,13 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const realRole = meData.user?.role || meData.role || "client";
+    const loginRealRole = meData.user?.role || meData.role || "client";
     console.log("[AUTH] login /me full response:", JSON.stringify(meData));
-    console.log("[AUTH] role reçu:", realRole, "→ redirect vers:", redirectForRole(realRole));
+    console.log("[AUTH] role reçu:", loginRealRole, "→ redirect vers:", redirectForRole(loginRealRole));
+    setRealRole(loginRealRole);
     setTokenState(freshToken);
     setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
-    navigatePostLogin(realRole);
+    navigatePostLogin(loginRealRole);
   };
 
   const signup = async (
@@ -160,12 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const realSignupRole = meData.user?.role || meData.role || "client";
-    console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", realSignupRole);
+    const signupRealRole = meData.user?.role || meData.role || "client";
+    console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", signupRealRole);
+    setRealRole(signupRealRole);
     setTokenState(freshToken);
     setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
-    navigatePostLogin(realSignupRole);
+    navigatePostLogin(signupRealRole);
   };
 
   const logout = async () => {
@@ -187,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, isAuthenticated, login, signup, logout }}
+      value={{ user, realRole, token, isLoading, isAuthenticated, login, signup, logout }}
     >
       {children}
     </AuthContext.Provider>
