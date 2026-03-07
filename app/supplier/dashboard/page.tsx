@@ -93,9 +93,10 @@ function SupplierDashboardContent() {
         })
             .then(r => r.json())
             .then(d => {
-                if (d.ok) {
+                if (d.ok || d.supplier || d.consultations) {
                     setSupplier(d.supplier)
-                    setConsultations(d.consultations || [])
+                    const raw = d.consultations ?? d.data ?? d
+                    setConsultations(Array.isArray(raw) ? raw : [])
                     setStats(d.stats || {})
                 } else {
                     setError(d.error || "Erreur serveur")

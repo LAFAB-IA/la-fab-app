@@ -81,13 +81,19 @@ function ClientDashboard() {
 
         fetch(API_URL + "/api/project?account_id=me", { headers })
             .then(r => r.json())
-            .then(d => { if (d.ok) setProjects(d.projects || []) })
+            .then(d => {
+                const raw = d.projects ?? d.data ?? d
+                setProjects(Array.isArray(raw) ? raw : [])
+            })
             .catch(() => {})
             .finally(check)
 
         fetch(API_URL + "/api/invoice/list", { headers })
             .then(r => r.json())
-            .then(d => { if (d.ok) setInvoices(d.invoices || []) })
+            .then(d => {
+                const raw = d.invoices ?? d.data ?? d
+                setInvoices(Array.isArray(raw) ? raw : [])
+            })
             .catch(() => {})
             .finally(check)
     }, [token, isAuthenticated, authLoading])
