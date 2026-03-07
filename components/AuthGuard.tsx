@@ -15,11 +15,13 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
   useEffect(() => {
     if (isLoading) return;
+    console.log("[AuthGuard] isAuthenticated:", isAuthenticated, "realRole:", realRole, "requiredRole:", requiredRole);
     if (!isAuthenticated) {
       router.replace("/login");
       return;
     }
     if (requiredRole && realRole !== requiredRole) {
+      console.log("[AuthGuard] BLOCKED — realRole", realRole, "!==", requiredRole);
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, realRole, requiredRole, router]);

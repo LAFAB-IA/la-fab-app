@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { C } from "@/lib/constants"
 import { FolderKanban, FileText, CalendarDays, User } from "lucide-react"
@@ -77,14 +76,14 @@ export default function ClientSidebar() {
                 {LINKS.map((link) => {
                     const active = pathname === link.href || pathname.startsWith(link.href + "/")
                     return (
-                        <Link
+                        <a
                             key={link.href}
                             href={link.href}
                             className={`client-sidebar-link${active ? " active" : ""}`}
                         >
                             <span style={{ flexShrink: 0 }}>{link.icon}</span>
                             <span className="client-sidebar-label">{link.label}</span>
-                        </Link>
+                        </a>
                     )
                 })}
             </aside>

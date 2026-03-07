@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { C } from "@/lib/constants"
 import { LayoutDashboard, MessageSquare } from "lucide-react"
@@ -26,7 +25,7 @@ export default function SupplierSidebar() {
             {LINKS.map((link) => {
                 const active = pathname === link.href
                 return (
-                    <Link key={link.href} href={link.href} style={{
+                    <a key={link.href} href={link.href} style={{
                         display: "flex", alignItems: "center", gap: 10,
                         padding: "10px 20px", fontSize: 14,
                         textDecoration: "none",
@@ -37,7 +36,7 @@ export default function SupplierSidebar() {
                     }}>
                         {link.icon}
                         {link.label}
-                    </Link>
+                    </a>
                 )
             })}
         </aside>
