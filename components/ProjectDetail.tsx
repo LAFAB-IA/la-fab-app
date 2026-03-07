@@ -6,7 +6,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory, CalendarDays } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -229,8 +229,18 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         </div>
                         <StatusBadge status={status} type="project" />
                     </div>
-                    <div style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
-                        Créé le {formatDate(created_at)}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                        <div style={{ fontSize: 13, color: C.muted }}>
+                            Créé le {formatDate(created_at)}
+                        </div>
+                        <a href={`/projet/${id}/planning`} style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600,
+                            backgroundColor: C.bg, color: "#3A4040", textDecoration: "none",
+                            border: `1px solid ${C.border}`,
+                        }}>
+                            <CalendarDays size={14} /> Planning partagé
+                        </a>
                     </div>
 
                     {/* Timeline */}

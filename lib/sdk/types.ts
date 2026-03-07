@@ -107,6 +107,34 @@ export interface Message {
 }
 
 // ============================================================
+// Planning — Shared milestones
+// ============================================================
+
+export type MilestoneStatus = "pending" | "accepted" | "refused" | "counter_proposed";
+
+export interface Milestone {
+  id: string;
+  project_id: string;
+  title: string;
+  milestone_date: string;
+  status: MilestoneStatus;
+  proposed_by: string | null;
+  counter_date: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: MilestoneMessage[];
+}
+
+export interface MilestoneMessage {
+  id: string;
+  milestone_id: string;
+  author_id: string;
+  author_role: string;
+  content: string;
+  created_at: string;
+}
+
+// ============================================================
 // Generic wrappers
 // ============================================================
 
