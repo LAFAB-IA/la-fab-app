@@ -124,14 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const effectiveUser = applyRoleOverride(meData.user);
-    const role = effectiveUser.role || meData.role || "client";
+    const realRole = meData.user?.role || meData.role || "client";
     console.log("[AUTH] login /me full response:", JSON.stringify(meData));
-    console.log("[AUTH] role reçu:", role, "→ redirect vers:", redirectForRole(role));
+    console.log("[AUTH] role reçu:", realRole, "→ redirect vers:", redirectForRole(realRole));
     setTokenState(freshToken);
-    setUser(effectiveUser);
+    setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
-    navigatePostLogin(role);
+    navigatePostLogin(realRole);
   };
 
   const signup = async (
@@ -161,13 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!meRes.ok) throw new Error("Échec de la récupération du profil");
     const meData = await meRes.json();
 
-    const signupUser = applyRoleOverride(meData.user);
-    const signupRole = signupUser.role || meData.role || "client";
-    console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", signupRole);
+    const realSignupRole = meData.user?.role || meData.role || "client";
+    console.log("[AUTH] signup /me response:", JSON.stringify(meData), "→ role:", realSignupRole);
     setTokenState(freshToken);
-    setUser(signupUser);
+    setUser(applyRoleOverride(meData.user));
     setIsAuthenticated(true);
-    navigatePostLogin(signupRole);
+    navigatePostLogin(realSignupRole);
   };
 
   const logout = async () => {
