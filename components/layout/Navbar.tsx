@@ -135,9 +135,7 @@ export default function Navbar() {
             </Link>
 
             {/* ── Spacer centre ── */}
-            {(true) ? (
-                <div style={{ flex: 1 }} />
-            )}
+            <div style={{ flex: 1 }} />
 
             {/* ── Right side ── */}
             {isAuthenticated ? (
