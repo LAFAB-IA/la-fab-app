@@ -278,7 +278,7 @@ function SupplierDashboardContent() {
 
 export default function Page() {
     return (
-        <AuthGuard requiredRole="supplier">
+        <AuthGuard>
             <SupplierDashboardContent />
         </AuthGuard>
     )

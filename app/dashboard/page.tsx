@@ -259,7 +259,7 @@ function ClientDashboard() {
 
 export default function Page() {
     return (
-        <AuthGuard requiredRole="client">
+        <AuthGuard>
             <ClientDashboard />
         </AuthGuard>
     )
