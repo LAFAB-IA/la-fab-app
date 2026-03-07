@@ -5,16 +5,28 @@ import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
 import { io, Socket } from "socket.io-client"
-import { Bell, X, Menu } from "lucide-react"
+import { Bell, X, Menu, Check } from "lucide-react"
+
+interface Notification {
+    id: string
+    title: string
+    message: string
+    read: boolean
+    created_at: string
+    link?: string
+}
 
 export default function Navbar() {
     const { user, token, isAuthenticated, logout } = useAuth()
     const [unreadCount, setUnreadCount] = useState(0)
-    const [dropdownOpen, setDropdownOpen] = useState(false)
+    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [notifOpen, setNotifOpen] = useState(false)
+    const [profileOpen, setProfileOpen] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
-    const dropdownRef = useRef<HTMLDivElement>(null)
+    const notifRef = useRef<HTMLDivElement>(null)
+    const profileRef = useRef<HTMLDivElement>(null)
 
-    // Fetch unread notification count + poll every 30s
+    // ── Fetch unread count ────────────────────────────────────────────────────
     const fetchUnread = useCallback(() => {
         if (!token) return
         fetch(`${API_URL}/api/notifications/unread-count`, {
@@ -25,13 +37,24 @@ export default function Navbar() {
             .catch(() => {})
     }, [token])
 
+    // ── Fetch notifications list ──────────────────────────────────────────────
+    const fetchNotifications = useCallback(() => {
+        if (!token) return
+        fetch(`${API_URL}/api/notifications?limit=8`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.json())
+            .then((data) => { if (data.ok && data.notifications) setNotifications(data.notifications) })
+            .catch(() => {})
+    }, [token])
+
     useEffect(() => {
         fetchUnread()
         const interval = setInterval(fetchUnread, 30000)
         return () => clearInterval(interval)
     }, [fetchUnread])
 
-    // WebSocket: listen for notification:new to increment counter
+    // ── WebSocket ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!token) return
         let socket: Socket | null = null
@@ -42,177 +65,290 @@ export default function Navbar() {
             })
             socket.on("notification:new", () => {
                 setUnreadCount((c) => c + 1)
+                if (notifOpen) fetchNotifications()
             })
         } catch { /* WebSocket optional */ }
         return () => { socket?.disconnect() }
-    }, [token])
+    }, [token, notifOpen, fetchNotifications])
 
-    // Close dropdown on outside click
+    // ── Close dropdowns on outside click ─────────────────────────────────────
     useEffect(() => {
         function handleClick(e: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setDropdownOpen(false)
-            }
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+            if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
         }
         document.addEventListener("mousedown", handleClick)
         return () => document.removeEventListener("mousedown", handleClick)
     }, [])
 
+    // ── Mark all as read ──────────────────────────────────────────────────────
+    function markAllRead() {
+        if (!token) return
+        fetch(`${API_URL}/api/notifications/mark-all-read`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(() => {
+                setUnreadCount(0)
+                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+            })
+            .catch(() => {})
+    }
+
+    function handleBellClick() {
+        if (!notifOpen) fetchNotifications()
+        setNotifOpen(!notifOpen)
+        setProfileOpen(false)
+    }
+
     const initials = user
         ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase()
         : ""
 
-    const navLinks = isAuthenticated
-        ? user?.role === "supplier"
-            ? [
-                  { href: "/supplier/dashboard", label: "Dashboard" },
-                  { href: "/supplier/consultations", label: "Consultations" },
-              ]
-            : [
-                  { href: "/projets", label: "Projets" },
-                  { href: "/factures", label: "Factures" },
-                  ...(user?.role === "admin" ? [{ href: "/admin/dashboard", label: "Admin" }] : []),
-              ]
+    // Liens mobile uniquement pour fournisseur
+    const mobileLinks = isAuthenticated && user?.role === "supplier"
+        ? [
+            { href: "/supplier/dashboard", label: "Dashboard" },
+            { href: "/supplier/consultations", label: "Consultations" },
+        ]
         : []
 
     return (
         <nav style={{
             position: "fixed", top: 0, left: 0, right: 0, height: 60, zIndex: 1000,
-            backgroundColor: C.dark, display: "flex", alignItems: "center",
-            padding: "0 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+            backgroundColor: "#000000", display: "flex", alignItems: "center",
+            padding: "0 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
             fontFamily: "Inter, sans-serif",
         }}>
-            {/* Logo */}
-            <Link href={isAuthenticated ? (user?.role === "supplier" ? "/supplier/dashboard" : "/projets") : "/"} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+            {/* ── Logo ── */}
+            <Link
+                href={isAuthenticated ? (user?.role === "supplier" ? "/supplier/dashboard" : "/projets") : "/"}
+                style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
+            >
                 <div style={{
                     width: 32, height: 32, borderRadius: 6, backgroundColor: C.yellow,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 800, fontSize: 14, color: C.dark,
+                    fontWeight: 800, fontSize: 14, color: "#000000",
                 }}>
                     LF
                 </div>
-                <span style={{ color: C.white, fontWeight: 600, fontSize: 16 }}>LA FAB</span>
+                <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
             </Link>
 
-            {/* Desktop nav links -- center */}
-            {isAuthenticated && (
-                <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 24 }}
-                     className="navbar-desktop-links">
-                    {navLinks.map((link) => (
-                        <Link key={link.href} href={link.href} className="nav-link" style={{
-                            color: C.white, textDecoration: "none", fontSize: 14, fontWeight: 500,
-                            opacity: 0.85, transition: "opacity 0.2s",
+            {/* ── Spacer ── */}
+            <div style={{ flex: 1 }} />
+
+            {/* ── Right side ── */}
+            {isAuthenticated ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+                    {/* Admin link */}
+                    {user?.role === "admin" && (
+                        <Link href="/admin/dashboard" className="nav-link" style={{
+                            color: C.yellow, textDecoration: "none", fontSize: 13,
+                            fontWeight: 700, letterSpacing: 0.5,
+                            padding: "5px 12px", borderRadius: 6,
+                            border: "1px solid rgba(244,207,21,0.3)",
+                            transition: "background 0.15s",
                         }}>
-                            {link.label}
+                            Admin
                         </Link>
-                    ))}
-                </div>
-            )}
+                    )}
 
-            {/* Center links when not authenticated */}
-            {!isAuthenticated && (
-                <div style={{ flex: 1, display: "flex", justifyContent: "center" }} className="navbar-desktop-links">
-                    <Link href="/supplier/register" className="nav-link" style={{
-                        color: C.white, textDecoration: "none", fontSize: 14, fontWeight: 500,
-                        opacity: 0.85, transition: "opacity 0.2s",
-                    }}>
-                        Devenir fournisseur
-                    </Link>
-                </div>
-            )}
-
-            {/* Right side */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: isAuthenticated ? 0 : "auto" }}>
-                {isAuthenticated ? (
-                    <>
-                        {/* Notification bell */}
-                        <Link href="/notifications" style={{ position: "relative", color: C.white, textDecoration: "none", fontSize: 20, lineHeight: 1, display: "flex", alignItems: "center" }}>
+                    {/* ── Cloche notifications ── */}
+                    <div ref={notifRef} style={{ position: "relative" }}>
+                        <button
+                            onClick={handleBellClick}
+                            className="btn-icon"
+                            style={{
+                                position: "relative", background: "none", border: "none",
+                                color: C.white, cursor: "pointer", padding: 6,
+                                borderRadius: 8, display: "flex", alignItems: "center",
+                                transition: "background 0.15s",
+                            }}
+                        >
                             <Bell size={20} />
                             {unreadCount > 0 && (
                                 <span style={{
-                                    position: "absolute", top: -6, right: -8,
+                                    position: "absolute", top: 2, right: 2,
                                     backgroundColor: "#e74c3c", color: "#fff",
-                                    fontSize: 10, fontWeight: 600, borderRadius: 10,
-                                    minWidth: 18, height: 18, display: "flex",
-                                    alignItems: "center", justifyContent: "center",
+                                    fontSize: 10, fontWeight: 700, borderRadius: 10,
+                                    minWidth: 16, height: 16,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
                                     padding: "0 4px",
                                 }}>
                                     {unreadCount > 99 ? "99+" : unreadCount}
                                 </span>
                             )}
-                        </Link>
+                        </button>
 
-                        {/* Avatar + dropdown */}
-                        <div ref={dropdownRef} style={{ position: "relative" }}>
-                            <button
-                                onClick={() => setDropdownOpen(!dropdownOpen)}
-                                style={{
-                                    width: 36, height: 36, borderRadius: "50%",
-                                    backgroundColor: C.yellow, color: C.dark,
-                                    fontWeight: 600, fontSize: 13, border: "none",
-                                    cursor: "pointer", display: "flex",
-                                    alignItems: "center", justifyContent: "center",
-                                }}
-                            >
-                                {initials}
-                            </button>
-                            {dropdownOpen && (
+                        {/* Dropdown notifications */}
+                        {notifOpen && (
+                            <div style={{
+                                position: "absolute", right: 0, top: 44,
+                                backgroundColor: C.white, borderRadius: 14,
+                                boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+                                border: "1px solid " + C.border,
+                                width: 340, zIndex: 1001, overflow: "hidden",
+                            }}>
+                                {/* Header dropdown */}
                                 <div style={{
-                                    position: "absolute", right: 0, top: 44,
-                                    backgroundColor: C.white, borderRadius: 12,
-                                    boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
-                                    border: "1px solid " + C.border,
-                                    minWidth: 180, overflow: "hidden", zIndex: 1001,
+                                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                                    padding: "14px 16px", borderBottom: "1px solid " + C.border,
                                 }}>
-                                    <Link href="/profil" onClick={() => setDropdownOpen(false)} className="nav-link" style={{
-                                        display: "block", padding: "12px 16px", fontSize: 14,
-                                        color: C.dark, textDecoration: "none", fontWeight: 500,
-                                    }}>
-                                        Mon profil
-                                    </Link>
-                                    <button onClick={() => { setDropdownOpen(false); logout() }} className="btn-danger" style={{
-                                        display: "block", width: "100%", textAlign: "left",
-                                        padding: "12px 16px", fontSize: 14, color: "#c0392b",
-                                        fontWeight: 500, border: "none", background: "none",
-                                        cursor: "pointer", borderTop: "1px solid " + C.border,
-                                    }}>
-                                        Se deconnecter
-                                    </button>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "#000000" }}>
+                                        Notifications {unreadCount > 0 && `(${unreadCount})`}
+                                    </span>
+                                    {unreadCount > 0 && (
+                                        <button onClick={markAllRead} style={{
+                                            background: "none", border: "none", cursor: "pointer",
+                                            fontSize: 12, color: C.muted, fontWeight: 600,
+                                            display: "flex", alignItems: "center", gap: 4,
+                                        }}>
+                                            <Check size={12} /> Tout marquer lu
+                                        </button>
+                                    )}
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Mobile burger */}
+                                {/* Liste */}
+                                <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                                    {notifications.length === 0 ? (
+                                        <div style={{ padding: "28px 16px", textAlign: "center", color: C.muted, fontSize: 13 }}>
+                                            Aucune notification
+                                        </div>
+                                    ) : (
+                                        notifications.map((n) => (
+                                            <div
+                                                key={n.id}
+                                                onClick={() => { if (n.link) window.location.href = n.link; setNotifOpen(false) }}
+                                                className="row-hover"
+                                                style={{
+                                                    padding: "12px 16px",
+                                                    borderBottom: "1px solid " + C.border,
+                                                    cursor: n.link ? "pointer" : "default",
+                                                    backgroundColor: n.read ? "transparent" : "rgba(244,207,21,0.06)",
+                                                    transition: "background 0.15s",
+                                                }}
+                                            >
+                                                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                                    {!n.read && (
+                                                        <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: C.yellow, flexShrink: 0, marginTop: 5 }} />
+                                                    )}
+                                                    <div style={{ flex: 1, paddingLeft: n.read ? 17 : 0 }}>
+                                                        <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: "#000000", marginBottom: 2 }}>
+                                                            {n.title}
+                                                        </div>
+                                                        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{n.message}</div>
+                                                        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                                                            {new Date(n.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {/* Footer */}
+                                <div style={{ padding: "10px 16px", borderTop: "1px solid " + C.border, textAlign: "center" }}>
+                                    <Link href="/notifications" onClick={() => setNotifOpen(false)} style={{
+                                        fontSize: 13, color: C.muted, textDecoration: "none", fontWeight: 600,
+                                    }}>
+                                        Voir toutes les notifications →
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Avatar + dropdown profil ── */}
+                    <div ref={profileRef} style={{ position: "relative" }}>
+                        <button
+                            onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false) }}
+                            style={{
+                                width: 34, height: 34, borderRadius: "50%",
+                                backgroundColor: C.yellow, color: "#000000",
+                                fontWeight: 700, fontSize: 12, border: "none",
+                                cursor: "pointer", display: "flex",
+                                alignItems: "center", justifyContent: "center",
+                                transition: "opacity 0.15s",
+                            }}
+                        >
+                            {initials || "?"}
+                        </button>
+
+                        {profileOpen && (
+                            <div style={{
+                                position: "absolute", right: 0, top: 44,
+                                backgroundColor: C.white, borderRadius: 12,
+                                boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+                                border: "1px solid " + C.border,
+                                minWidth: 180, overflow: "hidden", zIndex: 1001,
+                            }}>
+                                <div style={{ padding: "12px 16px", borderBottom: "1px solid " + C.border }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#000000" }}>
+                                        {user?.firstName} {user?.lastName}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{user?.email}</div>
+                                </div>
+                                <Link href="/profil" onClick={() => setProfileOpen(false)} className="nav-link" style={{
+                                    display: "block", padding: "11px 16px", fontSize: 14,
+                                    color: "#000000", textDecoration: "none", fontWeight: 500,
+                                }}>
+                                    Mon profil
+                                </Link>
+                                <button onClick={() => { setProfileOpen(false); logout() }} className="btn-danger" style={{
+                                    display: "block", width: "100%", textAlign: "left",
+                                    padding: "11px 16px", fontSize: 14, color: "#c0392b",
+                                    fontWeight: 500, border: "none", background: "none",
+                                    cursor: "pointer", borderTop: "1px solid " + C.border,
+                                }}>
+                                    Se déconnecter
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Mobile burger (fournisseur only) ── */}
+                    {user?.role === "supplier" && (
                         <button
                             className="navbar-burger"
                             onClick={() => setMobileOpen(!mobileOpen)}
                             style={{
                                 display: "none", background: "none", border: "none",
-                                color: C.white, fontSize: 22, cursor: "pointer", padding: 4,
+                                color: C.white, cursor: "pointer", padding: 4,
                             }}
                         >
                             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
-                    </>
-                ) : (
+                    )}
+                </div>
+            ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <Link href="/supplier/register" className="nav-link" style={{
+                        color: "rgba(255,255,255,0.7)", textDecoration: "none",
+                        fontSize: 14, fontWeight: 500,
+                    }}>
+                        Devenir fournisseur
+                    </Link>
                     <Link href="/login" className="btn-primary" style={{
-                        padding: "8px 20px", backgroundColor: C.yellow, color: C.dark,
-                        borderRadius: 8, fontWeight: 600, fontSize: 14,
+                        padding: "8px 20px", backgroundColor: C.yellow, color: "#000000",
+                        borderRadius: 8, fontWeight: 700, fontSize: 14,
                         textDecoration: "none",
                     }}>
                         Se connecter
                     </Link>
-                )}
-            </div>
+                </div>
+            )}
 
-            {/* Mobile menu overlay */}
-            {mobileOpen && isAuthenticated && (
+            {/* ── Mobile menu (fournisseur) ── */}
+            {mobileOpen && isAuthenticated && user?.role === "supplier" && (
                 <div style={{
                     position: "fixed", top: 60, left: 0, right: 0, bottom: 0,
-                    backgroundColor: C.dark, zIndex: 999, padding: "24px 20px",
+                    backgroundColor: "#000000", zIndex: 999, padding: "24px 20px",
                     display: "flex", flexDirection: "column", gap: 8,
                 }}>
-                    {navLinks.map((link) => (
+                    {mobileLinks.map((link) => (
                         <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} style={{
                             color: C.white, textDecoration: "none", fontSize: 18,
                             fontWeight: 500, padding: "12px 0",
@@ -224,11 +360,9 @@ export default function Navbar() {
                 </div>
             )}
 
-            {/* Responsive CSS */}
             <style>{`
                 @media (max-width: 768px) {
-                    .navbar-desktop-links { display: none !important; }
-                    .navbar-burger { display: block !important; }
+                    .navbar-burger { display: flex !important; }
                 }
             `}</style>
         </nav>
