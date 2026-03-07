@@ -4,7 +4,7 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
-import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil, Brain, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import AdminProjectFlow from "@/components/AdminProjectFlow"
 import Drawer from "@/components/shared/Drawer"
@@ -43,6 +43,14 @@ export default function AdminProjects() {
     // Delete confirmation
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState(false)
+
+    // Bulk selection
+    const [bulkMode, setBulkMode] = useState(false)
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+    const [bulkStatusDropdown, setBulkStatusDropdown] = useState(false)
+    const [bulkActioning, setBulkActioning] = useState(false)
+    const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null)
 
     // AI Assistant panel
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -198,6 +206,99 @@ export default function AdminProjects() {
         setTimeout(() => aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100)
     }
 
+    // Toast auto-dismiss
+    useEffect(() => {
+        if (!toast) return
+        const t = setTimeout(() => setToast(null), 3500)
+        return () => clearTimeout(t)
+    }, [toast])
+
+    // Bulk helpers
+    function toggleSelect(id: string) {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id); else next.add(id)
+            return next
+        })
+    }
+    function toggleSelectAll() {
+        if (selectedIds.size === sorted.length) {
+            setSelectedIds(new Set())
+        } else {
+            setSelectedIds(new Set(sorted.map(p => p.project_id)))
+        }
+    }
+    function exitBulkMode() {
+        setBulkMode(false)
+        setSelectedIds(new Set())
+        setBulkStatusDropdown(false)
+    }
+
+    async function bulkAction(action: string, extra?: Record<string, string>) {
+        if (!token || selectedIds.size === 0) return
+        setBulkActioning(true)
+        try {
+            if (action === "export") {
+                const idsParam = Array.from(selectedIds).join(",")
+                const r = await fetch(`${API_URL}/api/admin/projects/export?ids=${idsParam}`, {
+                    headers: { Authorization: "Bearer " + token },
+                })
+                if (r.ok) {
+                    const blob = await r.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement("a")
+                    a.href = url
+                    a.download = "projets_export.csv"
+                    a.click()
+                    URL.revokeObjectURL(url)
+                    setToast({ msg: `${selectedIds.size} projet(s) exporte(s)`, type: "ok" })
+                } else {
+                    setToast({ msg: "Erreur lors de l'export", type: "err" })
+                }
+            } else if (action === "delete") {
+                const r = await fetch(`${API_URL}/api/admin/projects/bulk-action`, {
+                    method: "POST",
+                    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "delete", ids: Array.from(selectedIds) }),
+                })
+                const data = await r.json()
+                if (data.success) {
+                    setProjects(prev => prev.filter(p => !selectedIds.has(p.project_id)))
+                    setToast({ msg: `${data.affected || selectedIds.size} projet(s) supprime(s)`, type: "ok" })
+                    exitBulkMode()
+                } else {
+                    setToast({ msg: data.error || "Erreur lors de la suppression", type: "err" })
+                }
+            } else {
+                const body: Record<string, unknown> = { action, ids: Array.from(selectedIds) }
+                if (extra?.status) body.status = extra.status
+                const r = await fetch(`${API_URL}/api/admin/projects/bulk-action`, {
+                    method: "POST",
+                    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                })
+                const data = await r.json()
+                if (data.success) {
+                    if (action === "archive") {
+                        setProjects(prev => prev.map(p => selectedIds.has(p.project_id) ? { ...p, status: "archived" } : p))
+                        setToast({ msg: `${data.affected || selectedIds.size} projet(s) archive(s)`, type: "ok" })
+                    } else if (action === "status" && extra?.status) {
+                        setProjects(prev => prev.map(p => selectedIds.has(p.project_id) ? { ...p, status: extra.status } : p))
+                        setToast({ msg: `Statut mis a jour pour ${data.affected || selectedIds.size} projet(s)`, type: "ok" })
+                    }
+                    exitBulkMode()
+                } else {
+                    setToast({ msg: data.error || "Erreur", type: "err" })
+                }
+            }
+        } catch {
+            setToast({ msg: "Erreur reseau", type: "err" })
+        }
+        setBulkActioning(false)
+        setBulkDeleteConfirm(false)
+        setBulkStatusDropdown(false)
+    }
+
     const filtered = projects.filter((p) => {
         const matchStatus = filterStatus === "all" || p.status === filterStatus
         const matchSearch =
@@ -280,14 +381,30 @@ export default function AdminProjects() {
                         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>Gestion des projets</h1>
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{projects.length} projet{projects.length > 1 ? "s" : ""} au total</p>
                     </div>
-                    <a
-                        href="/admin/dashboard"
-                        className="btn-secondary"
-                        style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
-                    >
-                        <ArrowLeft size={14} />
-                        Dashboard
-                    </a>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        {bulkMode ? (
+                            <button
+                                onClick={exitBulkMode}
+                                style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                                Annuler
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setBulkMode(true)}
+                                style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                                <CheckSquare size={14} /> Selectionner
+                            </button>
+                        )}
+                        <a
+                            href="/admin/dashboard"
+                            style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
+                        >
+                            <ArrowLeft size={14} />
+                            Dashboard
+                        </a>
+                    </div>
                 </div>
 
                 {/* KPI row */}
@@ -342,8 +459,13 @@ export default function AdminProjects() {
                     </div>
                 </div>
 
-                <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-                    {sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>{sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}</span>
+                    {bulkMode && (
+                        <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#3A4040" : C.muted }}>
+                            {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+                        </span>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -351,6 +473,11 @@ export default function AdminProjects() {
                     <table ref={tableRef} style={{ width: "100%", borderCollapse: "collapse", tableLayout: Object.keys(columnWidths).length > 0 ? "fixed" : "auto" }}>
                         <thead>
                             <tr>
+                                {bulkMode && (
+                                    <th style={{ ...thStyle, width: 40, textAlign: "center", cursor: "default" }}>
+                                        <input type="checkbox" checked={sorted.length > 0 && selectedIds.size === sorted.length} onChange={toggleSelectAll} style={{ cursor: "pointer", accentColor: "#F4CF15" }} />
+                                    </th>
+                                )}
                                 {columnOrder.map((col) => {
                                     const colConfig: Record<string, { label: string; sortKey?: SortKey; center?: boolean }> = {
                                         project: { label: "Projet", sortKey: "product" },
@@ -452,16 +579,35 @@ export default function AdminProjects() {
                                     ),
                                 }
 
+                                const isSelected = selectedIds.has(project.project_id)
+
                                 return (
                                     <React.Fragment key={project.project_id}>
-                                        <tr style={{ transition: "background 0.15s", cursor: "pointer" }} onClick={() => setExpandedProject(isExpanded ? null : project.project_id)} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fafaf8")} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isExpanded ? "#fafaf8" : "transparent")}>
+                                        <tr
+                                            style={{
+                                                transition: "background 0.15s", cursor: "pointer",
+                                                backgroundColor: isSelected ? "#FAFFFD" : undefined,
+                                                outline: isSelected ? "1px solid #F4CF15" : undefined,
+                                            }}
+                                            onClick={() => {
+                                                if (bulkMode) { toggleSelect(project.project_id); return }
+                                                setExpandedProject(isExpanded ? null : project.project_id)
+                                            }}
+                                            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "#fafaf8" }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isSelected ? "#FAFFFD" : "" }}
+                                        >
+                                            {bulkMode && (
+                                                <td style={{ ...tdStyle, width: 40, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(project.project_id)} style={{ cursor: "pointer", accentColor: "#F4CF15" }} />
+                                                </td>
+                                            )}
                                             {columnOrder.map((col) => (
                                                 <td key={col} style={{ ...tdStyle, textAlign: col === "actions" ? "center" : "left" }}>
                                                     {cellContent[col]}
                                                 </td>
                                             ))}
                                         </tr>
-                                        {isExpanded && (
+                                        {isExpanded && !bulkMode && (
                                             <tr>
                                                 <td colSpan={columnOrder.length} style={{ padding: "20px 24px", background: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
                                                     <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
@@ -504,6 +650,121 @@ export default function AdminProjects() {
                     </div>
                 )}
             </div>
+
+            {/* Bulk action bar */}
+            {bulkMode && selectedIds.size > 0 && (
+                <div style={{
+                    position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+                    zIndex: 100, backgroundColor: "#3A4040", color: "#FAFFFD",
+                    borderRadius: 12, padding: "12px 24px",
+                    boxShadow: "0 8px 32px rgba(58,64,64,0.3)",
+                    display: "flex", alignItems: "center", gap: 16,
+                    fontFamily: "Inter, sans-serif", fontSize: 13,
+                    maxWidth: "90vw", flexWrap: "wrap", justifyContent: "center",
+                }}>
+                    <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+                    </span>
+                    <div style={{ width: 1, height: 20, backgroundColor: "rgba(250,255,253,0.2)" }} />
+
+                    <button disabled={bulkActioning} onClick={() => bulkAction("archive")} style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
+                        border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#FAFFFD",
+                        fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
+                    }}>
+                        <Archive size={14} /> Archiver
+                    </button>
+
+                    <button disabled={bulkActioning} onClick={() => setBulkDeleteConfirm(true)} style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
+                        border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#fca5a5",
+                        fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
+                    }}>
+                        <Trash2 size={14} /> Supprimer
+                    </button>
+
+                    {/* Status dropdown */}
+                    <div style={{ position: "relative" }}>
+                        <button disabled={bulkActioning} onClick={() => setBulkStatusDropdown(v => !v)} style={{
+                            display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
+                            border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#FAFFFD",
+                            fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
+                        }}>
+                            <RefreshCw size={14} /> Changer le statut <ChevronDown size={12} />
+                        </button>
+                        {bulkStatusDropdown && (
+                            <div style={{
+                                position: "absolute", bottom: "calc(100% + 6px)", left: 0,
+                                backgroundColor: "#FAFFFD", borderRadius: 8, border: "1px solid #e0e0de",
+                                boxShadow: "0 4px 16px rgba(58,64,64,0.15)", overflow: "hidden", minWidth: 180, zIndex: 101,
+                            }}>
+                                {STATUS_OPTIONS.filter(s => s !== "archived").map(s => (
+                                    <button key={s} onClick={() => bulkAction("status", { status: s })} style={{
+                                        display: "block", width: "100%", padding: "9px 14px", border: "none",
+                                        background: "transparent", textAlign: "left", fontSize: 13, color: "#3A4040",
+                                        cursor: "pointer", borderBottom: "1px solid #f0f0ee",
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.backgroundColor = "#f0f0ee"}
+                                    onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                                    >
+                                        <span style={{
+                                            display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                                            backgroundColor: STATUS_CONFIG[s]?.color || "#999", marginRight: 8,
+                                        }} />
+                                        {STATUS_CONFIG[s]?.label || s}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <button disabled={bulkActioning} onClick={() => bulkAction("export")} style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
+                        border: "none", background: "#F4CF15", color: "#3A4040",
+                        fontSize: 13, fontWeight: 600, cursor: bulkActioning ? "not-allowed" : "pointer",
+                    }}>
+                        <Download size={14} /> Exporter
+                    </button>
+                </div>
+            )}
+
+            {/* Bulk delete confirmation modal */}
+            {bulkDeleteConfirm && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.4)" }} onClick={() => setBulkDeleteConfirm(false)}>
+                    <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 420, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} ?</h3>
+                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", lineHeight: 1.5 }}>
+                            Cette action est irreversible. Les projets selectionnes seront supprimes.
+                        </p>
+                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                            <button onClick={() => setBulkDeleteConfirm(false)} style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                                Annuler
+                            </button>
+                            <button onClick={() => bulkAction("delete")} disabled={bulkActioning} style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: "#991b1b", color: C.white, fontSize: 13, fontWeight: 600, cursor: bulkActioning ? "not-allowed" : "pointer", opacity: bulkActioning ? 0.6 : 1 }}>
+                                {bulkActioning ? "Suppression..." : "Confirmer la suppression"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast notification */}
+            {toast && (
+                <div style={{
+                    position: "fixed", top: 24, right: 24, zIndex: 300,
+                    padding: "12px 20px", borderRadius: 10,
+                    backgroundColor: toast.type === "ok" ? "#e8f8ee" : "#fef2f2",
+                    color: toast.type === "ok" ? "#1a7a3c" : "#991b1b",
+                    border: "1px solid " + (toast.type === "ok" ? "#a8dbb8" : "#fecaca"),
+                    fontSize: 13, fontWeight: 600, fontFamily: "Inter, sans-serif",
+                    boxShadow: "0 4px 16px rgba(58,64,64,0.12)",
+                    animation: "toastIn 300ms ease",
+                }}>
+                    {toast.msg}
+                </div>
+            )}
+
+            <style>{`@keyframes toastIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }`}</style>
 
             {/* Project detail drawer */}
             <Drawer
