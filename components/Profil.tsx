@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from "react"
-import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Save, Eye, EyeOff } from "lucide-react"
+import React, { useCallback, useEffect, useState, useRef } from "react"
+import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 
@@ -73,12 +73,12 @@ export default function Profil() {
         first_name: "", last_name: "", email: "",
         phone: "", address: "", city: "", postal_code: "",
     })
+    const [originalProfile, setOriginalProfile] = useState<ProfileData | null>(null)
+    const [isDirty, setIsDirty] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState("")
-    const [isDirty, setIsDirty] = useState(false)
-    const initialProfileRef = useRef<ProfileData | null>(null)
 
     // Mot de passe
     const [currentPwd, setCurrentPwd] = useState("")
@@ -95,6 +95,14 @@ export default function Profil() {
     const [avatarError, setAvatarError] = useState<string | null>(null)
     const fileRef = useRef<HTMLInputElement>(null)
 
+    const updateProfile = useCallback((updater: (prev: ProfileData) => ProfileData) => {
+        setProfile(prev => {
+            const next = updater(prev)
+            setIsDirty(JSON.stringify(next) !== JSON.stringify(originalProfile))
+            return next
+        })
+    }, [originalProfile])
+
     // Stats commandes
     const [stats, setStats] = useState<MonthStats[]>([])
 
@@ -110,18 +118,7 @@ export default function Profil() {
             .then(data => {
                 if (data.ok && data.user) {
                     const u = data.user
-                    setProfile({
-                        first_name:  u.first_name  || "",
-                        last_name:   u.last_name   || "",
-                        email:       u.email       || "",
-                        phone:       u.phone       || "",
-                        address:     u.address     || "",
-                        city:        u.city        || "",
-                        postal_code: u.postal_code || "",
-                        avatar_url:  u.avatar_url,
-                    })
-                    if (u.avatar_url) setAvatarPreview(u.avatar_url)
-                    initialProfileRef.current = {
+                    const loaded: ProfileData = {
                         first_name:  u.first_name  || "",
                         last_name:   u.last_name   || "",
                         email:       u.email       || "",
@@ -131,6 +128,9 @@ export default function Profil() {
                         postal_code: u.postal_code || "",
                         avatar_url:  u.avatar_url,
                     }
+                    setProfile(loaded)
+                    setOriginalProfile(loaded)
+                    if (u.avatar_url) setAvatarPreview(u.avatar_url)
                 }
                 setLoading(false)
             })
@@ -167,20 +167,6 @@ export default function Profil() {
             .catch(() => {})
     }, [])
 
-    function updateProfile(updater: (prev: ProfileData) => ProfileData) {
-        setProfile(prev => {
-            const next = updater(prev)
-            const init = initialProfileRef.current
-            if (init) {
-                const changed = (Object.keys(init) as (keyof ProfileData)[]).some(k => next[k] !== init[k])
-                setIsDirty(changed)
-            } else {
-                setIsDirty(true)
-            }
-            return next
-        })
-    }
-
     function handleSaveProfile() {
         const token = getToken()
         if (!token) return
@@ -197,9 +183,9 @@ export default function Profil() {
                 if (data.ok) {
                     setSaved(true)
                     setIsDirty(false)
-                    initialProfileRef.current = { ...profile }
+                    setOriginalProfile({ ...profile })
                     setTimeout(() => setSaved(false), 3000)
-                } else { setError("Échec de la sauvegarde") }
+                } else setError("Échec de la sauvegarde")
                 setSaving(false)
             })
             .catch(() => { setError("Erreur réseau"); setSaving(false) })
@@ -253,16 +239,12 @@ export default function Profil() {
             body: form,
         })
             .then(r => {
-                console.log("[AVATAR_UPLOAD] status:", r.status)
                 if (!r.ok) throw new Error(`HTTP ${r.status}`)
                 return r.json()
             })
             .then((data) => {
-                console.log("[AVATAR_UPLOAD] response:", data)
                 if (data.ok && data.avatar_url) {
                     setAvatarPreview(data.avatar_url)
-                    // Signal Navbar to refresh avatar (same-tab + cross-tab)
-                    console.log("[PROFIL] dispatching avatar-updated event")
                     window.dispatchEvent(new Event("avatar-updated"))
                     localStorage.setItem("avatar_updated", Date.now().toString())
                 } else {
@@ -270,9 +252,8 @@ export default function Profil() {
                 }
                 setAvatarLoading(false)
             })
-            .catch((err) => {
-                console.error("[AVATAR_UPLOAD] error:", err)
-                setAvatarError("Erreur réseau — vérifiez la console")
+            .catch(() => {
+                setAvatarError("Erreur réseau")
                 setAvatarLoading(false)
             })
     }
@@ -286,7 +267,7 @@ export default function Profil() {
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px 100px 20px", boxSizing: "border-box" }}>
+        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box", paddingBottom: 100 }}>
             <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
                 {/* Header */}
@@ -376,7 +357,7 @@ export default function Profil() {
                     </div>
                 </Section>
 
-                {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>{error}</div>}
+                {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>✗ {error}</div>}
 
                 {/* ── Mot de passe ── */}
                 <Section title="Mot de passe" icon={<Lock size={18} />}>
@@ -440,50 +421,35 @@ export default function Profil() {
 
             </div>
 
-            {/* ── Barre fixe sauvegarde ── */}
-            <div style={{
-                position: "fixed", bottom: 0, left: 64, right: 0,
-                background: "#FAFFFD", borderTop: "1px solid #e5e5e5",
-                padding: "16px 32px", zIndex: 50,
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                fontFamily: "Inter, sans-serif",
-            }}>
-                <div>
-                    {isDirty && (
-                        <span style={{
-                            padding: "6px 14px", borderRadius: 20,
-                            backgroundColor: "#F4CF15", color: "#000000",
-                            fontSize: 13, fontWeight: 600,
-                        }}>
-                            Modifications non sauvegardées
-                        </span>
-                    )}
-                    {saved && (
-                        <span style={{
-                            padding: "6px 14px", borderRadius: 20,
-                            backgroundColor: "#e8f8ee", color: "#166534",
-                            fontSize: 13, fontWeight: 600,
-                        }}>
-                            Profil sauvegardé
-                        </span>
-                    )}
+            {/* ── Fixed bottom save bar ── */}
+            {isDirty && (
+                <div style={{
+                    position: "fixed", bottom: 0, left: 64, right: 0, zIndex: 800,
+                    backgroundColor: "#fff", borderTop: "1px solid " + C.border,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "16px 32px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
+                }}>
+                    <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        backgroundColor: C.yellow, color: C.dark,
+                        fontWeight: 700, fontSize: 13, borderRadius: 20,
+                        padding: "6px 14px",
+                    }}>
+                        Modifications non sauvegardées
+                    </span>
+                    <button
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        style={{
+                            padding: "10px 24px", backgroundColor: C.dark, color: C.white,
+                            border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                            cursor: saving ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        {saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                    </button>
                 </div>
-                <button
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                    style={{
-                        padding: "10px 24px", borderRadius: 8,
-                        backgroundColor: saving ? C.muted : "#000000",
-                        color: "#FAFFFD", border: "none",
-                        fontSize: 14, fontWeight: 700,
-                        cursor: saving ? "not-allowed" : "pointer",
-                        display: "flex", alignItems: "center", gap: 8,
-                    }}
-                >
-                    <Save size={15} />
-                    {saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
-                </button>
-            </div>
+            )}
         </div>
     )
 }

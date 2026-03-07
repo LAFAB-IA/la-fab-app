@@ -49,46 +49,11 @@ export default function Navbar() {
             .catch(() => {})
     }, [token])
 
-    // ── Fetch avatar from /api/auth/me ────────────────────────────────────────
-    const fetchAvatar = useCallback(() => {
-        console.log("[NAVBAR] fetchAvatar called, token:", !!token)
-        if (!token) return
-        fetch(`${API_URL}/api/auth/me?t=${Date.now()}`, {
-            headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setAvatarUrl(data.user?.avatar_url || null)
-            })
-            .catch(() => {})
-    }, [token])
-
-    // ── Listen for avatar updates via localStorage signal ───────────────────
-    useEffect(() => {
-        function onStorage(e: StorageEvent) {
-            if (e.key === "avatar_updated") fetchAvatar()
-        }
-        // Cross-tab: storage event
-        window.addEventListener("storage", onStorage)
-        // Same-tab: custom event (fired from Profil.tsx)
-        function onCustom() {
-            console.log("[NAVBAR] avatar-updated event received")
-            fetchAvatar()
-        }
-        console.log("[NAVBAR] listener avatar-updated registered")
-        window.addEventListener("avatar-updated", onCustom)
-        return () => {
-            window.removeEventListener("storage", onStorage)
-            window.removeEventListener("avatar-updated", onCustom)
-        }
-    }, [fetchAvatar])
-
     useEffect(() => {
         fetchUnread()
-        fetchAvatar()
         const interval = setInterval(fetchUnread, 30000)
         return () => clearInterval(interval)
-    }, [fetchUnread, fetchAvatar])
+    }, [fetchUnread])
 
     // ── WebSocket ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -106,6 +71,39 @@ export default function Navbar() {
         } catch { /* WebSocket optional */ }
         return () => { socket?.disconnect() }
     }, [token, notifOpen, fetchNotifications])
+
+    // ── Fetch avatar from /me ─────────────────────────────────────────────────
+    useEffect(() => {
+        if (!token) return
+        fetch(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.json())
+            .then((data) => { if (data.ok && data.user?.avatar_url) setAvatarUrl(data.user.avatar_url + "?t=" + Date.now()) })
+            .catch(() => {})
+    }, [token])
+
+    // ── Listen for avatar updates (same-tab event + cross-tab localStorage) ──
+    useEffect(() => {
+        function handleAvatarUpdated() {
+            if (!token) return
+            fetch(`${API_URL}/api/auth/me`, {
+                headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+            })
+                .then((r) => r.json())
+                .then((data) => { if (data.ok && data.user?.avatar_url) setAvatarUrl(data.user.avatar_url + "?t=" + Date.now()) })
+                .catch(() => {})
+        }
+        function handleStorage(e: StorageEvent) {
+            if (e.key === "avatar_updated") handleAvatarUpdated()
+        }
+        window.addEventListener("avatar-updated", handleAvatarUpdated)
+        window.addEventListener("storage", handleStorage)
+        return () => {
+            window.removeEventListener("avatar-updated", handleAvatarUpdated)
+            window.removeEventListener("storage", handleStorage)
+        }
+    }, [token])
 
     // ── Close dropdowns on outside click ─────────────────────────────────────
     useEffect(() => {
@@ -297,18 +295,13 @@ export default function Navbar() {
                                 fontWeight: 700, fontSize: 12, border: "none",
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center",
-                                padding: 0, overflow: "hidden",
+                                overflow: "hidden", padding: 0,
                             }}
                         >
-                            {avatarUrl ? (
-                                <img
-                                    src={avatarUrl}
-                                    alt="avatar"
-                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                />
-                            ) : (
-                                initials || "?"
-                            )}
+                            {avatarUrl
+                                ? <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="avatar" />
+                                : (initials || "?")
+                            }
                         </button>
 
                         {profileOpen && (
