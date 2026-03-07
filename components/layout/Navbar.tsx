@@ -107,23 +107,10 @@ export default function Navbar() {
 
     // ── Liens mobile ──────────────────────────────────────────────────────────
     const mobileLinks = isAuthenticated && user?.role === "supplier"
-        ? [
-            { href: "/supplier/dashboard", label: "Dashboard" },
-            { href: "/supplier/consultations", label: "Consultations" },
-        ]
+        ? []
         : isAuthenticated
-        ? [
-            { href: "/projets", label: "Projets" },
-            { href: "/factures", label: "Factures" },
-            { href: "/planning", label: "Planning" },
-        ]
+        ? []
         : []
-
-    const clientLinks = [
-        { href: "/projets", label: "Projets" },
-        { href: "/factures", label: "Factures" },
-        { href: "/planning", label: "Planning" },
-    ]
 
     return (
         <nav style={{
@@ -147,21 +134,8 @@ export default function Navbar() {
                 <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
             </Link>
 
-            {/* ── Liens centre — clients uniquement ── */}
-            {isAuthenticated && user?.role !== "supplier" && user?.role !== "admin" ? (
-                <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 4 }} className="navbar-desktop-links">
-                    {clientLinks.map((link) => (
-                        <Link key={link.href} href={link.href} className="nav-link" style={{
-                            color: "rgba(255,255,255,0.8)", textDecoration: "none",
-                            fontSize: 14, fontWeight: 500,
-                            padding: "6px 12px", borderRadius: 7,
-                            transition: "background 0.15s, color 0.15s",
-                        }}>
-                            {link.label}
-                        </Link>
-                    ))}
-                </div>
-            ) : (
+            {/* ── Spacer centre ── */}
+            {(true) ? (
                 <div style={{ flex: 1 }} />
             )}
 
