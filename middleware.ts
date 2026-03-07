@@ -19,7 +19,7 @@ function jwtRole(token: string): string {
 function redirectForRole(role: string): string {
   if (role === "admin") return "/admin/dashboard";
   if (role === "supplier") return "/supplier/dashboard";
-  return "/projets";
+  return "/dashboard";
 }
 
 const PROTECTED_PREFIXES = [

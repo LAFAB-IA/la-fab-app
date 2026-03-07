@@ -38,7 +38,7 @@ function redirectForRole(role: string): string {
   switch (role) {
     case "admin": return "/admin/dashboard";
     case "supplier": return "/supplier/dashboard";
-    default: return "/projets";
+    default: return "/dashboard";
   }
 }
 

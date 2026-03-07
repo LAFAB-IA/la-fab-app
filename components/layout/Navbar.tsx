@@ -159,7 +159,7 @@ export default function Navbar() {
                     if (isAuthenticated && user?.role) {
                         const dest = user.role === "admin" ? "/admin/dashboard"
                             : user.role === "supplier" ? "/supplier/dashboard"
-                            : "/projets"
+                            : "/dashboard"
                         window.location.href = dest
                     } else {
                         window.location.href = "/"

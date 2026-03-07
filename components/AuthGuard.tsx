@@ -20,7 +20,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     // Only redirect if realRole is loaded AND doesn't match
     if (requiredRole && realRole && realRole !== requiredRole) {
       console.log("[AuthGuard] BLOCKED — realRole:", realRole, "!== requiredRole:", requiredRole);
-      window.location.href = "/projets";
+      window.location.href = "/dashboard";
     }
   }, [isLoading, isAuthenticated, realRole, requiredRole]);
 
