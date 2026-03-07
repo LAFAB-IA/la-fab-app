@@ -105,13 +105,25 @@ export default function Navbar() {
         ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase()
         : ""
 
-    // Liens mobile uniquement pour fournisseur
+    // ── Liens mobile ──────────────────────────────────────────────────────────
     const mobileLinks = isAuthenticated && user?.role === "supplier"
         ? [
             { href: "/supplier/dashboard", label: "Dashboard" },
             { href: "/supplier/consultations", label: "Consultations" },
         ]
+        : isAuthenticated
+        ? [
+            { href: "/projets", label: "Projets" },
+            { href: "/factures", label: "Factures" },
+            { href: "/planning", label: "Planning" },
+        ]
         : []
+
+    const clientLinks = [
+        { href: "/projets", label: "Projets" },
+        { href: "/factures", label: "Factures" },
+        { href: "/planning", label: "Planning" },
+    ]
 
     return (
         <nav style={{
@@ -135,8 +147,23 @@ export default function Navbar() {
                 <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
             </Link>
 
-            {/* ── Spacer ── */}
-            <div style={{ flex: 1 }} />
+            {/* ── Liens centre — clients uniquement ── */}
+            {isAuthenticated && user?.role !== "supplier" && user?.role !== "admin" ? (
+                <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 4 }} className="navbar-desktop-links">
+                    {clientLinks.map((link) => (
+                        <Link key={link.href} href={link.href} className="nav-link" style={{
+                            color: "rgba(255,255,255,0.8)", textDecoration: "none",
+                            fontSize: 14, fontWeight: 500,
+                            padding: "6px 12px", borderRadius: 7,
+                            transition: "background 0.15s, color 0.15s",
+                        }}>
+                            {link.label}
+                        </Link>
+                    ))}
+                </div>
+            ) : (
+                <div style={{ flex: 1 }} />
+            )}
 
             {/* ── Right side ── */}
             {isAuthenticated ? (
@@ -144,12 +171,11 @@ export default function Navbar() {
 
                     {/* Admin link */}
                     {user?.role === "admin" && (
-                        <Link href="/admin/dashboard" className="nav-link" style={{
+                        <Link href="/admin/dashboard" style={{
                             color: C.yellow, textDecoration: "none", fontSize: 13,
                             fontWeight: 700, letterSpacing: 0.5,
                             padding: "5px 12px", borderRadius: 6,
                             border: "1px solid rgba(244,207,21,0.3)",
-                            transition: "background 0.15s",
                         }}>
                             Admin
                         </Link>
@@ -159,12 +185,10 @@ export default function Navbar() {
                     <div ref={notifRef} style={{ position: "relative" }}>
                         <button
                             onClick={handleBellClick}
-                            className="btn-icon"
                             style={{
                                 position: "relative", background: "none", border: "none",
                                 color: C.white, cursor: "pointer", padding: 6,
                                 borderRadius: 8, display: "flex", alignItems: "center",
-                                transition: "background 0.15s",
                             }}
                         >
                             <Bell size={20} />
@@ -182,7 +206,6 @@ export default function Navbar() {
                             )}
                         </button>
 
-                        {/* Dropdown notifications */}
                         {notifOpen && (
                             <div style={{
                                 position: "absolute", right: 0, top: 44,
@@ -191,7 +214,6 @@ export default function Navbar() {
                                 border: "1px solid " + C.border,
                                 width: 340, zIndex: 1001, overflow: "hidden",
                             }}>
-                                {/* Header dropdown */}
                                 <div style={{
                                     display: "flex", justifyContent: "space-between", alignItems: "center",
                                     padding: "14px 16px", borderBottom: "1px solid " + C.border,
@@ -210,7 +232,6 @@ export default function Navbar() {
                                     )}
                                 </div>
 
-                                {/* Liste */}
                                 <div style={{ maxHeight: 320, overflowY: "auto" }}>
                                     {notifications.length === 0 ? (
                                         <div style={{ padding: "28px 16px", textAlign: "center", color: C.muted, fontSize: 13 }}>
@@ -221,13 +242,11 @@ export default function Navbar() {
                                             <div
                                                 key={n.id}
                                                 onClick={() => { if (n.link) window.location.href = n.link; setNotifOpen(false) }}
-                                                className="row-hover"
                                                 style={{
                                                     padding: "12px 16px",
                                                     borderBottom: "1px solid " + C.border,
                                                     cursor: n.link ? "pointer" : "default",
                                                     backgroundColor: n.read ? "transparent" : "rgba(244,207,21,0.06)",
-                                                    transition: "background 0.15s",
                                                 }}
                                             >
                                                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -249,7 +268,6 @@ export default function Navbar() {
                                     )}
                                 </div>
 
-                                {/* Footer */}
                                 <div style={{ padding: "10px 16px", borderTop: "1px solid " + C.border, textAlign: "center" }}>
                                     <Link href="/notifications" onClick={() => setNotifOpen(false)} style={{
                                         fontSize: 13, color: C.muted, textDecoration: "none", fontWeight: 600,
@@ -271,7 +289,6 @@ export default function Navbar() {
                                 fontWeight: 700, fontSize: 12, border: "none",
                                 cursor: "pointer", display: "flex",
                                 alignItems: "center", justifyContent: "center",
-                                transition: "opacity 0.15s",
                             }}
                         >
                             {initials || "?"}
@@ -291,13 +308,13 @@ export default function Navbar() {
                                     </div>
                                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{user?.email}</div>
                                 </div>
-                                <Link href="/profil" onClick={() => setProfileOpen(false)} className="nav-link" style={{
+                                <Link href="/profil" onClick={() => setProfileOpen(false)} style={{
                                     display: "block", padding: "11px 16px", fontSize: 14,
                                     color: "#000000", textDecoration: "none", fontWeight: 500,
                                 }}>
                                     Mon profil
                                 </Link>
-                                <button onClick={() => { setProfileOpen(false); logout() }} className="btn-danger" style={{
+                                <button onClick={() => { setProfileOpen(false); logout() }} style={{
                                     display: "block", width: "100%", textAlign: "left",
                                     padding: "11px 16px", fontSize: 14, color: "#c0392b",
                                     fontWeight: 500, border: "none", background: "none",
@@ -309,29 +326,27 @@ export default function Navbar() {
                         )}
                     </div>
 
-                    {/* ── Mobile burger (fournisseur only) ── */}
-                    {user?.role === "supplier" && (
-                        <button
-                            className="navbar-burger"
-                            onClick={() => setMobileOpen(!mobileOpen)}
-                            style={{
-                                display: "none", background: "none", border: "none",
-                                color: C.white, cursor: "pointer", padding: 4,
-                            }}
-                        >
-                            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                    )}
+                    {/* ── Mobile burger ── */}
+                    <button
+                        className="navbar-burger"
+                        onClick={() => setMobileOpen(!mobileOpen)}
+                        style={{
+                            display: "none", background: "none", border: "none",
+                            color: C.white, cursor: "pointer", padding: 4,
+                        }}
+                    >
+                        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                    </button>
                 </div>
             ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <Link href="/supplier/register" className="nav-link" style={{
+                    <Link href="/supplier/register" style={{
                         color: "rgba(255,255,255,0.7)", textDecoration: "none",
                         fontSize: 14, fontWeight: 500,
                     }}>
                         Devenir fournisseur
                     </Link>
-                    <Link href="/login" className="btn-primary" style={{
+                    <Link href="/login" style={{
                         padding: "8px 20px", backgroundColor: C.yellow, color: "#000000",
                         borderRadius: 8, fontWeight: 700, fontSize: 14,
                         textDecoration: "none",
@@ -341,8 +356,8 @@ export default function Navbar() {
                 </div>
             )}
 
-            {/* ── Mobile menu (fournisseur) ── */}
-            {mobileOpen && isAuthenticated && user?.role === "supplier" && (
+            {/* ── Mobile menu ── */}
+            {mobileOpen && isAuthenticated && (
                 <div style={{
                     position: "fixed", top: 60, left: 0, right: 0, bottom: 0,
                     backgroundColor: "#000000", zIndex: 999, padding: "24px 20px",
@@ -362,6 +377,7 @@ export default function Navbar() {
 
             <style>{`
                 @media (max-width: 768px) {
+                    .navbar-desktop-links { display: none !important; }
                     .navbar-burger { display: flex !important; }
                 }
             `}</style>
