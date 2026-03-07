@@ -139,9 +139,11 @@ export default function Planning() {
 
     // Dates souhaitées (édition locale)
     const [desiredDates, setDesiredDates] = useState<Record<string, string>>({})
+    const [dateSources, setDateSources] = useState<Record<string, "brief" | "supplier" | "manual">>({})
     const [saveLoading, setSaveLoading] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
+    const [suggestLoading, setSuggestLoading] = useState(false)
 
     // Drag & drop
     const [draggedMilestone, setDraggedMilestone] = useState<string | null>(null)
@@ -209,8 +211,39 @@ export default function Planning() {
             .then(data => {
                 if (data.ok && data.project) {
                     setDrawerProject(data.project)
-                    // Pré-remplir les dates souhaitées si déjà sauvegardées
-                    setDesiredDates(data.project.planning_dates || {})
+                    // Pré-remplir avec les champs de dates du projet (sauvegardés par Yannis sur le projet)
+                    const DESIRED_KEYS = ["validated_at", "production_start", "bat_validated_at", "delivery_estimated"]
+                    const prefilled: Record<string, string> = {}
+                    DESIRED_KEYS.forEach(k => {
+                        const v = data.project[k]
+                        if (v) prefilled[k] = typeof v === "string" ? v.split("T")[0] : v
+                    })
+                    setDesiredDates(prefilled)
+
+                    // Rafraîchir les suggestions intelligentes (brief + fournisseurs)
+                    if (token) {
+                        setSuggestLoading(true)
+                        fetch(`${API_URL}/api/project/${projectId}/generate-planning-dates`, {
+                            method: "POST",
+                            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+                        })
+                            .then(r => r.json())
+                            .then(sugg => {
+                                if (sugg.ok && sugg.planning_dates) {
+                                    // Ne pas écraser les dates déjà manuellement sauvegardées
+                                    setDesiredDates(prev => {
+                                        const merged: Record<string, string> = { ...sugg.planning_dates }
+                                        // Les dates déjà en base (prefilled) ont priorité
+                                        Object.keys(prefilled).forEach(k => { if (prefilled[k]) merged[k] = prefilled[k] })
+                                        return merged
+                                    })
+                                    // Stocker les sources pour l'affichage des badges
+                                    if (sugg.sources) setDateSources(sugg.sources)
+                                }
+                                setSuggestLoading(false)
+                            })
+                            .catch(() => setSuggestLoading(false))
+                    }
                 }
                 setDrawerLoading(false)
             })
@@ -224,15 +257,20 @@ export default function Planning() {
         setSaveError(null)
         setSaveSuccess(false)
         try {
+            // Seuls les champs gérables par l'endpoint Yannis (à plat)
+            const ALLOWED_KEYS = ["validated_at", "production_start", "bat_validated_at", "delivery_estimated"]
+            const body: Record<string, string> = {}
+            ALLOWED_KEYS.forEach(k => { if (desiredDates[k]) body[k] = desiredDates[k] })
+
             const res = await fetch(`${API_URL}/api/project/${drawerProject.project_id}/planning-dates`, {
                 method: "PATCH",
                 headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-                body: JSON.stringify({ planning_dates: desiredDates }),
+                body: JSON.stringify(body),
             })
             const data = await res.json()
             if (data.ok) {
                 setSaveSuccess(true)
-                // Mettre à jour les dates potentielles sur la grille
+                // Mettre à jour les cercles pointillés sur la grille
                 const newPotentials: PotentialDate[] = Object.entries(desiredDates)
                     .filter(([, v]) => !!v)
                     .map(([k, v]) => ({ project_id: drawerProject.project_id, milestone_key: k, date: v }))
@@ -240,6 +278,10 @@ export default function Planning() {
                     ...prev.filter(p => p.project_id !== drawerProject.project_id),
                     ...newPotentials,
                 ])
+                // Mettre à jour le drawerProject avec les nouvelles dates (réponse planning)
+                if (data.planning) {
+                    setDrawerProject(prev => prev ? { ...prev, ...data.planning } : prev)
+                }
                 setTimeout(() => setSaveSuccess(false), 3000)
             } else {
                 setSaveError("Erreur lors de la sauvegarde")
@@ -550,6 +592,8 @@ export default function Planning() {
                                 project={drawerProject}
                                 desiredDates={desiredDates}
                                 setDesiredDates={setDesiredDates}
+                                dateSources={dateSources}
+                                suggestLoading={suggestLoading}
                                 saveLoading={saveLoading}
                                 saveSuccess={saveSuccess}
                                 saveError={saveError}
@@ -670,14 +714,23 @@ function DetailTab({ project, brief }: { project: ProjectDetail; brief: any }) {
 
 // ─── Onglet Dates souhaitées ─────────────────────────────────────────────────
 
+const SOURCE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+    brief:    { label: "Brief",       color: "#1a3c7a", bg: "#e8f0fe" },
+    supplier: { label: "Fournisseur", color: "#1a7a3c", bg: "#e8f8ee" },
+    manual:   { label: "Manuel",      color: "#7a8080", bg: "#f0f0ee" },
+}
+
 function DatesTab({
     project, desiredDates, setDesiredDates,
+    dateSources, suggestLoading,
     saveLoading, saveSuccess, saveError, onSave,
     potentialDates, removePotentialDate
 }: {
     project: ProjectDetail
     desiredDates: Record<string, string>
     setDesiredDates: React.Dispatch<React.SetStateAction<Record<string, string>>>
+    dateSources: Record<string, "brief" | "supplier" | "manual">
+    suggestLoading: boolean
     saveLoading: boolean
     saveSuccess: boolean
     saveError: string | null
@@ -692,18 +745,44 @@ function DatesTab({
 
     return (
         <div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20, lineHeight: 1.6 }}>
-                Renseignez les dates souhaitées pour chaque étape. Ces dates sont visibles sur le planning et sauvegardées.
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, flex: 1, marginRight: 12 }}>
+                    Dates calculées automatiquement à partir du brief et des fournisseurs. Modifiables manuellement.
+                </div>
+                {suggestLoading && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.muted, flexShrink: 0 }}>
+                        <Loader size={12} /> Mise à jour...
+                    </div>
+                )}
+            </div>
+
+            {/* Légende sources */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                {Object.entries(SOURCE_LABELS).map(([key, s]) => (
+                    <span key={key} style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10, backgroundColor: s.bg, color: s.color }}>
+                        {s.label}
+                    </span>
+                ))}
             </div>
 
             {confirmed.map(m => {
                 const desired = desiredDates[m.key] || ""
                 const isConfirmed = !!m.confirmedDate
+                const source = dateSources[m.key]
+                const sourceCfg = source ? SOURCE_LABELS[source] : null
+                // created_at n'est pas modifiable
+                if (m.key === "created_at") return null
                 return (
-                    <div key={m.key} style={{ marginBottom: 16, padding: 14, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                    <div key={m.key} style={{ marginBottom: 14, padding: 14, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                             <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: m.dot, flexShrink: 0 }} />
                             <span style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{m.label}</span>
+                            {/* Badge source */}
+                            {sourceCfg && !isConfirmed && (
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 8, backgroundColor: sourceCfg.bg, color: sourceCfg.color }}>
+                                    {sourceCfg.label}
+                                </span>
+                            )}
                             {isConfirmed && (
                                 <span style={{ marginLeft: "auto", fontSize: 11, color: "#27ae60", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
                                     <CheckCircle2 size={11} /> Confirmée
@@ -718,36 +797,44 @@ function DatesTab({
                             </div>
                         )}
 
-                        {/* Champ date souhaitée */}
-                        <div>
-                            <label style={{ fontSize: 11, color: C.muted, fontWeight: 600, display: "block", marginBottom: 4 }}>
-                                {isConfirmed ? "Date souhaitée (optionnelle)" : "Date souhaitée"}
-                            </label>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                <input
-                                    type="date"
-                                    value={desired}
-                                    onChange={e => setDesiredDates(prev => ({ ...prev, [m.key]: e.target.value }))}
-                                    style={{
-                                        flex: 1, padding: "8px 10px", fontSize: 13, borderRadius: 8,
-                                        border: `1.5px solid ${desired ? m.dot : C.border}`,
-                                        backgroundColor: desired ? m.color : C.white,
-                                        color: "#000", outline: "none", cursor: "pointer",
-                                    }}
-                                />
-                                {desired && (
-                                    <button
-                                        onClick={() => {
-                                            setDesiredDates(prev => { const n = { ...prev }; delete n[m.key]; return n })
-                                            removePotentialDate(project.project_id, m.key)
+                        {/* Champ date souhaitée — verrouillé si confirmée */}
+                        {!isConfirmed ? (
+                            <div>
+                                <label style={{ fontSize: 11, color: C.muted, fontWeight: 600, display: "block", marginBottom: 4 }}>
+                                    Date souhaitée {suggestLoading && <span style={{ color: C.yellow }}>↻</span>}
+                                </label>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    <input
+                                        type="date"
+                                        value={desired}
+                                        onChange={e => {
+                                            setDesiredDates(prev => ({ ...prev, [m.key]: e.target.value }))
                                         }}
-                                        style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4, display: "flex", alignItems: "center" }}
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
+                                        style={{
+                                            flex: 1, padding: "8px 10px", fontSize: 13, borderRadius: 8,
+                                            border: `1.5px solid ${desired ? m.dot : C.border}`,
+                                            backgroundColor: desired ? m.color : C.white,
+                                            color: "#000", outline: "none", cursor: "pointer",
+                                        }}
+                                    />
+                                    {desired && (
+                                        <button
+                                            onClick={() => {
+                                                setDesiredDates(prev => { const n = { ...prev }; delete n[m.key]; return n })
+                                                removePotentialDate(project.project_id, m.key)
+                                            }}
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4, display: "flex", alignItems: "center" }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div style={{ fontSize: 12, color: C.muted, fontStyle: "italic" }}>
+                                Verrouillée — date confirmée par LA FAB
+                            </div>
+                        )}
                     </div>
                 )
             })}
