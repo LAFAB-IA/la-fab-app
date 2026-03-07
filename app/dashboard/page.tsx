@@ -63,7 +63,8 @@ function Widget({ icon: Icon, label, value, sub }: {
 // ─── Dashboard Content ──────────────────────────────────────────────────────
 
 function ClientDashboard() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { token, user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
+    const isAdminOverride = realRole === "admin" && user?.role !== realRole
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
 
@@ -79,7 +80,11 @@ function ClientDashboard() {
         const total = 2
         const check = () => { done++; if (done >= total) setLoading(false) }
 
-        fetch(API_URL + "/api/project?account_id=me", { headers })
+        const projectUrl = isAdminOverride
+            ? API_URL + "/api/admin/projects?limit=10"
+            : API_URL + "/api/project?account_id=me"
+
+        fetch(projectUrl, { headers })
             .then(r => r.json())
             .then(d => {
                 const raw = d.projects ?? d.data ?? d
@@ -96,7 +101,7 @@ function ClientDashboard() {
             })
             .catch(() => {})
             .finally(check)
-    }, [token, isAuthenticated, authLoading])
+    }, [token, isAuthenticated, authLoading, isAdminOverride])
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -160,11 +165,21 @@ function ClientDashboard() {
     return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
 
+            {isAdminOverride && (
+                <div style={{
+                    background: "#F4CF15", color: "#3A4040", padding: "10px 20px",
+                    borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 20,
+                    textAlign: "center",
+                }}>
+                    Mode apercu admin — Donnees agregees de tous les clients
+                </div>
+            )}
+
             {/* ── Widgets ── */}
             <div className="client-kpis" style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
                 <Widget
                     icon={FolderOpen}
-                    label="Mes projets"
+                    label={isAdminOverride ? "Total projets clients" : "Mes projets"}
                     value={String(totalProjects)}
                     sub={inProgress + " en cours, " + deliveredCount + " livre" + (deliveredCount > 1 ? "s" : "")}
                 />

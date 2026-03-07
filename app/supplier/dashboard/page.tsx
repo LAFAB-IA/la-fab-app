@@ -76,22 +76,36 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 // ─── Dashboard Content ──────────────────────────────────────────────────────
 
 function SupplierDashboardContent() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { token, user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
+    const isAdminOverride = realRole === "admin" && user?.role !== realRole
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
 
     const [consultations, setConsultations] = useState<any[]>([])
     const [stats, setStats] = useState<any>(null)
     const [supplier, setSupplier] = useState<any>(null)
+    const [adminSuppliers, setAdminSuppliers] = useState<any[]>([])
     const [notFound, setNotFound] = useState(false)
 
     useEffect(() => {
         if (authLoading) return
         if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
 
-        fetch(API_URL + "/api/supplier-portal/dashboard", {
-            headers: { Authorization: "Bearer " + token },
-        })
+        const headers = { Authorization: "Bearer " + token }
+
+        if (isAdminOverride) {
+            fetch(API_URL + "/api/admin/suppliers/stats", { headers })
+                .then(r => r.json())
+                .then(d => {
+                    const raw = d.suppliers ?? d.data ?? d
+                    setAdminSuppliers(Array.isArray(raw) ? raw : [])
+                    setLoading(false)
+                })
+                .catch(() => { setError("Erreur reseau"); setLoading(false) })
+            return
+        }
+
+        fetch(API_URL + "/api/supplier-portal/dashboard", { headers })
             .then(r => {
                 if (r.status === 404) { setNotFound(true); setLoading(false); return null }
                 return r.json()
@@ -111,7 +125,7 @@ function SupplierDashboardContent() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading])
+    }, [token, isAuthenticated, authLoading, isAdminOverride])
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -140,6 +154,75 @@ function SupplierDashboardContent() {
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
     )
+
+    // ── Admin override: aggregated supplier view ──────────────────────────
+    if (isAdminOverride) {
+        const activeSuppliers = adminSuppliers.filter((s: any) => s.status !== "inactive")
+        const totalConsultations = adminSuppliers.reduce((s: number, x: any) => s + (x.total_consultations || 0), 0)
+        const totalCa = adminSuppliers.reduce((s: number, x: any) => s + (x.ca_generated || x.total_ca || 0), 0)
+        const avgTrust = adminSuppliers.length > 0
+            ? Math.round(adminSuppliers.reduce((s: number, x: any) => s + (x.trust_score || 0), 0) / adminSuppliers.length)
+            : 0
+
+        return (
+            <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
+                <div style={{
+                    background: "#F4CF15", color: "#3A4040", padding: "10px 20px",
+                    borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 20,
+                    textAlign: "center",
+                }}>
+                    Mode apercu admin — Donnees agregees de tous les fournisseurs
+                </div>
+
+                <div className="supplier-kpis" style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
+                    <Widget icon={Inbox} label="Fournisseurs actifs" value={String(activeSuppliers.length)} sub={"sur " + adminSuppliers.length + " total"} />
+                    <Widget icon={Clock} label="Consultations envoyees" value={String(totalConsultations)} />
+                    <Widget icon={TrendingUp} label="CA genere (tous)" value={totalCa > 0 ? formatPrice(totalCa) : "N/A"} accent />
+                    <Widget icon={Shield} label="Score confiance moyen" value={avgTrust > 0 ? String(avgTrust) : "N/A"} sub={avgTrust >= 70 ? "Excellent" : avgTrust >= 40 ? "Correct" : "A ameliorer"} />
+                </div>
+
+                {adminSuppliers.length > 0 && (
+                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
+                        <SectionTitle icon={Inbox} label="Tous les fournisseurs" />
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                            <thead>
+                                <tr style={{ borderBottom: "1px solid " + C.border }}>
+                                    <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" }}>Fournisseur</th>
+                                    <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" }}>Reponse</th>
+                                    <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" }}>Score</th>
+                                    <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" }}>Consult.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {adminSuppliers.map((s: any, i: number) => (
+                                    <tr key={i} style={{ borderBottom: "1px solid " + C.bg }}>
+                                        <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 500 }}>{s.name || s.company_name || "Fournisseur"}</td>
+                                        <td style={{ padding: "10px 4px", color: C.muted, textAlign: "center" }}>{s.response_rate != null ? Math.round(s.response_rate) + "%" : "N/A"}</td>
+                                        <td style={{ padding: "10px 4px", textAlign: "center" }}>
+                                            <span style={{
+                                                padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                                backgroundColor: (s.trust_score || 0) >= 70 ? "#e8f8ee" : (s.trust_score || 0) >= 40 ? "#fef9e0" : "#fee",
+                                                color: (s.trust_score || 0) >= 70 ? "#1a7a3c" : (s.trust_score || 0) >= 40 ? "#b89a00" : "#c0392b",
+                                            }}>
+                                                {s.trust_score != null ? s.trust_score : "N/A"}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: "10px 4px", color: C.muted, textAlign: "right" }}>{s.total_consultations ?? 0}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                <style>{`
+                    @media (max-width: 768px) {
+                        .supplier-kpis { flex-direction: column; }
+                    }
+                `}</style>
+            </div>
+        )
+    }
 
     if (notFound) return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 500, margin: "80px auto", textAlign: "center" }}>
