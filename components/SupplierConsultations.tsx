@@ -6,7 +6,7 @@ import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
-    ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText
+    ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox
 } from "lucide-react"
 
 const { useState, useEffect } = React
@@ -29,7 +29,9 @@ export default function SupplierConsultations() {
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setConsultations(data.consultations || [])
-                else setError(data.error || "Erreur serveur")
+                else if (data.code === "SUPPLIER_NOT_FOUND" || data.error === "SUPPLIER_NOT_FOUND") {
+                    setConsultations([])
+                } else setError(data.error || "Erreur serveur")
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
@@ -113,8 +115,10 @@ export default function SupplierConsultations() {
             </div>
 
             {sorted.length === 0 && (
-                <div style={{ textAlign: "center", padding: 60, color: C.muted, fontSize: 14 }}>
-                    Aucune consultation recue pour le moment
+                <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
+                    <Inbox size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
+                    <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation</div>
+                    <div style={{ fontSize: 14 }}>Vous n'avez pas encore recu de demandes de consultation.</div>
                 </div>
             )}
 

@@ -1,14 +1,16 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
+import Drawer from "@/components/shared/Drawer"
+import ProjectDetail from "@/components/ProjectDetail"
 import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     FolderOpen, FileText, CalendarDays, Package,
-    ArrowRight, Plus, Loader2, XCircle, X, GripHorizontal,
+    ArrowRight, Plus, Loader2, XCircle,
 } from "lucide-react"
 
 // ─── Status config ──────────────────────────────────────────────────────────
@@ -71,11 +73,7 @@ function ClientDashboard() {
 
     const [projects, setProjects] = useState<any[]>([])
     const [invoices, setInvoices] = useState<any[]>([])
-    const [drawerProject, setDrawerProject] = useState<any | null>(null)
-    const [modalSize, setModalSize] = useState<{ w: number; h: number } | null>(null)
-    const resizing = useRef(false)
-    const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 })
-    const modalRef = useRef<HTMLDivElement>(null)
+    const [drawerProjectId, setDrawerProjectId] = useState<string | null>(null)
 
     useEffect(() => {
         if (authLoading) return
@@ -107,38 +105,6 @@ function ClientDashboard() {
             .catch(() => {})
             .finally(check)
     }, [isAuthenticated, authLoading, isAdminOverride])
-
-    // Modal resize
-    const onResizeDown = useCallback((e: React.MouseEvent) => {
-        e.preventDefault()
-        resizing.current = true
-        const el = modalRef.current
-        resizeStart.current = { x: e.clientX, y: e.clientY, w: el?.offsetWidth || 520, h: el?.offsetHeight || 400 }
-        document.body.style.cursor = "nwse-resize"
-        document.body.style.userSelect = "none"
-    }, [])
-
-    useEffect(() => {
-        function onMouseMove(e: MouseEvent) {
-            if (!resizing.current) return
-            const { x, y, w, h } = resizeStart.current
-            const newW = Math.min(Math.max(w + (e.clientX - x), 320), window.innerWidth * 0.9)
-            const newH = Math.min(Math.max(h + (e.clientY - y), 200), window.innerHeight * 0.9)
-            setModalSize({ w: newW, h: newH })
-        }
-        function onMouseUp() {
-            if (!resizing.current) return
-            resizing.current = false
-            document.body.style.cursor = ""
-            document.body.style.userSelect = ""
-        }
-        document.addEventListener("mousemove", onMouseMove)
-        document.addEventListener("mouseup", onMouseUp)
-        return () => {
-            document.removeEventListener("mousemove", onMouseMove)
-            document.removeEventListener("mouseup", onMouseUp)
-        }
-    }, [])
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -253,7 +219,7 @@ function ClientDashboard() {
                         {recentProjects.map((p, i) => (
                             <div
                                 key={p.project_id || i}
-                                onClick={() => setDrawerProject(p)}
+                                onClick={() => setDrawerProjectId(p.project_id)}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 12, padding: "12px 8px",
                                     borderBottom: i < recentProjects.length - 1 ? "1px solid " + C.bg : "none",
@@ -305,97 +271,11 @@ function ClientDashboard() {
             </div>
 
             {/* ── Project Drawer ── */}
-            {drawerProject && (
-                <>
-                    <div
-                        onClick={() => { setDrawerProject(null); setModalSize(null) }}
-                        style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.35)", zIndex: 1000 }}
-                    />
-                    <div
-                        ref={modalRef}
-                        style={{
-                        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-                        zIndex: 1001, background: C.white, borderRadius: 16,
-                        width: modalSize ? modalSize.w : "90%", maxWidth: modalSize ? undefined : 520,
-                        height: modalSize ? modalSize.h : undefined, maxHeight: modalSize ? undefined : "80vh",
-                        minWidth: 320, minHeight: 200,
-                        overflow: "auto",
-                        boxShadow: "0 16px 48px rgba(0,0,0,0.18)", padding: 28,
-                    }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                            <h2 style={{ fontSize: 17, fontWeight: 700, color: C.dark, margin: 0 }}>
-                                {drawerProject.brief_analysis?.product_type || drawerProject.product?.label || "Projet"}
-                            </h2>
-                            <button onClick={() => { setDrawerProject(null); setModalSize(null) }} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4 }}>
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
-                            {statusBadge(drawerProject.status)}
-                            <span style={{ fontSize: 12, color: C.muted }}>
-                                Cree le {formatDate(drawerProject.created_at)}
-                            </span>
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                            <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg }}>
-                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>ID Projet</div>
-                                <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>{drawerProject.project_id?.slice(0, 12)}...</div>
-                            </div>
-                            {drawerProject.pricing?.total_net != null && (
-                                <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg }}>
-                                    <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Montant HT</div>
-                                    <div style={{ fontSize: 13, color: C.dark, fontWeight: 600 }}>{formatPrice(Number(drawerProject.pricing.total_net))}</div>
-                                </div>
-                            )}
-                            {drawerProject.delivery_deadline && (
-                                <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg }}>
-                                    <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Livraison</div>
-                                    <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>{formatDate(drawerProject.delivery_deadline)}</div>
-                                </div>
-                            )}
-                            {drawerProject.brief_analysis?.quantity && (
-                                <div style={{ padding: "12px 14px", borderRadius: 8, background: C.bg }}>
-                                    <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Quantite</div>
-                                    <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>{drawerProject.brief_analysis.quantity}</div>
-                                </div>
-                            )}
-                        </div>
-
-                        {drawerProject.brief_analysis?.description && (
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>Description</div>
-                                <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6 }}>{drawerProject.brief_analysis.description}</div>
-                            </div>
-                        )}
-
-                        <a
-                            href={"/projet/" + drawerProject.project_id}
-                            style={{
-                                display: "inline-flex", alignItems: "center", gap: 6,
-                                padding: "10px 20px", borderRadius: 8, background: C.dark, color: C.white,
-                                fontSize: 13, fontWeight: 600, textDecoration: "none",
-                            }}
-                        >
-                            Voir le projet complet <ArrowRight size={14} />
-                        </a>
-
-                        {/* Resize handle */}
-                        <div
-                            onMouseDown={onResizeDown}
-                            style={{
-                                position: "absolute", bottom: 4, right: 4,
-                                width: 20, height: 20, cursor: "nwse-resize",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                opacity: 0.4, color: C.muted,
-                            }}
-                        >
-                            <GripHorizontal size={14} />
-                        </div>
-                    </div>
-                </>
-            )}
+            <Drawer isOpen={!!drawerProjectId} onClose={() => setDrawerProjectId(null)} title="Detail du projet">
+                {drawerProjectId && (
+                    <ProjectDetail projectId={drawerProjectId} onClose={() => setDrawerProjectId(null)} />
+                )}
+            </Drawer>
 
             <style>{`
                 @media (max-width: 768px) {
