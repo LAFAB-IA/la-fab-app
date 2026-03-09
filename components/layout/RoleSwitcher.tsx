@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { C } from "@/lib/constants"
 
@@ -25,11 +26,13 @@ function redirectForRole(role: string): string {
 
 export default function RoleSwitcher() {
     const { user, isAuthenticated } = useAuth()
+    const pathname = usePathname()
 
     if (!isAuthenticated || !user) return null
     if (!ALLOWED_EMAILS.includes(user.email)) return null
 
     const currentRole = user.role
+    const isProfilPage = pathname === "/profil"
 
     function handleSwitch(role: string) {
         if (role === currentRole) return
@@ -40,7 +43,7 @@ export default function RoleSwitcher() {
     return (
         <div style={{
             position: "fixed",
-            bottom: 16,
+            bottom: isProfilPage ? 72 : 16,
             left: 16,
             zIndex: 9999,
             display: "flex",

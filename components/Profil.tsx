@@ -177,19 +177,30 @@ export default function Profil() {
 
         fetchWithAuth(`${API_URL}/api/auth/profile`, {
             method: "PATCH",
-            body: JSON.stringify(profile),
+            body: JSON.stringify({
+                firstName: profile.first_name,
+                lastName: profile.last_name,
+                email: profile.email,
+                phone: profile.phone,
+                address: profile.address,
+                city: profile.city,
+                postal_code: profile.postal_code,
+            }),
         })
             .then(r => r.json())
             .then(data => {
+                console.log("[PROFILE_SAVE]", data)
                 if (data.ok) {
                     setSaved(true)
                     setIsDirty(false)
                     setOriginalProfile({ ...profile })
                     setTimeout(() => setSaved(false), 3000)
-                } else setError("Échec de la sauvegarde")
+                } else {
+                    setError(data.message || data.code || "Échec de la sauvegarde")
+                }
                 setSaving(false)
             })
-            .catch(() => { setError("Erreur réseau"); setSaving(false) })
+            .catch((err) => { console.error("[PROFILE_SAVE_ERR]", err); setError("Erreur réseau"); setSaving(false) })
     }
 
     function handleChangePassword() {
