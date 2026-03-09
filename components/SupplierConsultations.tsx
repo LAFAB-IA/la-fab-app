@@ -6,7 +6,8 @@ import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
-    ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox
+    ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox,
+    Search, X, SearchX, List, LayoutGrid, ChevronDown
 } from "lucide-react"
 
 const { useState, useEffect } = React
@@ -16,6 +17,15 @@ export default function SupplierConsultations() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [consultations, setConsultations] = useState<any[]>([])
+
+    const [search, setSearch] = useState("")
+    const [viewMode, setViewMode] = useState<"list" | "group">(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("consultations_view_mode") as "list" | "group") || "list"
+        }
+        return "list"
+    })
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
     /* reply form state per consultation */
     const [replyData, setReplyData] = useState<Record<string, { response: string; price: string; delay: string; notes: string }>>({})
@@ -92,14 +102,156 @@ export default function SupplierConsultations() {
         </div>
     )
 
-    const sorted = [...consultations].sort((a, b) =>
+    const q = search.toLowerCase().trim()
+    const filtered = q
+        ? consultations.filter(c => {
+            const fields = [c.project_id, c.specifications, c.brief_description, c.response_text]
+            return fields.some(f => f && String(f).toLowerCase().includes(q))
+        })
+        : consultations
+
+    const sorted = [...filtered].sort((a, b) =>
         new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime()
     )
+
+    const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
+        sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+        pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+        replied: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
+        responded: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
+        validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a" },
+    }
+    const STATUS_ORDER_C = ["sent", "pending", "replied", "responded", "validated"]
+
+    const grouped: Record<string, any[]> = {}
+    for (const c of sorted) {
+        const s = c.status || "pending"
+        if (!grouped[s]) grouped[s] = []
+        grouped[s].push(c)
+    }
+    const sortedStatuses = Object.keys(grouped).sort(
+        (a, b) => (STATUS_ORDER_C.indexOf(a) === -1 ? 99 : STATUS_ORDER_C.indexOf(a)) - (STATUS_ORDER_C.indexOf(b) === -1 ? 99 : STATUS_ORDER_C.indexOf(b))
+    )
+
+    function toggleView(mode: "list" | "group") {
+        setViewMode(mode)
+        localStorage.setItem("consultations_view_mode", mode)
+    }
+
+    function renderCard(c: any) {
+        const cId = c.consultation_id || c.id
+        const isPending = c.status === "sent" || c.status === "pending"
+        const isReplied = c.status === "replied" || c.status === "responded"
+        const isSending = sending[cId]
+        const msg = msgs[cId]
+        const rd = getReply(cId)
+
+        return (
+            <div key={cId} style={{
+                background: C.white, borderRadius: 12,
+                border: "1px solid " + C.border,
+                boxShadow: "0 1px 3px rgba(58,64,64,0.06)",
+                overflow: "hidden",
+            }}>
+                {/* Card header */}
+                <div style={{ padding: "18px 22px", borderBottom: "1px solid " + C.border }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                <FileText size={16} color={C.muted} />
+                                <span style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>
+                                    Projet {(c.project_id || "").slice(0, 12)}...
+                                </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: C.muted }}>
+                                Envoye le {formatDate(c.sent_at || c.created_at)}
+                            </div>
+                        </div>
+                        {renderStatus(c.status)}
+                    </div>
+                    {c.specifications && (
+                        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Specifications demandees</div>
+                            {c.specifications}
+                        </div>
+                    )}
+                    {c.brief_description && !c.specifications && (
+                        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Description du brief</div>
+                            {c.brief_description}
+                        </div>
+                    )}
+                </div>
+                {/* Reply form for pending */}
+                {isPending && (
+                    <div style={{ padding: "18px 22px", background: "#fefce8" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>Votre reponse</div>
+                        <textarea value={rd.response} onChange={(e) => updateReply(cId, "response", e.target.value)} placeholder="Votre proposition..." rows={4}
+                            style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical", outline: "none", boxSizing: "border-box", marginBottom: 10, fontFamily: "Inter, sans-serif" }} />
+                        <div className="supplier-reply-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Prix propose HT</label>
+                                <input type="number" value={rd.price} onChange={(e) => updateReply(cId, "price", e.target.value)} placeholder="0.00" min={0} step={0.01}
+                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Delai de livraison (jours)</label>
+                                <input type="number" value={rd.delay} onChange={(e) => updateReply(cId, "delay", e.target.value)} placeholder="15" min={1}
+                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }} />
+                            </div>
+                        </div>
+                        <textarea value={rd.notes} onChange={(e) => updateReply(cId, "notes", e.target.value)} placeholder="Notes complementaires (optionnel)..." rows={2}
+                            style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical", outline: "none", boxSizing: "border-box", marginBottom: 12, fontFamily: "Inter, sans-serif" }} />
+                        <button onClick={() => sendReply(cId)} disabled={isSending}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", background: C.yellow, color: C.dark, cursor: isSending ? "not-allowed" : "pointer", opacity: isSending ? 0.6 : 1 }}>
+                            {isSending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
+                            Envoyer ma reponse
+                        </button>
+                        {msg && (
+                            <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2", color: msg.type === "ok" ? "#166534" : "#991b1b", border: "1px solid " + (msg.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
+                                {msg.text}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {/* Read-only reply for responded */}
+                {isReplied && (
+                    <div style={{ padding: "18px 22px", background: "#f0fdf4" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                            <CheckCircle2 size={15} color="#1a7a3c" />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#1a7a3c" }}>Reponse envoyee</span>
+                        </div>
+                        {c.response_text && <div style={{ fontSize: 13, color: C.dark, marginBottom: 8, lineHeight: 1.5 }}>{c.response_text}</div>}
+                        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                            {c.proposed_price != null && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Prix propose</div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{formatPrice(Number(c.proposed_price))}</div>
+                                </div>
+                            )}
+                            {c.lead_time_days && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Delai</div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{c.lead_time_days} jours</div>
+                                </div>
+                            )}
+                            {c.responded_at && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Date de reponse</div>
+                                    <div style={{ fontSize: 14, fontWeight: 500, color: C.dark }}>{formatDate(c.responded_at)}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 900, margin: "0 auto" }}>
             {/* Header */}
-            <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>Mes consultations</h1>
                     <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{consultations.length} consultation{consultations.length > 1 ? "s" : ""}</p>
@@ -114,7 +266,63 @@ export default function SupplierConsultations() {
                 </a>
             </div>
 
-            {sorted.length === 0 && (
+            {/* Search + View toggle */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
+                <div style={{ flex: 1, position: "relative" }}>
+                    <Search size={15} style={{ position: "absolute", left: 12, top: 11, color: C.muted }} />
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Rechercher une consultation..."
+                        style={{
+                            width: "100%", padding: "10px 36px", borderRadius: 8,
+                            border: "1px solid " + C.border, fontSize: 14, color: C.dark,
+                            backgroundColor: C.white, outline: "none", fontFamily: "inherit",
+                            boxSizing: "border-box",
+                        }}
+                    />
+                    {search && (
+                        <button
+                            onClick={() => setSearch("")}
+                            style={{ position: "absolute", right: 10, top: 10, background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 0 }}
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 8, border: "1px solid " + C.border, background: C.white }}>
+                    <button
+                        onClick={() => toggleView("list")}
+                        style={{
+                            padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                            background: viewMode === "list" ? C.yellow : "transparent",
+                            color: viewMode === "list" ? C.dark : C.muted,
+                        }}
+                    >
+                        <List size={16} />
+                    </button>
+                    <button
+                        onClick={() => toggleView("group")}
+                        style={{
+                            padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                            background: viewMode === "group" ? C.yellow : "transparent",
+                            color: viewMode === "group" ? C.dark : C.muted,
+                        }}
+                    >
+                        <LayoutGrid size={16} />
+                    </button>
+                </div>
+            </div>
+
+            {/* No search results */}
+            {consultations.length > 0 && filtered.length === 0 && (
+                <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
+                    <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
+                    <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation ne correspond a votre recherche</div>
+                </div>
+            )}
+
+            {sorted.length === 0 && consultations.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
                     <Inbox size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation</div>
@@ -122,180 +330,44 @@ export default function SupplierConsultations() {
                 </div>
             )}
 
-            {/* Consultation cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {sorted.map((c) => {
-                    const cId = c.consultation_id || c.id
-                    const isPending = c.status === "sent" || c.status === "pending"
-                    const isReplied = c.status === "replied" || c.status === "responded"
-                    const isSending = sending[cId]
-                    const msg = msgs[cId]
-                    const rd = getReply(cId)
-
-                    return (
-                        <div key={cId} style={{
-                            background: C.white, borderRadius: 12,
-                            border: "1px solid " + C.border,
-                            boxShadow: "0 1px 3px rgba(58,64,64,0.06)",
-                            overflow: "hidden",
-                        }}>
-                            {/* Card header */}
-                            <div style={{ padding: "18px 22px", borderBottom: "1px solid " + C.border }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-                                    <div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                            <FileText size={16} color={C.muted} />
-                                            <span style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>
-                                                Projet {(c.project_id || "").slice(0, 12)}...
-                                            </span>
-                                        </div>
-                                        <div style={{ fontSize: 12, color: C.muted }}>
-                                            Envoye le {formatDate(c.sent_at || c.created_at)}
-                                        </div>
-                                    </div>
-                                    {renderStatus(c.status)}
+            {/* Group view */}
+            {viewMode === "group" && sorted.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 16 }}>
+                    {sortedStatuses.map(status => {
+                        const sc = STATUS_CFG[status] || { label: status, bg: "#f5f5f5", color: "#616161" }
+                        const items = grouped[status]
+                        const isCollapsed = !!collapsed[status]
+                        return (
+                            <div key={status}>
+                                <div
+                                    onClick={() => setCollapsed(prev => ({ ...prev, [status]: !prev[status] }))}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 10,
+                                        padding: "10px 16px", borderRadius: 10,
+                                        backgroundColor: sc.bg, cursor: "pointer", userSelect: "none",
+                                    }}
+                                >
+                                    <ChevronDown size={16} style={{ color: sc.color, transition: "transform 0.2s", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: sc.color }}>{sc.label}</span>
+                                    <span style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 700, backgroundColor: sc.color, color: "#fff" }}>{items.length}</span>
                                 </div>
-
-                                {/* Brief specs */}
-                                {c.specifications && (
-                                    <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
-                                        <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Specifications demandees</div>
-                                        {c.specifications}
-                                    </div>
-                                )}
-                                {c.brief_description && !c.specifications && (
-                                    <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
-                                        <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Description du brief</div>
-                                        {c.brief_description}
+                                {!isCollapsed && (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 10 }}>
+                                        {items.map(renderCard)}
                                     </div>
                                 )}
                             </div>
+                        )
+                    })}
+                </div>
+            )}
 
-                            {/* Reply form for pending */}
-                            {isPending && (
-                                <div style={{ padding: "18px 22px", background: "#fefce8" }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
-                                        Votre reponse
-                                    </div>
-
-                                    <textarea
-                                        value={rd.response}
-                                        onChange={(e) => updateReply(cId, "response", e.target.value)}
-                                        placeholder="Votre proposition..."
-                                        rows={4}
-                                        style={{
-                                            width: "100%", padding: "10px 14px", border: "1px solid " + C.border,
-                                            borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical",
-                                            outline: "none", boxSizing: "border-box", marginBottom: 10, fontFamily: "Inter, sans-serif",
-                                        }}
-                                    />
-
-                                    <div className="supplier-reply-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                                        <div>
-                                            <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Prix propose HT</label>
-                                            <input
-                                                type="number"
-                                                value={rd.price}
-                                                onChange={(e) => updateReply(cId, "price", e.target.value)}
-                                                placeholder="0.00"
-                                                min={0}
-                                                step={0.01}
-                                                style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Delai de livraison (jours)</label>
-                                            <input
-                                                type="number"
-                                                value={rd.delay}
-                                                onChange={(e) => updateReply(cId, "delay", e.target.value)}
-                                                placeholder="15"
-                                                min={1}
-                                                style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <textarea
-                                        value={rd.notes}
-                                        onChange={(e) => updateReply(cId, "notes", e.target.value)}
-                                        placeholder="Notes complementaires (optionnel)..."
-                                        rows={2}
-                                        style={{
-                                            width: "100%", padding: "10px 14px", border: "1px solid " + C.border,
-                                            borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical",
-                                            outline: "none", boxSizing: "border-box", marginBottom: 12, fontFamily: "Inter, sans-serif",
-                                        }}
-                                    />
-
-                                    <button
-                                        onClick={() => sendReply(cId)}
-                                        disabled={isSending}
-                                        style={{
-                                            display: "inline-flex", alignItems: "center", gap: 6,
-                                            padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
-                                            border: "none", background: C.yellow, color: C.dark,
-                                            cursor: isSending ? "not-allowed" : "pointer",
-                                            opacity: isSending ? 0.6 : 1,
-                                        }}
-                                    >
-                                        {isSending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
-                                        Envoyer ma reponse
-                                    </button>
-
-                                    {msg && (
-                                        <div style={{
-                                            marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500,
-                                            background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2",
-                                            color: msg.type === "ok" ? "#166534" : "#991b1b",
-                                            border: "1px solid " + (msg.type === "ok" ? "#bbf7d0" : "#fecaca"),
-                                        }}>
-                                            {msg.text}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Read-only reply for responded */}
-                            {isReplied && (
-                                <div style={{ padding: "18px 22px", background: "#f0fdf4" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                                        <CheckCircle2 size={15} color="#1a7a3c" />
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1a7a3c" }}>Reponse envoyee</span>
-                                    </div>
-
-                                    {c.response_text && (
-                                        <div style={{ fontSize: 13, color: C.dark, marginBottom: 8, lineHeight: 1.5 }}>
-                                            {c.response_text}
-                                        </div>
-                                    )}
-
-                                    <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                                        {c.proposed_price != null && (
-                                            <div>
-                                                <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Prix propose</div>
-                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{formatPrice(Number(c.proposed_price))}</div>
-                                            </div>
-                                        )}
-                                        {c.lead_time_days && (
-                                            <div>
-                                                <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Delai</div>
-                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{c.lead_time_days} jours</div>
-                                            </div>
-                                        )}
-                                        {c.responded_at && (
-                                            <div>
-                                                <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Date de reponse</div>
-                                                <div style={{ fontSize: 14, fontWeight: 500, color: C.dark }}>{formatDate(c.responded_at)}</div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                })}
-            </div>
+            {/* List view */}
+            {viewMode === "list" && sorted.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {sorted.map(renderCard)}
+                </div>
+            )}
 
             <style>{`
                 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
