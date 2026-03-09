@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState, useRef } from "react"
-import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff } from "lucide-react"
+import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff, Check } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 import { fetchWithAuth } from "@/lib/api"
@@ -94,6 +94,10 @@ export default function Profil() {
     const [provider, setProvider] = useState<string>("email")
     const isOAuthUser = provider !== "email"
 
+    // Autosave
+    const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle")
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
     // Avatar
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
     const [avatarLoading, setAvatarLoading] = useState(false)
@@ -107,6 +111,19 @@ export default function Profil() {
             return next
         })
     }, [originalProfile])
+
+    // Autosave debounce: 1500ms after last profile change
+    const profileRef = useRef(profile)
+    profileRef.current = profile
+    useEffect(() => {
+        if (!isDirty || !originalProfile) return
+        setAutoSaveStatus("pending")
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => {
+            doSaveProfile(profileRef.current)
+        }, 1500)
+        return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+    }, [isDirty, profile]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Stats commandes
     const [stats, setStats] = useState<MonthStats[]>([])
@@ -122,8 +139,8 @@ export default function Profil() {
                 if (data.ok && data.user) {
                     const u = data.user
                     const loaded: ProfileData = {
-                        first_name:  u.first_name  || "",
-                        last_name:   u.last_name   || "",
+                        first_name:  u.firstName   || u.first_name  || "",
+                        last_name:   u.lastName    || u.last_name   || "",
                         email:       u.email       || "",
                         phone:       u.phone       || "",
                         address:     u.address     || "",
@@ -169,38 +186,50 @@ export default function Profil() {
             .catch(() => {})
     }, [])
 
-    function handleSaveProfile() {
+    function doSaveProfile(p: ProfileData) {
         const token = getToken()
         if (!token) return
         setSaving(true)
+        setAutoSaveStatus("saving")
         setError("")
+
+        const body = {
+            firstName: p.first_name,
+            lastName: p.last_name,
+            email: p.email,
+            phone: p.phone,
+            address: p.address,
+            city: p.city,
+            postal_code: p.postal_code,
+        }
+        console.log("[PROFIL] save request body:", body)
 
         fetchWithAuth(`${API_URL}/api/auth/profile`, {
             method: "PATCH",
-            body: JSON.stringify({
-                firstName: profile.first_name,
-                lastName: profile.last_name,
-                email: profile.email,
-                phone: profile.phone,
-                address: profile.address,
-                city: profile.city,
-                postal_code: profile.postal_code,
-            }),
+            body: JSON.stringify(body),
         })
-            .then(r => r.json())
-            .then(data => {
-                console.log("[PROFILE_SAVE]", data)
+            .then(async r => {
+                console.log("[PROFIL] save response:", r.status, r.statusText)
+                const data = await r.clone().json()
+                console.log("[PROFIL] save body:", data)
                 if (data.ok) {
                     setSaved(true)
                     setIsDirty(false)
-                    setOriginalProfile({ ...profile })
-                    setTimeout(() => setSaved(false), 3000)
+                    setOriginalProfile({ ...p })
+                    setAutoSaveStatus("saved")
+                    setTimeout(() => { setSaved(false); setAutoSaveStatus("idle") }, 2000)
                 } else {
-                    setError(data.message || data.code || "Échec de la sauvegarde")
+                    setError(data.message || data.error || data.code || "Échec de la sauvegarde")
+                    setAutoSaveStatus("error")
                 }
                 setSaving(false)
             })
-            .catch((err) => { console.error("[PROFILE_SAVE_ERR]", err); setError("Erreur réseau"); setSaving(false) })
+            .catch((err) => { console.error("[PROFIL] save error:", err); setError("Erreur réseau"); setAutoSaveStatus("error"); setSaving(false) })
+    }
+
+    function handleSaveProfile() {
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        doSaveProfile(profile)
     }
 
     function handleChangePassword() {
@@ -439,8 +468,26 @@ export default function Profil() {
 
             </div>
 
-            {/* ── Fixed bottom save bar ── */}
-            {isDirty && (
+            {/* ── Autosave indicator (discreet, top-right of content) ── */}
+            {autoSaveStatus !== "idle" && !isDirty && (
+                <div style={{
+                    position: "fixed", bottom: 20, right: 24, zIndex: 800,
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 16px", borderRadius: 20,
+                    backgroundColor: autoSaveStatus === "saved" ? "#e8f8ee" : autoSaveStatus === "error" ? "#fee" : "#fff",
+                    border: "1px solid " + (autoSaveStatus === "saved" ? "#b7e4c7" : autoSaveStatus === "error" ? "#f5c6c6" : C.border),
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    fontSize: 13, fontWeight: 600,
+                    color: autoSaveStatus === "saved" ? "#1a7a3c" : autoSaveStatus === "error" ? "#c0392b" : C.muted,
+                    transition: "opacity 0.3s ease",
+                }}>
+                    {autoSaveStatus === "saving" && "Sauvegarde automatique..."}
+                    {autoSaveStatus === "saved" && <><Check size={14} /> Sauvegardé</>}
+                </div>
+            )}
+
+            {/* ── Fixed bottom save bar (visible when dirty: pending autosave or error) ── */}
+            {(isDirty || autoSaveStatus === "error") && (
                 <div style={{
                     position: "fixed", bottom: 0, left: 64, right: 0, zIndex: 800,
                     backgroundColor: "#fff", borderTop: "1px solid " + C.border,
@@ -449,11 +496,15 @@ export default function Profil() {
                 }}>
                     <span style={{
                         display: "inline-flex", alignItems: "center", gap: 8,
-                        backgroundColor: C.yellow, color: C.dark,
+                        backgroundColor: autoSaveStatus === "error" ? "#fee" : C.yellow,
+                        color: autoSaveStatus === "error" ? "#c0392b" : C.dark,
                         fontWeight: 700, fontSize: 13, borderRadius: 20,
                         padding: "6px 14px",
                     }}>
-                        Modifications non sauvegardées
+                        {autoSaveStatus === "pending" && "Sauvegarde automatique..."}
+                        {autoSaveStatus === "saving" && "Sauvegarde en cours..."}
+                        {autoSaveStatus === "error" && "Échec — cliquez pour réessayer"}
+                        {(autoSaveStatus === "idle" || autoSaveStatus === "saved") && "Modifications non sauvegardées"}
                     </span>
                     <button
                         onClick={handleSaveProfile}
@@ -464,7 +515,7 @@ export default function Profil() {
                             cursor: saving ? "not-allowed" : "pointer",
                         }}
                     >
-                        {saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                        {saving ? "Sauvegarde..." : "Sauvegarder maintenant"}
                     </button>
                 </div>
             )}
