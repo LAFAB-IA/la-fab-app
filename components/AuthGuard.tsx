@@ -9,7 +9,8 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-  const { isLoading, isAuthenticated, realRole } = useAuth();
+  const { isLoading, isAuthenticated, user, realRole } = useAuth();
+  const effectiveRole = user?.role || realRole;
 
   useEffect(() => {
     if (isLoading) return;
@@ -17,12 +18,12 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
       window.location.href = "/login";
       return;
     }
-    // Only redirect if realRole is loaded AND doesn't match
-    if (requiredRole && realRole && realRole !== requiredRole) {
-      console.log("[AuthGuard] BLOCKED — realRole:", realRole, "!== requiredRole:", requiredRole);
+    // Use effective role (includes role_override) for access check
+    if (requiredRole && effectiveRole && effectiveRole !== requiredRole) {
+      console.log("[AuthGuard] BLOCKED — effectiveRole:", effectiveRole, "!== requiredRole:", requiredRole);
       window.location.href = "/dashboard";
     }
-  }, [isLoading, isAuthenticated, realRole, requiredRole]);
+  }, [isLoading, isAuthenticated, effectiveRole, requiredRole]);
 
   // Still loading auth → spinner
   if (isLoading) {
@@ -47,8 +48,8 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   if (!isAuthenticated) return null;
 
   // realRole not yet loaded → show content (don't block)
-  // realRole loaded but wrong → don't render (redirect in useEffect)
-  if (requiredRole && realRole && realRole !== requiredRole) return null;
+  // effectiveRole loaded but wrong → don't render (redirect in useEffect)
+  if (requiredRole && effectiveRole && effectiveRole !== requiredRole) return null;
 
   return <>{children}</>;
 }

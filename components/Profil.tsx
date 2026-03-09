@@ -118,7 +118,6 @@ export default function Profil() {
     profileRef.current = profile
     useEffect(() => {
         if (!isDirty || !originalProfile) return
-        setAutoSaveStatus("pending")
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(() => {
             doSaveProfile(profileRef.current)
