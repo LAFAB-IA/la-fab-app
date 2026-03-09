@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState, useRef } from "react"
-import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff, Check } from "lucide-react"
+import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff, Check, XCircle } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 import { fetchWithAuth } from "@/lib/api"
@@ -84,10 +84,23 @@ export default function Profil() {
     const [currentPwd, setCurrentPwd] = useState("")
     const [newPwd, setNewPwd] = useState("")
     const [confirmPwd, setConfirmPwd] = useState("")
-    const [showPwd, setShowPwd] = useState(false)
+    const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+    const [showNewPwd, setShowNewPwd] = useState(false)
+    const [showConfirmPwd, setShowConfirmPwd] = useState(false)
     const [pwdLoading, setPwdLoading] = useState(false)
     const [pwdError, setPwdError] = useState("")
     const [pwdSaved, setPwdSaved] = useState(false)
+
+    // Password validation rules
+    const pwdRules = [
+        { label: "8 caracteres minimum", valid: newPwd.length >= 8 },
+        { label: "1 majuscule", valid: /[A-Z]/.test(newPwd) },
+        { label: "1 chiffre", valid: /\d/.test(newPwd) },
+        { label: "1 caractere special", valid: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newPwd) },
+    ]
+    const pwdValidCount = pwdRules.filter(r => r.valid).length
+    const pwdAllValid = pwdValidCount === 4
+    const pwdStrengthColor = pwdValidCount < 2 ? "#c0392b" : pwdValidCount < 4 ? "#e67e22" : "#1a7a3c"
 
     // Provider (Google OAuth etc.)
     const [provider, setProvider] = useState<string>("email")
@@ -249,8 +262,8 @@ export default function Profil() {
     }
 
     function handleChangePassword() {
+        if (!pwdAllValid) { setPwdError("Le mot de passe ne respecte pas toutes les regles"); return }
         if (newPwd !== confirmPwd) { setPwdError("Les mots de passe ne correspondent pas"); return }
-        if (newPwd.length < 8)    { setPwdError("Minimum 8 caractères"); return }
         const token = getToken()
         if (!token) return
         setPwdLoading(true)
@@ -260,18 +273,20 @@ export default function Profil() {
             method: "POST",
             body: JSON.stringify({ current_password: currentPwd, new_password: newPwd }),
         })
-            .then(r => r.json())
-            .then(data => {
+            .then(async r => {
+                console.log("[PROFIL] password response:", r.status, r.statusText)
+                const data = await r.json()
+                console.log("[PROFIL] password body:", data)
                 if (data.ok) {
                     setPwdSaved(true)
                     setCurrentPwd(""); setNewPwd(""); setConfirmPwd("")
                     setTimeout(() => setPwdSaved(false), 3000)
                 } else {
-                    setPwdError(data.message || "Échec du changement de mot de passe")
+                    setPwdError(data.message || "Echec du changement de mot de passe")
                 }
                 setPwdLoading(false)
             })
-            .catch(() => { setPwdError("Erreur réseau"); setPwdLoading(false) })
+            .catch((err) => { console.error("[PROFIL] password error:", err); setPwdError("Erreur reseau"); setPwdLoading(false) })
     }
 
     function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -392,7 +407,7 @@ export default function Profil() {
                     <Field label="Téléphone">
                         <div style={{ position: "relative" }}>
                             <Phone size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
-                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.phone} onChange={e => updateProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" />
+                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.phone} onChange={e => updateProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" autoComplete="tel" />
                         </div>
                     </Field>
                 </Section>
@@ -425,26 +440,57 @@ export default function Profil() {
                     <Section title="Mot de passe" icon={<Lock size={18} />}>
                         <Field label="Mot de passe actuel">
                             <div style={{ position: "relative" }}>
-                                <input type={showPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" />
-                                <button onClick={() => setShowPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
-                                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                                <input type={showCurrentPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+                                <button onClick={() => setShowCurrentPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                                    {showCurrentPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </Field>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
-                            <Field label="Nouveau mot de passe">
-                                <input type="password" style={inputStyle} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caractères" />
-                            </Field>
-                            <Field label="Confirmer">
-                                <input type="password" style={inputStyle} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Répéter" />
-                            </Field>
-                        </div>
-                        {pwdError && <div style={{ marginBottom: 12, fontSize: 13, color: "#c0392b" }}>✗ {pwdError}</div>}
-                        {pwdSaved && <div style={{ marginBottom: 12, fontSize: 13, color: "#1a7a3c", fontWeight: 600 }}>✓ Mot de passe modifié</div>}
+                        <Field label="Nouveau mot de passe">
+                            <div style={{ position: "relative" }}>
+                                <input type={showNewPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caracteres" autoComplete="new-password" />
+                                <button onClick={() => setShowNewPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                                    {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </Field>
+                        {/* Password rules */}
+                        {newPwd.length > 0 && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ display: "flex", gap: 4, marginBottom: 10, height: 4, borderRadius: 2, overflow: "hidden" }}>
+                                    {[0, 1, 2, 3].map(i => (
+                                        <div key={i} style={{ flex: 1, borderRadius: 2, backgroundColor: i < pwdValidCount ? pwdStrengthColor : C.border, transition: "background-color 0.2s" }} />
+                                    ))}
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                    {pwdRules.map(r => (
+                                        <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: r.valid ? "#1a7a3c" : "#c0392b" }}>
+                                            {r.valid ? <Check size={12} /> : <XCircle size={12} />}
+                                            {r.label}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <Field label="Confirmer">
+                            <div style={{ position: "relative" }}>
+                                <input type={showConfirmPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeter" autoComplete="new-password" />
+                                <button onClick={() => setShowConfirmPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                                    {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </Field>
+                        {confirmPwd.length > 0 && newPwd !== confirmPwd && (
+                            <div style={{ marginBottom: 12, fontSize: 12, color: "#c0392b", display: "flex", alignItems: "center", gap: 4 }}>
+                                <XCircle size={12} /> Les mots de passe ne correspondent pas
+                            </div>
+                        )}
+                        {pwdError && <div style={{ marginBottom: 12, fontSize: 13, color: "#c0392b" }}>{pwdError}</div>}
+                        {pwdSaved && <div style={{ marginBottom: 12, fontSize: 13, color: "#1a7a3c", fontWeight: 600 }}>Mot de passe modifie</div>}
                         <button
                             onClick={handleChangePassword}
-                            disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
-                            style={{ padding: "10px 20px", backgroundColor: pwdLoading ? C.muted : C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: pwdLoading ? "not-allowed" : "pointer" }}
+                            disabled={pwdLoading || !currentPwd || !pwdAllValid || !confirmPwd || newPwd !== confirmPwd}
+                            style={{ padding: "10px 20px", backgroundColor: (pwdLoading || !pwdAllValid) ? C.muted : C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (pwdLoading || !pwdAllValid) ? "not-allowed" : "pointer" }}
                         >
                             {pwdLoading ? "Modification..." : "Modifier le mot de passe"}
                         </button>
