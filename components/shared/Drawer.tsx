@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { X } from "lucide-react"
+import { X, GripHorizontal } from "lucide-react"
 import { C } from "@/lib/constants"
 
-const { useEffect, useCallback } = React
+const { useEffect, useCallback, useState, useRef } = React
 
 interface DrawerProps {
     isOpen: boolean
@@ -15,6 +15,12 @@ interface DrawerProps {
 }
 
 export default function Drawer({ isOpen, onClose, title, width = "720px", children }: DrawerProps) {
+    const [drawerWidth, setDrawerWidth] = useState<number | null>(null)
+    const dragging = useRef(false)
+    const startX = useRef(0)
+    const startW = useRef(0)
+    const panelRef = useRef<HTMLDivElement>(null)
+
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === "Escape") onClose()
     }, [onClose])
@@ -23,12 +29,44 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
         if (isOpen) {
             document.addEventListener("keydown", handleKeyDown)
             document.body.style.overflow = "hidden"
+            setDrawerWidth(null)
         }
         return () => {
             document.removeEventListener("keydown", handleKeyDown)
             document.body.style.overflow = ""
         }
     }, [isOpen, handleKeyDown])
+
+    // Resize handlers
+    const onMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault()
+        dragging.current = true
+        startX.current = e.clientX
+        startW.current = panelRef.current?.offsetWidth || parseInt(width)
+        document.body.style.cursor = "ew-resize"
+        document.body.style.userSelect = "none"
+    }, [width])
+
+    useEffect(() => {
+        function onMouseMove(e: MouseEvent) {
+            if (!dragging.current) return
+            const delta = startX.current - e.clientX
+            const newW = Math.min(Math.max(startW.current + delta, 320), window.innerWidth * 0.9)
+            setDrawerWidth(newW)
+        }
+        function onMouseUp() {
+            if (!dragging.current) return
+            dragging.current = false
+            document.body.style.cursor = ""
+            document.body.style.userSelect = ""
+        }
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+        return () => {
+            document.removeEventListener("mousemove", onMouseMove)
+            document.removeEventListener("mouseup", onMouseUp)
+        }
+    }, [])
 
     if (!isOpen) return null
 
@@ -46,19 +84,37 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
 
             {/* Panel */}
             <div
+                ref={panelRef}
                 className="drawer-panel"
                 style={{
                     position: "fixed", top: 0, right: 0, bottom: 0,
                     zIndex: 1001,
-                    width,
-                    maxWidth: "100vw",
+                    width: drawerWidth ? `${drawerWidth}px` : width,
+                    maxWidth: "90vw",
+                    minWidth: 320,
                     backgroundColor: C.white,
                     boxShadow: "-4px 0 24px rgba(58,64,64,0.12)",
                     display: "flex", flexDirection: "column",
-                    animation: "drawerSlideIn 300ms ease",
+                    animation: drawerWidth ? undefined : "drawerSlideIn 300ms ease",
                     fontFamily: "Inter, sans-serif",
                 }}
             >
+                {/* Resize handle (left edge) */}
+                <div
+                    onMouseDown={onMouseDown}
+                    style={{
+                        position: "absolute", top: 0, left: 0, bottom: 0, width: 6,
+                        cursor: "ew-resize", zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                >
+                    <div style={{
+                        width: 4, height: 40, borderRadius: 2,
+                        backgroundColor: C.border, opacity: 0.6,
+                        transition: "opacity 0.15s",
+                    }} />
+                </div>
+
                 {/* Header */}
                 <div style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -101,7 +157,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                     to   { opacity: 1; }
                 }
                 @media (max-width: 768px) {
-                    .drawer-panel { width: 100% !important; }
+                    .drawer-panel { width: 100% !important; min-width: 0 !important; }
                 }
             `}</style>
         </>
