@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import { useParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory, CalendarDays } from "lucide-react"
@@ -47,9 +48,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         if (authLoading) return
         if (!isAuthenticated || !token || !id) { setError("Non authentifié"); setLoading(false); return }
 
-        fetch(`${API_URL}/api/project/${id}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project/${id}`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok && data.project) setProject(data.project)
@@ -63,9 +62,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     useEffect(() => {
         if (!token || !id || !project) return
         setInvoicesLoading(true)
-        fetch(`${API_URL}/api/invoice/list?project_id=${id}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/invoice/list?project_id=${id}`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setInvoices(data.invoices || [])
@@ -78,9 +75,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     useEffect(() => {
         if (!token || !id || !project) return
         setMessagesLoading(true)
-        fetch(`${API_URL}/api/project/${id}/messages`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project/${id}/messages`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setMessages(data.messages || [])
@@ -93,9 +88,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const fetchBriefs = React.useCallback(() => {
         if (!token || !id) return
         setBriefsLoading(true)
-        fetch(`${API_URL}/api/project/${id}/briefs`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project/${id}/briefs`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setBriefs(data.briefs || [])
@@ -117,9 +110,8 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     function handleSendMessage() {
         if (!token || !msgText.trim() || sending) return
         setSending(true)
-        fetch(`${API_URL}/api/project/${id}/messages`, {
+        fetchWithAuth(`${API_URL}/api/project/${id}/messages`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ content: msgText.trim() }),
         })
             .then((r) => r.json())
@@ -135,9 +127,8 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
     function handlePay(invoiceId: string, step: string) {
         if (!token) return
-        fetch(`${API_URL}/api/stripe/create-checkout/${invoiceId}?step=${step}`, {
+        fetchWithAuth(`${API_URL}/api/stripe/create-checkout/${invoiceId}?step=${step}`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
         })
             .then((r) => r.json())
             .then((data) => {
@@ -151,9 +142,8 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         setUploading(true)
         const formData = new FormData()
         formData.append("file", file)
-        fetch(`${API_URL}/api/project/${id}/upload-brief`, {
+        fetchWithAuth(`${API_URL}/api/project/${id}/upload-brief`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token },
             body: formData,
         })
             .then((r) => r.json())
@@ -236,7 +226,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         <a href={`/projet/${id}/planning`} style={{
                             display: "inline-flex", alignItems: "center", gap: 6,
                             padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600,
-                            backgroundColor: C.bg, color: "#3A4040", textDecoration: "none",
+                            backgroundColor: C.bg, color: "#000000", textDecoration: "none",
                             border: `1px solid ${C.border}`,
                         }}>
                             <CalendarDays size={14} /> Planning partagé

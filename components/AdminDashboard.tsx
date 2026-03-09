@@ -3,6 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, timeAgo } from "@/lib/format"
 import {
     TrendingUp, TrendingDown, FolderOpen, Target, Clock,
@@ -92,7 +93,7 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
 
@@ -104,37 +105,36 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
 
-        const headers = { Authorization: "Bearer " + token }
         let done = 0
         const total = 4
         const check = () => { done++; if (done >= total) setLoading(false) }
 
-        fetch(API_URL + "/api/admin/projects", { headers })
+        fetchWithAuth(API_URL + "/api/admin/projects")
             .then(r => r.json())
             .then(d => { if (d.ok) setProjects(d.projects || []) })
             .catch(() => {})
             .finally(check)
 
-        fetch(API_URL + "/api/invoice/list", { headers })
+        fetchWithAuth(API_URL + "/api/invoice/list")
             .then(r => r.json())
             .then(d => { if (d.ok) setInvoices(d.invoices || []) })
             .catch(() => {})
             .finally(check)
 
-        fetch(API_URL + "/api/admin/audit-logs?limit=10", { headers })
+        fetchWithAuth(API_URL + "/api/admin/audit-logs?limit=10")
             .then(r => r.json())
             .then(d => { if (d.ok) setAuditLogs(d.logs || d.data || []) })
             .catch(() => {})
             .finally(check)
 
-        fetch(API_URL + "/api/admin/suppliers/stats", { headers })
+        fetchWithAuth(API_URL + "/api/admin/suppliers/stats")
             .then(r => r.json())
             .then(d => { if (d.ok) setSupplierStats(d.suppliers || d.data || []) })
             .catch(() => {})
             .finally(check)
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     // ── Computed KPIs ───────────────────────────────────────────────────────
 

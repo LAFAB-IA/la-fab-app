@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { XCircle, Clock, Zap, Trash2, Plus, ChevronDown } from "lucide-react"
 import { formatDate } from "@/lib/format"
@@ -62,7 +63,7 @@ function DeliveryStatusBadge({ status }: { status: string }) {
 }
 
 export default function AdminWebhooks() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [webhooks, setWebhooks] = useState<Webhook[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -81,13 +82,12 @@ export default function AdminWebhooks() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
         fetchWebhooks()
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     function fetchWebhooks() {
-        if (!token) return
-        fetch(API_URL + "/api/webhooks", { headers: { Authorization: "Bearer " + token } })
+        fetchWithAuth(API_URL + "/api/webhooks")
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setWebhooks(data.webhooks || [])
@@ -98,9 +98,9 @@ export default function AdminWebhooks() {
     }
 
     function fetchDeliveryLogs(webhookId: string) {
-        if (!token || deliveryLogs[webhookId]) return
+        if (deliveryLogs[webhookId]) return
         setLoadingLogs(webhookId)
-        fetch(`${API_URL}/api/webhooks/${webhookId}/deliveries`, { headers: { Authorization: "Bearer " + token } })
+        fetchWithAuth(`${API_URL}/api/webhooks/${webhookId}/deliveries`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setDeliveryLogs((prev) => ({ ...prev, [webhookId]: data.deliveries || [] }))
@@ -110,11 +110,9 @@ export default function AdminWebhooks() {
     }
 
     function handleTest(webhookId: string) {
-        if (!token) return
         setTesting(webhookId)
-        fetch(`${API_URL}/api/webhooks/${webhookId}/test`, {
+        fetchWithAuth(`${API_URL}/api/webhooks/${webhookId}/test`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token },
         })
             .then((r) => r.json())
             .then((data) => {
@@ -128,11 +126,10 @@ export default function AdminWebhooks() {
     }
 
     function handleCreate() {
-        if (!token || !formUrl.trim() || formEvents.length === 0) return
+        if (!formUrl.trim() || formEvents.length === 0) return
         setSaving(true)
-        fetch(`${API_URL}/api/webhooks`, {
+        fetchWithAuth(`${API_URL}/api/webhooks`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ url: formUrl, events: formEvents }),
         })
             .then((r) => r.json())
@@ -147,11 +144,9 @@ export default function AdminWebhooks() {
     }
 
     function handleDelete(webhookId: string) {
-        if (!token) return
         setDeleting(webhookId)
-        fetch(`${API_URL}/api/webhooks/${webhookId}`, {
+        fetchWithAuth(`${API_URL}/api/webhooks/${webhookId}`, {
             method: "DELETE",
-            headers: { Authorization: "Bearer " + token },
         })
             .then((r) => r.json())
             .then((data) => {

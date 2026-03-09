@@ -3,6 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { XCircle, Mail, Copy, MapPin, ChevronDown } from "lucide-react"
 import { formatPrice } from "@/lib/format"
 
@@ -120,7 +121,7 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color?
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function AdminSuppliers() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [backendStats, setBackendStats] = useState<{ total: number; active: number; inactive: number }>({ total: 0, active: 0, inactive: 0 })
     const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null)
@@ -152,11 +153,11 @@ export default function AdminSuppliers() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
 
         Promise.all([
-            fetch(API_URL + "/api/admin/suppliers/stats", { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
-            fetch(API_URL + "/api/admin/dashboard", { headers: { Authorization: "Bearer " + token } }).then(r => r.json()),
+            fetchWithAuth(API_URL + "/api/admin/suppliers/stats").then(r => r.json()),
+            fetchWithAuth(API_URL + "/api/admin/dashboard").then(r => r.json()),
         ])
             .then(([suppData, dashData]) => {
                 if (suppData.ok) {
@@ -174,7 +175,7 @@ export default function AdminSuppliers() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     // ── Enrich suppliers with consultation data ──────────────────────────────
 
@@ -279,11 +280,9 @@ export default function AdminSuppliers() {
     }
 
     function handleTierChange(supplierId: string, newTier: string) {
-        if (!token) return
         setChangingId(supplierId)
-        fetch(`${API_URL}/api/supplier/${supplierId}`, {
+        fetchWithAuth(`${API_URL}/api/supplier/${supplierId}`, {
             method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ partner_tier: newTier }),
         })
             .then((r) => r.json())
@@ -295,12 +294,10 @@ export default function AdminSuppliers() {
     }
 
     function handleStatusToggle(supplierId: string, currentStatus: string) {
-        if (!token) return
         const newStatus = currentStatus === "active" ? "off" : "active"
         setChangingId(supplierId)
-        fetch(`${API_URL}/api/supplier/${supplierId}`, {
+        fetchWithAuth(`${API_URL}/api/supplier/${supplierId}`, {
             method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ status: newStatus }),
         })
             .then((r) => r.json())
@@ -312,7 +309,7 @@ export default function AdminSuppliers() {
     }
 
     function loadConsultations(supplierId: string) {
-        if (!token || expandedConsultations[supplierId]) return
+        if (expandedConsultations[supplierId]) return
         setLoadingConsultations(supplierId)
         // No direct endpoint for supplier consultations, use dashboard data
         // We'll show what we know from top_suppliers
@@ -320,11 +317,9 @@ export default function AdminSuppliers() {
     }
 
     function loadProducts(supplierId: string) {
-        if (!token || supplierProducts[supplierId]) return
+        if (supplierProducts[supplierId]) return
         setLoadingProducts(supplierId)
-        fetch(`${API_URL}/api/admin/supplier/${supplierId}/products`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/admin/supplier/${supplierId}/products`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok) setSupplierProducts(prev => ({ ...prev, [supplierId]: data.products || [] }))

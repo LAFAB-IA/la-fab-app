@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { formatDate, timeAgo } from "@/lib/format"
 import { io, Socket } from "socket.io-client"
 import type { Milestone, MilestoneStatus, MilestoneMessage } from "@/lib/sdk/types"
@@ -39,14 +40,9 @@ export default function ProjectPlanning() {
     const isClient = user?.role === "client" || (realRole === "admin" && user?.role === "client")
     const isSupplier = user?.role === "supplier" || (realRole === "admin" && user?.role === "supplier")
 
-    const headers = useCallback(() => ({
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    }), [token])
-
     const fetchMilestones = useCallback(() => {
         if (!token || !projectId) return
-        fetch(`${API_URL}/api/planning/${projectId}`, { headers: { Authorization: `Bearer ${token}` } })
+        fetchWithAuth(`${API_URL}/api/planning/${projectId}`)
             .then(r => r.json())
             .then(d => {
                 if (d.ok) {
@@ -97,16 +93,16 @@ export default function ProjectPlanning() {
 
     // ── API actions ──────────────────────────────────────────────────────
     const handleRespond = async (milestoneId: string, action: "accept" | "refuse") => {
-        await fetch(`${API_URL}/api/planning/${projectId}/milestone/${milestoneId}/respond`, {
-            method: "POST", headers: headers(),
+        await fetchWithAuth(`${API_URL}/api/planning/${projectId}/milestone/${milestoneId}/respond`, {
+            method: "POST",
             body: JSON.stringify({ action }),
         }).catch(() => {})
         fetchMilestones()
     }
 
     const handleCounter = async (milestoneId: string, counterDate: string) => {
-        await fetch(`${API_URL}/api/planning/${projectId}/milestone/${milestoneId}/respond`, {
-            method: "POST", headers: headers(),
+        await fetchWithAuth(`${API_URL}/api/planning/${projectId}/milestone/${milestoneId}/respond`, {
+            method: "POST",
             body: JSON.stringify({ action: "counter", counter_date: counterDate }),
         }).catch(() => {})
         fetchMilestones()
@@ -128,7 +124,7 @@ export default function ProjectPlanning() {
                     <a href={`/projet/${projectId}`} style={{ color: C.muted, display: "flex" }}>
                         <ArrowLeft size={20} />
                     </a>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: "#3A4040", margin: 0 }}>
+                    <h1 style={{ fontSize: 22, fontWeight: 700, color: "#000000", margin: 0 }}>
                         Planning du projet
                     </h1>
                 </div>
@@ -138,7 +134,7 @@ export default function ProjectPlanning() {
                         style={{
                             display: "flex", alignItems: "center", gap: 6,
                             padding: "8px 16px", borderRadius: 8, border: "none",
-                            backgroundColor: "#F4CF15", color: "#3A4040",
+                            backgroundColor: "#F4CF15", color: "#000000",
                             fontWeight: 600, fontSize: 14, cursor: "pointer",
                         }}
                     >
@@ -189,10 +185,8 @@ export default function ProjectPlanning() {
                                 onAccept={() => handleRespond(m.id, "accept")}
                                 onRefuse={() => handleRespond(m.id, "refuse")}
                                 onCounterPropose={() => setCounterMilestone(m)}
-                                token={token!}
                                 projectId={projectId}
                                 onRefresh={fetchMilestones}
-                                headers={headers()}
                                 isLast={i === milestones.length - 1}
                             />
                         )
@@ -206,8 +200,8 @@ export default function ProjectPlanning() {
                     title="Nouveau jalon"
                     onClose={() => setShowCreateModal(false)}
                     onSubmit={async (title, date) => {
-                        await fetch(`${API_URL}/api/planning/${projectId}/milestone`, {
-                            method: "POST", headers: headers(),
+                        await fetchWithAuth(`${API_URL}/api/planning/${projectId}/milestone`, {
+                            method: "POST",
                             body: JSON.stringify({ title, milestone_date: date }),
                         })
                         setShowCreateModal(false)
@@ -224,8 +218,8 @@ export default function ProjectPlanning() {
                     initialDate={editingMilestone.milestone_date}
                     onClose={() => setEditingMilestone(null)}
                     onSubmit={async (title, date) => {
-                        await fetch(`${API_URL}/api/planning/${projectId}/milestone/${editingMilestone.id}`, {
-                            method: "PATCH", headers: headers(),
+                        await fetchWithAuth(`${API_URL}/api/planning/${projectId}/milestone/${editingMilestone.id}`, {
+                            method: "PATCH",
                             body: JSON.stringify({ title, milestone_date: date }),
                         })
                         setEditingMilestone(null)
@@ -251,7 +245,7 @@ export default function ProjectPlanning() {
 
 // ─── Milestone Card ──────────────────────────────────────────────────────
 
-function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespond, onToggleMessages, onEdit, onAccept, onRefuse, onCounterPropose, token, projectId, onRefresh, headers, isLast }: {
+function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespond, onToggleMessages, onEdit, onAccept, onRefuse, onCounterPropose, projectId, onRefresh, isLast }: {
     milestone: Milestone
     cfg: { label: string; color: string; bg: string }
     msgs: MilestoneMessage[]
@@ -263,10 +257,8 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
     onAccept: () => void
     onRefuse: () => void
     onCounterPropose: () => void
-    token: string
     projectId: string
     onRefresh: () => void
-    headers: Record<string, string>
     isLast: boolean
 }) {
     const [msgInput, setMsgInput] = useState("")
@@ -275,8 +267,8 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
     const sendMessage = async () => {
         if (!msgInput.trim()) return
         setSending(true)
-        await fetch(`${API_URL}/api/planning/${projectId}/milestone/${m.id}/message`, {
-            method: "POST", headers,
+        await fetchWithAuth(`${API_URL}/api/planning/${projectId}/milestone/${m.id}/message`, {
+            method: "POST",
             body: JSON.stringify({ content: msgInput.trim() }),
         }).catch(() => {})
         setMsgInput("")
@@ -302,7 +294,7 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
                 {/* Title + date + badge */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                     <div>
-                        <div style={{ fontWeight: 600, fontSize: 15, color: "#3A4040", marginBottom: 4 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15, color: "#000000", marginBottom: 4 }}>
                             {m.title}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.muted }}>
@@ -336,7 +328,7 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
                         <button onClick={onEdit} style={{
                             display: "flex", alignItems: "center", gap: 4,
                             padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.border}`,
-                            backgroundColor: "transparent", fontSize: 13, cursor: "pointer", color: "#3A4040",
+                            backgroundColor: "transparent", fontSize: 13, cursor: "pointer", color: "#000000",
                         }}>
                             <Pencil size={13} /> Modifier
                         </button>
@@ -393,10 +385,10 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
                             {msgs.map(msg => (
                                 <div key={msg.id} style={{
                                     padding: "8px 12px", borderRadius: 8,
-                                    backgroundColor: "#f8f8f6", fontSize: 13, color: "#3A4040",
+                                    backgroundColor: "#f8f8f6", fontSize: 13, color: "#000000",
                                 }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 600, fontSize: 12, color: "#3A4040" }}>
+                                        <span style={{ fontWeight: 600, fontSize: 12, color: "#000000" }}>
                                             {msg.author_role === "client" ? "Client" : msg.author_role === "supplier" ? "Fournisseur" : "Admin"}
                                         </span>
                                         <span style={{ color: C.muted, fontSize: 11 }}>{timeAgo(msg.created_at)}</span>
@@ -430,7 +422,7 @@ function MilestoneCard({ milestone: m, cfg, msgs, isExpanded, canEdit, canRespon
                                     display: "flex", alignItems: "center",
                                 }}
                             >
-                                <Send size={14} color="#3A4040" />
+                                <Send size={14} color="#000000" />
                             </button>
                         </div>
                     </div>
@@ -477,15 +469,15 @@ function MilestoneFormModal({ title, initialTitle, initialDate, onClose, onSubmi
                 width: 420, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(58,64,64,0.18)",
             }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#3A4040" }}>{title}</h2>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>{title}</h2>
                     <button onClick={onClose} style={{
                         border: `1px solid ${C.border}`, borderRadius: 8, background: "#FAFFFD",
                         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", color: "#3A4040",
+                        cursor: "pointer", color: "#000000",
                     }}><X size={14} /></button>
                 </div>
 
-                <label style={{ fontSize: 13, fontWeight: 500, color: "#3A4040", display: "block", marginBottom: 4 }}>Titre</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#000000", display: "block", marginBottom: 4 }}>Titre</label>
                 <input
                     value={t} onChange={e => setT(e.target.value)}
                     placeholder="Ex: Validation BAT"
@@ -497,7 +489,7 @@ function MilestoneFormModal({ title, initialTitle, initialDate, onClose, onSubmi
                     }}
                 />
 
-                <label style={{ fontSize: 13, fontWeight: 500, color: "#3A4040", display: "block", marginBottom: 4 }}>Date</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#000000", display: "block", marginBottom: 4 }}>Date</label>
                 <input
                     type="date" value={d} onChange={e => setD(e.target.value)}
                     style={{
@@ -511,12 +503,12 @@ function MilestoneFormModal({ title, initialTitle, initialDate, onClose, onSubmi
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button onClick={onClose} style={{
                         padding: "8px 16px", borderRadius: 8, border: `1px solid ${C.border}`,
-                        backgroundColor: "transparent", fontSize: 14, cursor: "pointer", color: "#3A4040",
+                        backgroundColor: "transparent", fontSize: 14, cursor: "pointer", color: "#000000",
                     }}>Annuler</button>
                     <button onClick={handleSubmit} disabled={submitting || !t.trim() || !d} style={{
                         padding: "8px 20px", borderRadius: 8, border: "none",
                         backgroundColor: "#F4CF15", fontSize: 14, fontWeight: 600,
-                        cursor: "pointer", color: "#3A4040",
+                        cursor: "pointer", color: "#000000",
                         opacity: submitting || !t.trim() || !d ? 0.5 : 1,
                     }}>
                         {submitting ? "Enregistrement..." : "Valider"}
@@ -561,11 +553,11 @@ function CounterProposeModal({ milestoneTitle, onClose, onSubmit }: {
                 width: 400, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(58,64,64,0.18)",
             }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#3A4040" }}>Proposer une date</h2>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>Proposer une date</h2>
                     <button onClick={onClose} style={{
                         border: `1px solid ${C.border}`, borderRadius: 8, background: "#FAFFFD",
                         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", color: "#3A4040",
+                        cursor: "pointer", color: "#000000",
                     }}><X size={14} /></button>
                 </div>
 
@@ -573,7 +565,7 @@ function CounterProposeModal({ milestoneTitle, onClose, onSubmit }: {
                     Jalon : {milestoneTitle}
                 </p>
 
-                <label style={{ fontSize: 13, fontWeight: 500, color: "#3A4040", display: "block", marginBottom: 4 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#000000", display: "block", marginBottom: 4 }}>
                     Nouvelle date proposee
                 </label>
                 <input
@@ -589,12 +581,12 @@ function CounterProposeModal({ milestoneTitle, onClose, onSubmit }: {
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button onClick={onClose} style={{
                         padding: "8px 16px", borderRadius: 8, border: `1px solid ${C.border}`,
-                        backgroundColor: "transparent", fontSize: 14, cursor: "pointer", color: "#3A4040",
+                        backgroundColor: "transparent", fontSize: 14, cursor: "pointer", color: "#000000",
                     }}>Annuler</button>
                     <button onClick={handleSubmit} disabled={submitting || !d} style={{
                         padding: "8px 20px", borderRadius: 8, border: "none",
                         backgroundColor: "#F4CF15", fontSize: 14, fontWeight: 600,
-                        cursor: "pointer", color: "#3A4040",
+                        cursor: "pointer", color: "#000000",
                         opacity: submitting || !d ? 0.5 : 1,
                     }}>
                         {submitting ? "Envoi..." : "Proposer"}

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
 import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
@@ -110,10 +111,8 @@ export default function AdminProjects() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
-        fetch(`${API_URL}/api/admin/projects`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
+        fetchWithAuth(`${API_URL}/api/admin/projects`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setProjects(data.projects || [])
@@ -121,14 +120,12 @@ export default function AdminProjects() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     function handleStatusChange(projectId: string, newStatus: string) {
-        if (!token) return
         setStatusChanging(projectId)
-        fetch(`${API_URL}/api/project/${projectId}/status`, {
+        fetchWithAuth(`${API_URL}/api/project/${projectId}/status`, {
             method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ status: newStatus }),
         })
             .then((r) => r.json())
@@ -140,12 +137,10 @@ export default function AdminProjects() {
     }
 
     async function handleDeleteProject(projectId: string) {
-        if (!token) return
         setDeleting(true)
         try {
-            const r = await fetch(`${API_URL}/api/project/${projectId}`, {
+            const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}`, {
                 method: "DELETE",
-                headers: { Authorization: "Bearer " + token },
             })
             const data = await r.json()
             if (data.ok) {
@@ -173,16 +168,15 @@ export default function AdminProjects() {
     }
 
     async function handleAiSend() {
-        if (!aiInput.trim() || aiLoading || !drawerProjectId || !token) return
+        if (!aiInput.trim() || aiLoading || !drawerProjectId) return
         const userMsg = aiInput.trim()
         setAiInput("")
         setAiMessages((prev) => [...prev, { role: "user", content: userMsg }])
         setAiLoading(true)
         try {
             const project = projects.find((p) => p.project_id === drawerProjectId)
-            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+            const r = await fetchWithAuth(`${API_URL}/api/ai/project-assistant`, {
                 method: "POST",
-                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     project_id: drawerProjectId,
                     message: userMsg,
@@ -235,14 +229,12 @@ export default function AdminProjects() {
     }
 
     async function bulkAction(action: string, extra?: Record<string, string>) {
-        if (!token || selectedIds.size === 0) return
+        if (selectedIds.size === 0) return
         setBulkActioning(true)
         try {
             if (action === "export") {
                 const idsParam = Array.from(selectedIds).join(",")
-                const r = await fetch(`${API_URL}/api/admin/projects/export?ids=${idsParam}`, {
-                    headers: { Authorization: "Bearer " + token },
-                })
+                const r = await fetchWithAuth(`${API_URL}/api/admin/projects/export?ids=${idsParam}`)
                 if (r.ok) {
                     const blob = await r.blob()
                     const url = URL.createObjectURL(blob)
@@ -256,9 +248,8 @@ export default function AdminProjects() {
                     setToast({ msg: "Erreur lors de l'export", type: "err" })
                 }
             } else if (action === "delete") {
-                const r = await fetch(`${API_URL}/api/admin/projects/bulk-action`, {
+                const r = await fetchWithAuth(`${API_URL}/api/admin/projects/bulk-action`, {
                     method: "POST",
-                    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "delete", ids: Array.from(selectedIds) }),
                 })
                 const data = await r.json()
@@ -272,9 +263,8 @@ export default function AdminProjects() {
             } else {
                 const body: Record<string, unknown> = { action, ids: Array.from(selectedIds) }
                 if (extra?.status) body.status = extra.status
-                const r = await fetch(`${API_URL}/api/admin/projects/bulk-action`, {
+                const r = await fetchWithAuth(`${API_URL}/api/admin/projects/bulk-action`, {
                     method: "POST",
-                    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 })
                 const data = await r.json()
@@ -462,7 +452,7 @@ export default function AdminProjects() {
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>{sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}</span>
                     {bulkMode && (
-                        <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#3A4040" : C.muted }}>
+                        <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#000000" : C.muted }}>
                             {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
                         </span>
                     )}
@@ -655,7 +645,7 @@ export default function AdminProjects() {
             {bulkMode && selectedIds.size > 0 && (
                 <div style={{
                     position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-                    zIndex: 100, backgroundColor: "#3A4040", color: "#FAFFFD",
+                    zIndex: 100, backgroundColor: "#000000", color: "#FAFFFD",
                     borderRadius: 12, padding: "12px 24px",
                     boxShadow: "0 8px 32px rgba(58,64,64,0.3)",
                     display: "flex", alignItems: "center", gap: 16,
@@ -701,7 +691,7 @@ export default function AdminProjects() {
                                 {STATUS_OPTIONS.filter(s => s !== "archived").map(s => (
                                     <button key={s} onClick={() => bulkAction("status", { status: s })} style={{
                                         display: "block", width: "100%", padding: "9px 14px", border: "none",
-                                        background: "transparent", textAlign: "left", fontSize: 13, color: "#3A4040",
+                                        background: "transparent", textAlign: "left", fontSize: 13, color: "#000000",
                                         cursor: "pointer", borderBottom: "1px solid #f0f0ee",
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.backgroundColor = "#f0f0ee"}
@@ -720,7 +710,7 @@ export default function AdminProjects() {
 
                     <button disabled={bulkActioning} onClick={() => bulkAction("export")} style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
-                        border: "none", background: "#F4CF15", color: "#3A4040",
+                        border: "none", background: "#F4CF15", color: "#000000",
                         fontSize: 13, fontWeight: 600, cursor: bulkActioning ? "not-allowed" : "pointer",
                     }}>
                         <Download size={14} /> Exporter

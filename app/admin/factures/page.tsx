@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
 import StatusBadge from "@/components/shared/StatusBadge"
@@ -59,7 +60,7 @@ function KpiCard({ icon: Icon, label, value, sub, badge, badgeColor }: {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 function AdminInvoices() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [invoices, setInvoices] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -75,12 +76,12 @@ function AdminInvoices() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
-        fetch(`${API_URL}/api/invoice/list`, { headers: { Authorization: "Bearer " + token } })
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
+        fetchWithAuth(`${API_URL}/api/invoice/list`)
             .then(r => r.json())
             .then(data => { if (data.ok) setInvoices(data.invoices || []); else setError("Erreur chargement"); setLoading(false) })
             .catch(() => { setError("Erreur réseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     // ── Computed KPIs ───────────────────────────────────────────────────────
 

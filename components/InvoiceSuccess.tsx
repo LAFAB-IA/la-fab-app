@@ -4,11 +4,12 @@ import React, { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { Clock, CheckCircle2, XCircle } from "lucide-react"
 import { formatPrice } from "@/lib/format"
 
 export default function InvoiceSuccess() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const searchParams = useSearchParams()
     const [status, setStatus] = useState("loading") // loading | confirmed | error
     const [invoice, setInvoice] = useState(null)
@@ -17,16 +18,14 @@ export default function InvoiceSuccess() {
         if (authLoading) return
         const invoiceId = searchParams.get("invoice_id")
 
-        if (!invoiceId || !isAuthenticated || !token) { setStatus("error"); return }
+        if (!invoiceId || !isAuthenticated) { setStatus("error"); return }
 
         // Polling — Stripe webhook peut prendre quelques secondes
         let attempts = 0
         const MAX = 8
 
         function checkStatus() {
-            fetch(`${API_URL}/api/invoice/${invoiceId}`, {
-                headers: { Authorization: "Bearer " + token },
-            })
+            fetchWithAuth(`${API_URL}/api/invoice/${invoiceId}`)
                 .then((r) => r.json())
                 .then((data) => {
                     if (data.ok && data.invoice?.status === "paid") {
@@ -51,7 +50,7 @@ export default function InvoiceSuccess() {
         }
 
         checkStatus()
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     return (
         <div style={{ width: "100%", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: 20, boxSizing: "border-box" }}>

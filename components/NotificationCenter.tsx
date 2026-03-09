@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { FolderKanban, FileText, CreditCard, Cog, Pin, Bell } from "lucide-react"
 import { timeAgo } from "@/lib/format"
 
@@ -49,9 +50,7 @@ export default function NotificationCenter() {
     const fetchNotifications = useCallback(async () => {
         if (!token) return
         try {
-            const res = await fetch(`${API_URL}/api/notifications`, {
-                headers: { Authorization: "Bearer " + token },
-            })
+            const res = await fetchWithAuth(`${API_URL}/api/notifications`)
             const data = await res.json()
             if (data.ok !== false) {
                 setNotifications(data.notifications || data || [])
@@ -71,9 +70,8 @@ export default function NotificationCenter() {
         // Mark as read
         if (!notif.read) {
             try {
-                await fetch(`${API_URL}/api/notifications/${notif.id}/read`, {
+                await fetchWithAuth(`${API_URL}/api/notifications/${notif.id}/read`, {
                     method: "PATCH",
-                    headers: { Authorization: "Bearer " + token },
                 })
                 setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, read: true } : n))
             } catch { /* silent */ }
@@ -86,9 +84,8 @@ export default function NotificationCenter() {
     const handleMarkAllRead = async () => {
         setMarkingAll(true)
         try {
-            await fetch(`${API_URL}/api/notifications/read-all`, {
+            await fetchWithAuth(`${API_URL}/api/notifications/read-all`, {
                 method: "PATCH",
-                headers: { Authorization: "Bearer " + token },
             })
             setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
         } catch { /* silent */ }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     Inbox, Clock, TrendingUp, Shield,
@@ -76,7 +77,7 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 // ─── Dashboard Content ──────────────────────────────────────────────────────
 
 function SupplierDashboardContent() {
-    const { token, user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
     const isAdminOverride = realRole === "admin" && user?.role !== realRole
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -89,12 +90,10 @@ function SupplierDashboardContent() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
-
-        const headers = { Authorization: "Bearer " + token }
+        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
 
         if (isAdminOverride) {
-            fetch(API_URL + "/api/admin/suppliers/stats", { headers })
+            fetchWithAuth(API_URL + "/api/admin/suppliers/stats")
                 .then(r => r.json())
                 .then(d => {
                     const raw = d.suppliers ?? d.data ?? d
@@ -105,7 +104,7 @@ function SupplierDashboardContent() {
             return
         }
 
-        fetch(API_URL + "/api/supplier-portal/dashboard", { headers })
+        fetchWithAuth(API_URL + "/api/supplier-portal/dashboard")
             .then(r => {
                 if (r.status === 404) { setNotFound(true); setLoading(false); return null }
                 return r.json()
@@ -125,7 +124,7 @@ function SupplierDashboardContent() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading, isAdminOverride])
+    }, [isAuthenticated, authLoading, isAdminOverride])
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -167,7 +166,7 @@ function SupplierDashboardContent() {
         return (
             <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
                 <div style={{
-                    background: "#F4CF15", color: "#3A4040", padding: "10px 20px",
+                    background: "#F4CF15", color: "#000000", padding: "10px 20px",
                     borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 20,
                     textAlign: "center",
                 }}>

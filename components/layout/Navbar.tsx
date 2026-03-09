@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { io, Socket } from "socket.io-client"
 import { Bell, X, Menu, Check } from "lucide-react"
 
@@ -30,9 +31,7 @@ export default function Navbar() {
     // ── Fetch unread count ────────────────────────────────────────────────────
     const fetchUnread = useCallback(() => {
         if (!token) return
-        fetch(`${API_URL}/api/notifications/unread-count`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
+        fetchWithAuth(`${API_URL}/api/notifications/unread-count`)
             .then((r) => r.json())
             .then((data) => { if (typeof data.count === "number") setUnreadCount(data.count) })
             .catch(() => {})
@@ -41,9 +40,7 @@ export default function Navbar() {
     // ── Fetch notifications list ──────────────────────────────────────────────
     const fetchNotifications = useCallback(() => {
         if (!token) return
-        fetch(`${API_URL}/api/notifications?limit=8`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
+        fetchWithAuth(`${API_URL}/api/notifications?limit=8`)
             .then((r) => r.json())
             .then((data) => { if (data.ok && data.notifications) setNotifications(data.notifications) })
             .catch(() => {})
@@ -75,9 +72,7 @@ export default function Navbar() {
     // ── Fetch avatar from /me ─────────────────────────────────────────────────
     useEffect(() => {
         if (!token) return
-        fetch(`${API_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
+        fetchWithAuth(`${API_URL}/api/auth/me`)
             .then((r) => r.json())
             .then((data) => { if (data.ok && data.user?.avatar_url) setAvatarUrl(data.user.avatar_url + "?t=" + Date.now()) })
             .catch(() => {})
@@ -87,8 +82,8 @@ export default function Navbar() {
     useEffect(() => {
         function handleAvatarUpdated() {
             if (!token) return
-            fetch(`${API_URL}/api/auth/me`, {
-                headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" },
+            fetchWithAuth(`${API_URL}/api/auth/me`, {
+                headers: { "Cache-Control": "no-cache" },
             })
                 .then((r) => r.json())
                 .then((data) => { if (data.ok && data.user?.avatar_url) setAvatarUrl(data.user.avatar_url + "?t=" + Date.now()) })
@@ -118,9 +113,8 @@ export default function Navbar() {
     // ── Mark all as read ──────────────────────────────────────────────────────
     function markAllRead() {
         if (!token) return
-        fetch(`${API_URL}/api/notifications/mark-all-read`, {
+        fetchWithAuth(`${API_URL}/api/notifications/mark-all-read`, {
             method: "PATCH",
-            headers: { Authorization: `Bearer ${token}` },
         })
             .then(() => {
                 setUnreadCount(0)

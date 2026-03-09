@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { FileUp, PenLine, FileText, X } from "lucide-react"
 
 interface CatalogProduct {
@@ -57,9 +58,7 @@ export default function CreateProject() {
     // Fetch catalog on mount
     useEffect(() => {
         if (!token) return
-        fetch(`${API_URL}/api/catalog/products`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/catalog/products`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok && Array.isArray(data.products)) {
@@ -166,9 +165,8 @@ export default function CreateProject() {
         try {
             // 1. Create project
             setUploadProgress({ current: 0, total: briefFiles.length, status: "Création du projet..." })
-            const res = await fetch(`${API_URL}/api/project/create`, {
+            const res = await fetchWithAuth(`${API_URL}/api/project/create`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
                 body: JSON.stringify({ product_id: "BRIEF-UPLOAD", qty: 1, spec: "Brief uploadé" }),
             })
             const data = await res.json()
@@ -185,9 +183,8 @@ export default function CreateProject() {
                 setUploadProgress({ current: i + 1, total: briefFiles.length, status: `Upload ${i + 1}/${briefFiles.length}...` })
                 const formData = new FormData()
                 formData.append("file", briefFiles[i])
-                const uploadRes = await fetch(`${API_URL}/api/project/${projectId}/upload-brief`, {
+                const uploadRes = await fetchWithAuth(`${API_URL}/api/project/${projectId}/upload-brief`, {
                     method: "POST",
-                    headers: { Authorization: "Bearer " + token },
                     body: formData,
                 })
                 const uploadData = await uploadRes.json()
@@ -227,9 +224,8 @@ export default function CreateProject() {
                 : (productQuery.trim() + (specs.trim() ? "\n" + specs.trim() : ""))
 
             // 1. Create project
-            const res = await fetch(`${API_URL}/api/project/create`, {
+            const res = await fetchWithAuth(`${API_URL}/api/project/create`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
                 body: JSON.stringify({
                     product_id: productId,
                     qty: parseInt(quantity),
@@ -250,9 +246,8 @@ export default function CreateProject() {
                     setUploadProgress({ current: i + 1, total: descFiles.length, status: `Upload ${i + 1}/${descFiles.length}...` })
                     const formData = new FormData()
                     formData.append("file", descFiles[i])
-                    await fetch(`${API_URL}/api/project/${projId}/upload-brief`, {
+                    await fetchWithAuth(`${API_URL}/api/project/${projId}/upload-brief`, {
                         method: "POST",
-                        headers: { Authorization: "Bearer " + token },
                         body: formData,
                     })
                 }

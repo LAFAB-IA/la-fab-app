@@ -2,16 +2,17 @@
 
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText
 } from "lucide-react"
 
-const { useState, useEffect, useCallback } = React
+const { useState, useEffect } = React
 
 export default function SupplierConsultations() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [consultations, setConsultations] = useState<any[]>([])
@@ -21,19 +22,10 @@ export default function SupplierConsultations() {
     const [sending, setSending] = useState<Record<string, boolean>>({})
     const [msgs, setMsgs] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
 
-    const authHeaders = useCallback(
-        (json = false): HeadersInit => {
-            const h: Record<string, string> = { Authorization: "Bearer " + token }
-            if (json) h["Content-Type"] = "application/json"
-            return h
-        },
-        [token]
-    )
-
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
-        fetch(`${API_URL}/api/supplier-portal/consultations`, { headers: authHeaders() })
+        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
+        fetchWithAuth(`${API_URL}/api/supplier-portal/consultations`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setConsultations(data.consultations || [])
@@ -41,7 +33,7 @@ export default function SupplierConsultations() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading, authHeaders])
+    }, [isAuthenticated, authLoading])
 
     function getReply(id: string) {
         return replyData[id] || { response: "", price: "", delay: "", notes: "" }
@@ -62,9 +54,8 @@ export default function SupplierConsultations() {
         }
         setSending((p) => ({ ...p, [consultationId]: true }))
         try {
-            const r = await fetch(`${API_URL}/api/supplier-portal/consultations/${consultationId}/reply`, {
+            const r = await fetchWithAuth(`${API_URL}/api/supplier-portal/consultations/${consultationId}/reply`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({
                     response_text: rd.response,
                     proposed_price: rd.price ? Number(rd.price) : undefined,

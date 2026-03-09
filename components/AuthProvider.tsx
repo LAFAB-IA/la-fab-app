@@ -8,7 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { API_URL } from "@/lib/constants";
-import { getToken, setToken, clearToken } from "@/lib/auth";
+import { getToken, setToken, clearToken, setRefreshToken } from "@/lib/auth";
 
 interface User {
   id: string;
@@ -74,6 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = dest;
   }
 
+  // Listen for token-refreshed events from fetchWithAuth
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const newToken = (e as CustomEvent<string>).detail;
+      if (newToken) setTokenState(newToken);
+    };
+    window.addEventListener("token-refreshed", handler);
+    return () => window.removeEventListener("token-refreshed", handler);
+  }, []);
+
   useEffect(() => {
     const storedToken = getToken();
     if (!storedToken) {
@@ -125,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     const freshToken = data.session?.access_token || data.token;
     setToken(freshToken);
+    if (data.session?.refresh_token) setRefreshToken(data.session.refresh_token);
 
     const meRes = await fetch(`${API_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${freshToken}` },
@@ -168,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     const freshToken = data.session?.access_token || data.token;
     setToken(freshToken);
+    if (data.session?.refresh_token) setRefreshToken(data.session.refresh_token);
 
     const meRes = await fetch(`${API_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${freshToken}` },

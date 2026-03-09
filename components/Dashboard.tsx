@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import { Clock, XCircle, FileText, CheckCircle, ClipboardList, Link2, FolderOpen, MessageSquare, Eye, Loader2 } from "lucide-react"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
@@ -40,9 +41,7 @@ export default function Dashboard() {
 
     function fetchProject() {
         if (!projectId || !token) return
-        fetch(`${API_URL}/api/project/${projectId}?account_id=${accountId}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project/${projectId}?account_id=${accountId}`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok && data.project) {
@@ -67,9 +66,8 @@ export default function Dashboard() {
         if (!projectId || !token) return
         setClientValidateLoading(true)
         setClientValidateError(null)
-        fetch(`${API_URL}/api/project/${projectId}/client-validate-quote`, {
+        fetchWithAuth(`${API_URL}/api/project/${projectId}/client-validate-quote`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ quote_number: quote.quote_number }),
         })
             .then((r) => r.json())

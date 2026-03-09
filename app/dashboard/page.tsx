@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     FolderOpen, FileText, CalendarDays, Package,
@@ -63,7 +64,7 @@ function Widget({ icon: Icon, label, value, sub }: {
 // ─── Dashboard Content ──────────────────────────────────────────────────────
 
 function ClientDashboard() {
-    const { token, user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { user, realRole, isAuthenticated, isLoading: authLoading } = useAuth()
     const isAdminOverride = realRole === "admin" && user?.role !== realRole
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -73,9 +74,8 @@ function ClientDashboard() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
+        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
 
-        const headers = { Authorization: "Bearer " + token }
         let done = 0
         const total = 2
         const check = () => { done++; if (done >= total) setLoading(false) }
@@ -84,7 +84,7 @@ function ClientDashboard() {
             ? API_URL + "/api/admin/projects?limit=10"
             : API_URL + "/api/project?account_id=me"
 
-        fetch(projectUrl, { headers })
+        fetchWithAuth(projectUrl)
             .then(r => r.json())
             .then(d => {
                 const raw = d.projects ?? d.data ?? d
@@ -93,7 +93,7 @@ function ClientDashboard() {
             .catch(() => {})
             .finally(check)
 
-        fetch(API_URL + "/api/invoice/list", { headers })
+        fetchWithAuth(API_URL + "/api/invoice/list")
             .then(r => r.json())
             .then(d => {
                 const raw = d.invoices ?? d.data ?? d
@@ -101,7 +101,7 @@ function ClientDashboard() {
             })
             .catch(() => {})
             .finally(check)
-    }, [token, isAuthenticated, authLoading, isAdminOverride])
+    }, [isAuthenticated, authLoading, isAdminOverride])
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ function ClientDashboard() {
 
             {isAdminOverride && (
                 <div style={{
-                    background: "#F4CF15", color: "#3A4040", padding: "10px 20px",
+                    background: "#F4CF15", color: "#000000", padding: "10px 20px",
                     borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 20,
                     textAlign: "center",
                 }}>

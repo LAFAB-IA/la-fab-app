@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { FileText, Clock, CreditCard, Download, Eye } from "lucide-react"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
 import { formatPrice, formatDate } from "@/lib/format"
@@ -44,9 +45,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
         if (authLoading) return
         if (!isAuthenticated || !token || !id) { setError("Non authentifié"); setLoading(false); return }
 
-        fetch(`${API_URL}/api/invoice/${id}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/invoice/${id}`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok && data.invoice) setInvoice(data.invoice)
@@ -61,9 +60,8 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
         setPayingStep(step)
         setPayError("")
 
-        fetch(`${API_URL}/api/stripe/create-checkout/${id}?step=${step}`, {
+        fetchWithAuth(`${API_URL}/api/stripe/create-checkout/${id}?step=${step}`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
         })
             .then((r) => r.json())
             .then((data) => {
@@ -85,9 +83,7 @@ export default function InvoiceDetail({ invoiceId: propId, onClose }: InvoiceDet
         }
         if (!token) return
         try {
-            const res = await fetch(`${API_URL}/api/invoice/${id}/pdf-url`, {
-                headers: { Authorization: "Bearer " + token },
-            })
+            const res = await fetchWithAuth(`${API_URL}/api/invoice/${id}/pdf-url`)
             const data = await res.json()
             if (data.ok && data.pdf_url) window.open(data.pdf_url, "_blank")
         } catch { /* ignore */ }

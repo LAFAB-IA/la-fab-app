@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState, useRef } from "react"
 import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
+import { fetchWithAuth } from "@/lib/api"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,10 @@ export default function Profil() {
     const [pwdError, setPwdError] = useState("")
     const [pwdSaved, setPwdSaved] = useState(false)
 
+    // Provider (Google OAuth etc.)
+    const [provider, setProvider] = useState<string>("email")
+    const isOAuthUser = provider !== "email"
+
     // Avatar
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
     const [avatarLoading, setAvatarLoading] = useState(false)
@@ -111,9 +116,7 @@ export default function Profil() {
         if (!token) { setLoading(false); return }
 
         // Profil
-        fetch(`${API_URL}/api/auth/me`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/auth/me`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.user) {
@@ -131,15 +134,14 @@ export default function Profil() {
                     setProfile(loaded)
                     setOriginalProfile(loaded)
                     if (u.avatar_url) setAvatarPreview(u.avatar_url)
+                    if (u.provider) setProvider(u.provider)
                 }
                 setLoading(false)
             })
             .catch(() => setLoading(false))
 
         // Stats 3 derniers mois
-        fetch(`${API_URL}/api/project?account_id=${localStorage.getItem("account_id") || ""}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project?account_id=${localStorage.getItem("account_id") || ""}`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.projects) {
@@ -173,9 +175,8 @@ export default function Profil() {
         setSaving(true)
         setError("")
 
-        fetch(`${API_URL}/api/auth/profile`, {
+        fetchWithAuth(`${API_URL}/api/auth/profile`, {
             method: "PATCH",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify(profile),
         })
             .then(r => r.json())
@@ -199,9 +200,8 @@ export default function Profil() {
         setPwdLoading(true)
         setPwdError("")
 
-        fetch(`${API_URL}/api/auth/change-password`, {
+        fetchWithAuth(`${API_URL}/api/auth/change-password`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify({ current_password: currentPwd, new_password: newPwd }),
         })
             .then(r => r.json())
@@ -233,9 +233,8 @@ export default function Profil() {
         const form = new FormData()
         form.append("avatar", file)
 
-        fetch(`${API_URL}/api/auth/avatar`, {
+        fetchWithAuth(`${API_URL}/api/auth/avatar`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token },
             body: form,
         })
             .then(r => {
@@ -360,33 +359,41 @@ export default function Profil() {
                 {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>✗ {error}</div>}
 
                 {/* ── Mot de passe ── */}
-                <Section title="Mot de passe" icon={<Lock size={18} />}>
-                    <Field label="Mot de passe actuel">
-                        <div style={{ position: "relative" }}>
-                            <input type={showPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" />
-                            <button onClick={() => setShowPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
-                                {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
+                {isOAuthUser ? (
+                    <Section title="Mot de passe" icon={<Lock size={18} />}>
+                        <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>
+                            Compte connecté via {provider.charAt(0).toUpperCase() + provider.slice(1)} — gestion du mot de passe sur votre compte {provider.charAt(0).toUpperCase() + provider.slice(1)}.
+                        </p>
+                    </Section>
+                ) : (
+                    <Section title="Mot de passe" icon={<Lock size={18} />}>
+                        <Field label="Mot de passe actuel">
+                            <div style={{ position: "relative" }}>
+                                <input type={showPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" />
+                                <button onClick={() => setShowPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </Field>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                            <Field label="Nouveau mot de passe">
+                                <input type="password" style={inputStyle} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caractères" />
+                            </Field>
+                            <Field label="Confirmer">
+                                <input type="password" style={inputStyle} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Répéter" />
+                            </Field>
                         </div>
-                    </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
-                        <Field label="Nouveau mot de passe">
-                            <input type="password" style={inputStyle} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caractères" />
-                        </Field>
-                        <Field label="Confirmer">
-                            <input type="password" style={inputStyle} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Répéter" />
-                        </Field>
-                    </div>
-                    {pwdError && <div style={{ marginBottom: 12, fontSize: 13, color: "#c0392b" }}>✗ {pwdError}</div>}
-                    {pwdSaved && <div style={{ marginBottom: 12, fontSize: 13, color: "#1a7a3c", fontWeight: 600 }}>✓ Mot de passe modifié</div>}
-                    <button
-                        onClick={handleChangePassword}
-                        disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
-                        style={{ padding: "10px 20px", backgroundColor: pwdLoading ? C.muted : C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: pwdLoading ? "not-allowed" : "pointer" }}
-                    >
-                        {pwdLoading ? "Modification..." : "Modifier le mot de passe"}
-                    </button>
-                </Section>
+                        {pwdError && <div style={{ marginBottom: 12, fontSize: 13, color: "#c0392b" }}>✗ {pwdError}</div>}
+                        {pwdSaved && <div style={{ marginBottom: 12, fontSize: 13, color: "#1a7a3c", fontWeight: 600 }}>✓ Mot de passe modifié</div>}
+                        <button
+                            onClick={handleChangePassword}
+                            disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
+                            style={{ padding: "10px 20px", backgroundColor: pwdLoading ? C.muted : C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: pwdLoading ? "not-allowed" : "pointer" }}
+                        >
+                            {pwdLoading ? "Modification..." : "Modifier le mot de passe"}
+                        </button>
+                    </Section>
+                )}
 
                 {/* ── Volume commandes ── */}
                 <Section title="Volume de commandes — 3 derniers mois" icon={<TrendingUp size={18} />}>

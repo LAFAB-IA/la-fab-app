@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import { formatPrice, formatDate } from "@/lib/format"
 
@@ -173,9 +174,7 @@ export default function Planning() {
     useEffect(() => {
         if (!token) { setLoading(false); return }
         const accountId = user?.account_id || ""
-        fetch(`${API_URL}/api/project?account_id=${accountId}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project?account_id=${accountId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.projects) {
@@ -225,9 +224,7 @@ export default function Planning() {
         setActiveTab("detail")
         setSaveSuccess(false)
         setSaveError(null)
-        fetch(`${API_URL}/api/project/${projectId}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/project/${projectId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.project) {
@@ -244,9 +241,8 @@ export default function Planning() {
                     // Rafraîchir les suggestions intelligentes (brief + fournisseurs)
                     if (token) {
                         setSuggestLoading(true)
-                        fetch(`${API_URL}/api/project/${projectId}/generate-planning-dates`, {
+                        fetchWithAuth(`${API_URL}/api/project/${projectId}/generate-planning-dates`, {
                             method: "POST",
-                            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
                         })
                             .then(r => r.json())
                             .then(sugg => {
@@ -291,9 +287,8 @@ export default function Planning() {
             const body: Record<string, string> = {}
             ALLOWED_KEYS.forEach(k => { if (desiredDates[k]) body[k] = desiredDates[k] })
 
-            const res = await fetch(`${API_URL}/api/project/${drawerProject.project_id}/planning-dates`, {
+            const res = await fetchWithAuth(`${API_URL}/api/project/${drawerProject.project_id}/planning-dates`, {
                 method: "PATCH",
-                headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             })
             const data = await res.json()

@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { API_URL, C } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
@@ -10,12 +11,12 @@ import {
     Upload, FileText, Loader2, X
 } from "lucide-react"
 
-const { useState, useEffect, useRef, useCallback } = React
+const { useState, useEffect, useRef } = React
 
 const ACCEPTED_EXT = ".pdf,.xlsx,.xls,.csv,.pptx,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp"
 
 export default function SupplierDashboard() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [supplier, setSupplier] = useState<any>(null)
@@ -29,15 +30,10 @@ export default function SupplierDashboard() {
     const [dragOver, setDragOver] = useState(false)
     const fileRef = useRef<HTMLInputElement>(null)
 
-    const authHeaders = useCallback(
-        (): HeadersInit => ({ Authorization: "Bearer " + token }),
-        [token]
-    )
-
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifie"); setLoading(false); return }
-        fetch(`${API_URL}/api/supplier-portal/dashboard`, { headers: authHeaders() })
+        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
+        fetchWithAuth(`${API_URL}/api/supplier-portal/dashboard`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) {
@@ -51,26 +47,24 @@ export default function SupplierDashboard() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
-    }, [token, isAuthenticated, authLoading, authHeaders])
+    }, [isAuthenticated, authLoading])
 
     /* upload handler */
     async function handleUpload(file: File) {
-        if (!token) return
         setUploading(true)
         setUploadMsg(null)
         const form = new FormData()
         form.append("file", file)
         try {
-            const r = await fetch(`${API_URL}/api/supplier-portal/upload-price-grid`, {
+            const r = await fetchWithAuth(`${API_URL}/api/supplier-portal/upload-price-grid`, {
                 method: "POST",
-                headers: { Authorization: "Bearer " + token },
                 body: form,
             })
             const data = await r.json()
             if (data.ok) {
                 setUploadMsg({ type: "ok", text: `${data.products_extracted || 0} produit(s) extraits` })
                 // refresh products
-                const pr = await fetch(`${API_URL}/api/supplier-portal/products`, { headers: authHeaders() })
+                const pr = await fetchWithAuth(`${API_URL}/api/supplier-portal/products`)
                 const pd = await pr.json()
                 if (pd.ok) setProducts(pd.products || [])
             } else {

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { XCircle, ChevronDown } from "lucide-react"
 
 const { useEffect, useState } = React
@@ -46,7 +47,7 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 export default function AdminAudit() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [logs, setLogs] = useState<AuditLog[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -57,13 +58,12 @@ export default function AdminAudit() {
     const perPage = 25
 
     function fetchLogs(p: number, action?: string, entity?: string) {
-        if (!token) return
         setLoading(true)
         const params = new URLSearchParams({ page: String(p), limit: String(perPage) })
         if (action && action !== "all") params.set("action", action)
         if (entity && entity !== "all") params.set("entity_type", entity)
 
-        fetch(`${API_URL}/api/admin/audit-logs?${params}`, { headers: { Authorization: "Bearer " + token } })
+        fetchWithAuth(`${API_URL}/api/admin/audit-logs?${params}`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) {
@@ -79,9 +79,9 @@ export default function AdminAudit() {
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
         fetchLogs(1)
-    }, [token, isAuthenticated, authLoading])
+    }, [isAuthenticated, authLoading])
 
     function handleFilterChange(newAction: string, newEntity: string, newPage: number) {
         setFilterAction(newAction)

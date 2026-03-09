@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { API_URL, C } from "@/lib/constants"
+import { API_URL } from "@/lib/constants"
+import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate, formatDateShort } from "@/lib/format"
 import {
     Route, MessageSquare, FileText, CheckSquare, CreditCard,
@@ -151,14 +152,6 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const activeStepIndex = STATUS_STEP_MAP[projectStatus] ?? 0
 
     /* ─────── helpers ─────── */
-    const authHeaders = useCallback(
-        (json = false): HeadersInit => {
-            const h: Record<string, string> = { Authorization: "Bearer " + token }
-            if (json) h["Content-Type"] = "application/json"
-            return h
-        },
-        [token]
-    )
 
     function setMsg(key: string, type: "ok" | "err", text: string) {
         setMessages((p) => ({ ...p, [key]: { type, text } }))
@@ -172,7 +165,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     /* ─────── data fetching ─────── */
     const fetchConsultations = useCallback(async () => {
         try {
-            const r = await fetch(`${API_URL}/api/consultation/${projectId}`, { headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${projectId}`)
             const data = await r.json()
             if (data.ok) {
                 const list = data.consultations || []
@@ -183,25 +176,25 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 console.error("[FETCH_CONSULTATIONS_ERROR]", data.error, data)
             }
         } catch (e) { console.error("[FETCH_CONSULTATIONS_NETWORK]", e) }
-    }, [projectId, authHeaders])
+    }, [projectId])
 
     const fetchValidations = useCallback(async () => {
         try {
-            const r = await fetch(`${API_URL}/api/quote-validation/project/${projectId}`, { headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/quote-validation/project/${projectId}`)
             const data = await r.json()
             if (data.ok) setValidations(data.validations || [])
         } catch { /* silent */ }
-    }, [projectId, authHeaders])
+    }, [projectId])
 
     const fetchQuotes = useCallback(async () => {
         try {
-            const r = await fetch(`${API_URL}/api/project/${projectId}`, { headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}`)
             const data = await r.json()
             if (data.ok && data.project?.quotes) {
                 setQuotes(data.project.quotes)
             }
         } catch { /* silent */ }
-    }, [projectId, authHeaders])
+    }, [projectId])
 
     useEffect(() => {
         fetchConsultations()
@@ -213,7 +206,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function routeSuppliers() {
         setLoad("route", true)
         try {
-            const r = await fetch(`${API_URL}/api/consultation/${projectId}/route`, { method: "POST", headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${projectId}/route`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
                 setMsg("route", "ok", `${data.suppliers_matched} fournisseur(s) trouve(s)`)
@@ -228,7 +221,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function sendAll() {
         setLoad("sendAll", true)
         try {
-            const r = await fetch(`${API_URL}/api/consultation/${projectId}/send-all`, { method: "POST", headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${projectId}/send-all`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
                 setMsg("sendAll", "ok", `${data.sent} consultation(s) envoyee(s)`)
@@ -244,7 +237,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function sendOne(consultationId: string) {
         setLoad("send_" + consultationId, true)
         try {
-            const r = await fetch(`${API_URL}/api/consultation/${consultationId}/send`, { method: "POST", headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${consultationId}/send`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
                 setMsg("send_" + consultationId, "ok", "Consultation envoyee")
@@ -260,7 +253,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function sendReminder(consultationId: string) {
         setLoad("reminder_" + consultationId, true)
         try {
-            const r = await fetch(`${API_URL}/api/reminders/send-one/${consultationId}`, { method: "POST", headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/reminders/send-one/${consultationId}`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
                 setMsg("reminder", "ok", "Relance envoyee")
@@ -274,7 +267,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function generateQuote() {
         setLoad("quote", true)
         try {
-            const r = await fetch(`${API_URL}/api/project/${projectId}/generate-quote`, { method: "POST", headers: authHeaders() })
+            const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}/generate-quote`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
                 setMsg("quote", "ok", `Devis ${data.quote_number} genere`)
@@ -289,9 +282,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     async function validateQuote(quote: Quote) {
         setLoad("validate_quote", true)
         try {
-            const r = await fetch(`${API_URL}/api/project/${projectId}/validate-quote`, {
+            const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}/validate-quote`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({ quote_number: quote.quote_number }),
             })
             const data = await r.json()
@@ -314,9 +306,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         }
         setLoad("invoice", true)
         try {
-            const r = await fetch(`${API_URL}/api/invoice/generate`, {
+            const r = await fetchWithAuth(`${API_URL}/api/invoice/generate`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({
                     project_id: projectId,
                     line_items: validItems,
@@ -339,9 +330,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         setAiGeneratingLines(true)
         setMsg("invoice", "ok", "")
         try {
-            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+            const r = await fetchWithAuth(`${API_URL}/api/ai/project-assistant`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({
                     project_id: projectId,
                     message: "Genere les lignes de facturation a partir du plan de production et des briefs. Reponds UNIQUEMENT avec un JSON array (sans markdown, sans texte avant/apres) au format: [{\"description\": \"...\", \"quantity\": N, \"unit_price\": N}]. Chaque ligne doit avoir une description claire du produit/prestation, la quantite et un prix unitaire HT estime en euros.",
@@ -353,7 +343,6 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             })
             const data = await r.json()
             if (data.ok && data.reply) {
-                // Extract JSON array from AI response
                 const text = data.reply.trim()
                 const start = text.indexOf("[")
                 const end = text.lastIndexOf("]")
@@ -385,9 +374,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         setAiReplyGenerating(true)
         setAiReplyDraft("")
         try {
-            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+            const r = await fetchWithAuth(`${API_URL}/api/ai/project-assistant`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({
                     project_id: projectId,
                     message: `Génère une réponse professionnelle à ce fournisseur suite à sa réponse : "${consultation.reply_message}". Contexte projet : ${JSON.stringify(briefAnalysis?.production_plan || {})}. Réponds uniquement avec le texte du mail, sans objet, sans signature.`,
@@ -408,16 +396,14 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         if (!aiReplyDraft.trim() || aiReplySending) return
         setAiReplySending(true)
         try {
-            const r = await fetch(`${API_URL}/api/consultation/${consultationId}/admin-reply`, {
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${consultationId}/admin-reply`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({ reply_message: aiReplyDraft.trim() }),
             })
             const data = await r.json()
             if (data.ok) {
                 setMsg("reply_" + consultationId, "ok", "Réponse envoyée")
                 setAiReplyDraft("")
-                // Update consultation status in real time
                 setConsultations((prev) =>
                     prev.map((c) => c.consultation_id === consultationId ? { ...c, status: data.consultation?.status || "replied", ...data.consultation } : c)
                 )
@@ -433,9 +419,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         setInlineAiLoading(true)
         setInlineAiReply("")
         try {
-            const r = await fetch(`${API_URL}/api/ai/project-assistant`, {
+            const r = await fetchWithAuth(`${API_URL}/api/ai/project-assistant`, {
                 method: "POST",
-                headers: authHeaders(true),
                 body: JSON.stringify({
                     project_id: projectId,
                     message: inlineAiInput.trim(),
@@ -460,13 +445,13 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         { label: "Préparer une réponse", prompt: "Prépare une réponse professionnelle à envoyer à ce fournisseur en tenant compte de sa réponse et du contexte projet." },
     ]
 
-    function renderInlineAI(sel: Consultation, detailLbl: React.CSSProperties) {
+    function renderInlineAI(sel: Consultation) {
         return (
-            <div style={{ marginTop: 16, padding: "14px 16px", backgroundColor: C.white, borderRadius: 10, border: "1px solid " + C.border }}>
-                <div style={{ ...detailLbl, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <div className="mt-4 px-4 py-3.5 bg-[#FAFFFD] rounded-[10px] border border-[#e0e0de]">
+                <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-2 flex items-center gap-1.5">
                     <Brain size={12} /> Assistant IA
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                <div className="flex gap-1.5 flex-wrap mb-2">
                     {AI_SHORTCUTS.map((s, i) => (
                         <button
                             key={i}
@@ -474,46 +459,31 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                 const ctx = s.prompt + (sel.email_body || "") + (sel.reply_message ? `\nRéponse fournisseur : ${sel.reply_message}` : "")
                                 setInlineAiInput(ctx)
                             }}
-                            className="btn-secondary"
-                            style={{
-                                padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
-                                border: "1px solid " + C.border, background: C.bg, color: C.dark,
-                                cursor: "pointer", whiteSpace: "nowrap",
-                            }}
+                            className="py-1 px-2.5 rounded-[5px] text-[11px] font-semibold border border-[#e0e0de] bg-[#f0f0ee] text-black cursor-pointer whitespace-nowrap"
                         >
                             {s.label}
                         </button>
                     ))}
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                     <input
                         value={inlineAiInput}
                         onChange={(e) => setInlineAiInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") askInlineAI(sel) }}
                         placeholder="Poser une question sur cette consultation..."
-                        style={{
-                            flex: 1, padding: "8px 12px", fontSize: 12, border: "1px solid " + C.border,
-                            borderRadius: 6, color: C.dark, outline: "none",
-                        }}
+                        className="flex-1 py-2 px-3 text-xs border border-[#e0e0de] rounded-md text-black outline-none"
                     />
                     <button
                         onClick={() => askInlineAI(sel)}
                         disabled={inlineAiLoading || !inlineAiInput.trim()}
-                        className="btn-primary"
-                        style={{
-                            padding: "8px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                            border: "none", background: C.yellow, color: C.dark,
-                            cursor: inlineAiLoading ? "not-allowed" : "pointer",
-                            opacity: inlineAiLoading ? 0.7 : 1,
-                            display: "inline-flex", alignItems: "center", gap: 5,
-                        }}
+                        className={`py-2 px-3.5 rounded-md text-xs font-semibold border-none bg-[#F4CF15] text-black inline-flex items-center gap-[5px] ${inlineAiLoading ? "cursor-not-allowed opacity-70" : "cursor-pointer opacity-100"}`}
                     >
-                        {inlineAiLoading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
+                        {inlineAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                         {inlineAiLoading ? "..." : "Demander"}
                     </button>
                 </div>
                 {inlineAiReply && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                    <div className="mt-2.5 text-xs text-black leading-relaxed whitespace-pre-wrap py-2.5 px-3 bg-[#fafaf8] rounded-lg border border-[#e0e0de] max-h-[200px] overflow-y-auto">
                         {inlineAiReply}
                     </div>
                 )}
@@ -540,29 +510,29 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     /* ─────── render ─────── */
-    const stepBorder = (state: "completed" | "active" | "future") => {
-        if (state === "completed") return "#22c55e"
-        if (state === "active") return C.yellow
-        return C.border
+    const stepBorderClass = (state: "completed" | "active" | "future") => {
+        if (state === "completed") return "border-[#22c55e]"
+        if (state === "active") return "border-[#F4CF15]"
+        return "border-[#e0e0de]"
     }
 
-    const stepBg = (state: "completed" | "active" | "future") => {
-        if (state === "completed") return "#f0fdf4"
-        if (state === "active") return "#fefce8"
-        return "#fafafa"
+    const stepBgClass = (state: "completed" | "active" | "future") => {
+        if (state === "completed") return "bg-[#f0fdf4]"
+        if (state === "active") return "bg-[#fefce8]"
+        return "bg-[#fafafa]"
     }
 
     const stepIconColor = (state: "completed" | "active" | "future") => {
         if (state === "completed") return "#22c55e"
         if (state === "active") return "#b89a00"
-        return C.muted
+        return "#7a8080"
     }
 
     function renderMsg(key: string) {
         const m = messages[key]
         if (!m) return null
         return (
-            <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: m.type === "ok" ? "#f0fdf4" : "#fef2f2", color: m.type === "ok" ? "#166534" : "#991b1b", border: "1px solid " + (m.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
+            <div className={`mt-2 py-2 px-3 rounded-md text-xs font-medium border ${m.type === "ok" ? "bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]" : "bg-[#fef2f2] text-[#991b1b] border-[#fecaca]"}`}>
                 {m.text}
             </div>
         )
@@ -575,18 +545,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             <button
                 onClick={onClick}
                 disabled={isLoading || disabled}
-                className={isPrimary ? "btn-primary" : "btn-secondary"}
-                style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    border: isPrimary ? "none" : "1px solid " + C.border,
-                    background: isPrimary ? C.yellow : C.white,
-                    color: isPrimary ? C.dark : C.dark,
-                    cursor: isLoading || disabled ? "not-allowed" : "pointer",
-                    opacity: isLoading || disabled ? 0.6 : 1,
-                }}
+                className={`inline-flex items-center gap-1.5 py-2 px-4 rounded-lg text-[13px] font-semibold text-black ${isPrimary ? "border-none bg-[#F4CF15]" : "border border-[#e0e0de] bg-[#FAFFFD]"} ${isLoading || disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer opacity-100"}`}
             >
-                {isLoading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : icon}
+                {isLoading ? <Loader2 size={14} className="animate-spin" /> : icon}
                 {label}
             </button>
         )
@@ -597,45 +558,41 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         const plan = briefAnalysis?.production_plan
         if (!plan) return null
         return (
-            <div style={{ marginBottom: 16, padding: 16, borderRadius: 10, backgroundColor: "#fefce8", border: "1px solid #fef08a" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <div className="mb-4 p-4 rounded-[10px] bg-[#fefce8] border border-[#fef08a]">
+                <div className="flex items-center gap-1.5 mb-2">
                     <Route size={14} color="#b89a00" />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>L&apos;IA recommande ce plan de production :</span>
+                    <span className="text-[13px] font-bold text-black">L&apos;IA recommande ce plan de production :</span>
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{plan.total_lots} lot(s)</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="text-xs text-[#7a8080] mb-3">{plan.total_lots} lot(s)</div>
+                <div className="flex flex-col gap-2">
                     {plan.lots?.map((lot: any) => (
-                        <div key={lot.lot_number} style={{
-                            padding: "10px 12px", borderRadius: 8,
-                            backgroundColor: C.white,
-                            borderLeft: `3px solid ${lot.is_amalgame ? C.yellow : C.border}`,
-                        }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Lot {lot.lot_number}</span>
+                        <div key={lot.lot_number} className={`py-2.5 px-3 rounded-lg bg-[#FAFFFD] border-l-[3px] ${lot.is_amalgame ? "border-l-[#F4CF15]" : "border-l-[#e0e0de]"}`}>
+                            <div className="flex justify-between items-center flex-wrap gap-1.5 mb-1.5">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[13px] font-bold text-black">Lot {lot.lot_number}</span>
                                     {lot.recommended_supplier && (
-                                        <span style={{ fontSize: 10, fontWeight: 600, color: C.white, backgroundColor: C.dark, padding: "1px 6px", borderRadius: 4 }}>
+                                        <span className="text-[10px] font-semibold text-[#FAFFFD] bg-black px-1.5 py-px rounded">
                                             {lot.recommended_supplier}
                                         </span>
                                     )}
                                     {lot.is_amalgame && (
-                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 600, color: C.dark, backgroundColor: C.yellow, padding: "1px 6px", borderRadius: 4 }}>
+                                        <span className="inline-flex items-center gap-[3px] text-[10px] font-semibold text-black bg-[#F4CF15] px-1.5 py-px rounded">
                                             <Layers size={10} /> Amalgame
                                         </span>
                                     )}
                                 </div>
                                 {lot.estimated_delay_days != null && (
-                                    <span style={{ fontSize: 11, color: C.muted }}>{lot.estimated_delay_days}j</span>
+                                    <span className="text-[11px] text-[#7a8080]">{lot.estimated_delay_days}j</span>
                                 )}
                             </div>
                             {lot.products?.map((p: any, idx: number) => (
-                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.dark, padding: "2px 0" }}>
+                                <div key={idx} className="flex justify-between text-xs text-black py-0.5">
                                     <span>{p.name} {p.quantity ? `× ${p.quantity}` : ""}</span>
-                                    {p.estimated_price_ht != null && <span style={{ fontWeight: 600 }}>{formatPrice(p.estimated_price_ht)} HT</span>}
+                                    {p.estimated_price_ht != null && <span className="font-semibold">{formatPrice(p.estimated_price_ht)} HT</span>}
                                 </div>
                             ))}
                             {lot.total_estimated_ht != null && (
-                                <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: C.dark, marginTop: 4, paddingTop: 4, borderTop: "1px solid " + C.border }}>
+                                <div className="text-right text-xs font-bold text-black mt-1 pt-1 border-t border-[#e0e0de]">
                                     {formatPrice(lot.total_estimated_ht)} HT
                                 </div>
                             )}
@@ -643,17 +600,17 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     ))}
                 </div>
                 {plan.total_estimated_ht != null && (
-                    <div style={{ textAlign: "right", fontSize: 14, fontWeight: 700, color: C.dark, marginTop: 10 }}>
+                    <div className="text-right text-sm font-bold text-black mt-2.5">
                         Total estimé : {formatPrice(plan.total_estimated_ht)} HT
                     </div>
                 )}
                 {plan.optimization_notes && (
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{plan.optimization_notes}</div>
+                    <div className="text-xs text-[#7a8080] mt-2">{plan.optimization_notes}</div>
                 )}
                 {plan.risks?.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                         {plan.risks.map((risk: string, idx: number) => (
-                            <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#e67e22", backgroundColor: "rgba(230,126,34,0.1)", padding: "3px 8px", borderRadius: 4 }}>
+                            <span key={idx} className="inline-flex items-center gap-[3px] text-[11px] font-semibold text-[#e67e22] bg-[rgba(230,126,34,0.1)] py-[3px] px-2 rounded">
                                 <AlertTriangle size={11} /> {risk}
                             </span>
                         ))}
@@ -668,38 +625,33 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         return (
             <div>
                 {renderProductionPlan()}
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div className="flex gap-2.5 flex-wrap mb-3">
                     {renderBtn("Lancer le routage IA", routeSuppliers, "route", <Route size={14} />)}
                     {consultations.length > 0 && renderBtn(`Envoyer tout (${draftCount})`, () => setConfirmSendAll(true), "sendAll", <Send size={14} />, "secondary", draftCount === 0)}
                 </div>
                 {renderMsg("route")}
                 {renderMsg("sendAll")}
                 {consultations.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <div className="mt-3">
+                        <div className="text-xs font-semibold text-[#7a8080] mb-2.5 uppercase tracking-[0.5px]">
                             {consultations.length} fournisseur(s) routé(s)
                         </div>
-                        <div style={{ display: "flex", gap: 0, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", minHeight: 280 }}>
+                        <div className="flex border border-[#e0e0de] rounded-[10px] overflow-hidden min-h-[280px]">
                             {/* Left: supplier list (40%) */}
-                            <div style={{ width: "40%", borderRight: "1px solid " + C.border, overflowY: "auto", maxHeight: 500 }}>
+                            <div className="w-[40%] border-r border-[#e0e0de] overflow-y-auto max-h-[500px]">
                                 {consultations.map((c) => {
                                     const isSelected = expandedConsultation === c.consultation_id
                                     return (
                                         <div
                                             key={c.consultation_id}
                                             onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft(""); setInlineAiReply(""); setInlineAiInput("") }}
-                                            style={{
-                                                padding: "12px 14px", cursor: "pointer",
-                                                backgroundColor: isSelected ? "#fafaf8" : C.white,
-                                                borderBottom: "1px solid " + C.bg,
-                                                borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
-                                            }}
+                                            className={`py-3 px-3.5 cursor-pointer border-b border-[#f0f0ee] border-l-[3px] ${isSelected ? "bg-[#fafaf8] border-l-[#F4CF15]" : "bg-[#FAFFFD] border-l-transparent"}`}
                                         >
                                             {renderSupplierListItem(c)}
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <div className="flex items-center gap-2">
                                                 {renderConsultationStatus(c.status)}
                                                 {c.status === "draft" && (
-                                                    <span onClick={(e) => { e.stopPropagation(); setConfirmSendConsultation(c) }} style={{ fontSize: 11, fontWeight: 600, color: C.yellow, cursor: "pointer" }}>
+                                                    <span onClick={(e) => { e.stopPropagation(); setConfirmSendConsultation(c) }} className="text-[11px] font-semibold text-[#F4CF15] cursor-pointer">
                                                         Envoyer
                                                     </span>
                                                 )}
@@ -709,143 +661,43 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                 })}
                             </div>
                             {/* Right: detail panel (60%) */}
-                            <div style={{ width: "60%", padding: "16px 20px", overflowY: "auto", maxHeight: 500, backgroundColor: "#fafaf8" }}>
+                            <div className="w-[60%] py-4 px-5 overflow-y-auto max-h-[500px] bg-[#fafaf8]">
                                 {(() => {
                                     const sel = consultations.find((c) => c.consultation_id === expandedConsultation)
                                     if (!sel) return (
-                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, fontSize: 13 }}>
+                                        <div className="flex items-center justify-center h-full text-[#7a8080] text-[13px]">
                                             Sélectionnez un fournisseur
                                         </div>
                                     )
-                                    const detailLbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }
                                     return (
                                         <>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                                <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+                                            <div className="flex justify-between items-center mb-4">
+                                                <div className="text-[15px] font-bold text-black">
                                                     {sel.supplier_name || sel.supplier_id.slice(0, 10)}
                                                 </div>
                                                 {renderConsultationStatus(sel.status)}
                                             </div>
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 16 }}>
-                                                <div>
-                                                    <div style={detailLbl}>Date d'envoi</div>
-                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.sent_at ? formatDate(sel.sent_at) : "—"}</div>
-                                                </div>
-                                                <div>
-                                                    <div style={detailLbl}>Date de réponse</div>
-                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.responded_at ? formatDate(sel.responded_at) : "—"}</div>
-                                                </div>
-                                                {sel.response_price != null && (
-                                                    <div>
-                                                        <div style={detailLbl}>Prix proposé</div>
-                                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(sel.response_price)}</div>
-                                                    </div>
-                                                )}
-                                                {sel.response_delay && (
-                                                    <div>
-                                                        <div style={detailLbl}>Délai proposé</div>
-                                                        <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <div style={detailLbl}>Jours depuis l'envoi</div>
-                                                    <div style={{ fontSize: 13, color: C.dark }}>
-                                                        {sel.sent_at ? Math.max(0, Math.floor((Date.now() - new Date(sel.sent_at).getTime()) / 86400000)) + " j" : "—"}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div style={detailLbl}>Relances envoyées</div>
-                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.reminders_count ?? 0}</div>
-                                                </div>
-                                            </div>
-                                            {sel.matched_products && sel.matched_products.length > 0 && (
-                                                <div style={{ marginBottom: 14 }}>
-                                                    <div style={detailLbl}>Produits matchés</div>
-                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                                        {sel.matched_products.map((p: any, idx: number) => (
-                                                            <span key={idx} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: C.white, border: "1px solid " + C.border, color: C.dark }}>
-                                                                {p.name || p.product_name || p.label || JSON.stringify(p)}
-                                                                {p.quantity ? ` × ${p.quantity}` : ""}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {renderDetailGrid(sel)}
+                                            {renderMatchedProducts(sel)}
                                             {sel.email_subject && (
-                                                <div style={{ marginBottom: 14 }}>
-                                                    <div style={detailLbl}>Objet du message</div>
-                                                    <div style={{ fontSize: 13, color: C.dark }}>{sel.email_subject}</div>
+                                                <div className="mb-3.5">
+                                                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Objet du message</div>
+                                                    <div className="text-[13px] text-black">{sel.email_subject}</div>
                                                 </div>
                                             )}
                                             {sel.email_body && (
-                                                <div style={{ marginBottom: 14 }}>
-                                                    <div style={detailLbl}>Message envoyé</div>
-                                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border, maxHeight: 200, overflowY: "auto" }}>
+                                                <div className="mb-3.5">
+                                                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Message envoyé</div>
+                                                    <div className="text-xs text-black leading-relaxed whitespace-pre-wrap py-2.5 px-3 bg-[#FAFFFD] rounded-lg border border-[#e0e0de] max-h-[200px] overflow-y-auto">
                                                         {sel.email_body}
                                                     </div>
                                                 </div>
                                             )}
-                                            {sel.reply_message && (
-                                                <div style={{ marginBottom: 14 }}>
-                                                    <div style={detailLbl}>Réponse reçue</div>
-                                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#f0faf0", borderRadius: 8, border: "1px solid #c6e6c6", maxHeight: 200, overflowY: "auto" }}>
-                                                        {sel.reply_message}
-                                                    </div>
-                                                    {/* AI reply generation */}
-                                                    <div style={{ marginTop: 10 }}>
-                                                        <button
-                                                            onClick={() => generateAIReply(sel)}
-                                                            disabled={aiReplyGenerating}
-                                                            className="btn-secondary"
-                                                            style={{
-                                                                display: "inline-flex", alignItems: "center", gap: 6,
-                                                                padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                                border: "1px solid " + C.border, background: aiReplyGenerating ? "#fef9e0" : C.white,
-                                                                color: C.dark, cursor: aiReplyGenerating ? "not-allowed" : "pointer",
-                                                            }}
-                                                        >
-                                                            {aiReplyGenerating ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
-                                                            {aiReplyGenerating ? "Génération..." : "Générer une réponse IA"}
-                                                        </button>
-                                                    </div>
-                                                    {aiReplyDraft && (
-                                                        <div style={{ marginTop: 10 }}>
-                                                            <div style={detailLbl}>Réponse à envoyer</div>
-                                                            <textarea
-                                                                value={aiReplyDraft}
-                                                                onChange={(e) => setAiReplyDraft(e.target.value)}
-                                                                rows={6}
-                                                                style={{
-                                                                    width: "100%", padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
-                                                                    border: "1px solid " + C.border, borderRadius: 8, color: C.dark,
-                                                                    resize: "vertical", outline: "none", boxSizing: "border-box",
-                                                                }}
-                                                            />
-                                                            <button
-                                                                onClick={() => sendAdminReply(sel.consultation_id)}
-                                                                disabled={aiReplySending || !aiReplyDraft.trim()}
-                                                                className="btn-primary"
-                                                                style={{
-                                                                    marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
-                                                                    padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                                    border: "none", background: C.yellow, color: C.dark,
-                                                                    cursor: aiReplySending ? "not-allowed" : "pointer",
-                                                                    opacity: aiReplySending ? 0.7 : 1,
-                                                                }}
-                                                            >
-                                                                {aiReplySending ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
-                                                                {aiReplySending ? "Envoi..." : "Envoyer cette réponse"}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {renderMsg("reply_" + sel.consultation_id)}
-                                                </div>
-                                            )}
+                                            {sel.reply_message && renderReplySection(sel)}
                                             {!sel.email_subject && !sel.email_body && !sel.matched_products?.length && !sel.reply_message && (
-                                                <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>Aucun détail disponible pour cette consultation.</div>
+                                                <div className="text-[13px] text-[#7a8080] italic">Aucun détail disponible pour cette consultation.</div>
                                             )}
-                                            {/* Inline AI assistant */}
-                                            {renderInlineAI(sel, detailLbl)}
+                                            {renderInlineAI(sel)}
                                             {renderMsg("send_" + sel.consultation_id)}
                                         </>
                                     )
@@ -858,18 +710,113 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         )
     }
 
+    function renderDetailGrid(sel: Consultation) {
+        return (
+            <div className="grid grid-cols-2 gap-x-5 gap-y-3 mb-4">
+                <div>
+                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Date d&apos;envoi</div>
+                    <div className="text-[13px] text-black">{sel.sent_at ? formatDate(sel.sent_at) : "—"}</div>
+                </div>
+                <div>
+                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Date de réponse</div>
+                    <div className="text-[13px] text-black">{sel.responded_at ? formatDate(sel.responded_at) : "—"}</div>
+                </div>
+                {sel.response_price != null && (
+                    <div>
+                        <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Prix proposé</div>
+                        <div className="text-[13px] font-semibold text-black">{formatPrice(sel.response_price)}</div>
+                    </div>
+                )}
+                {sel.response_delay && (
+                    <div>
+                        <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Délai proposé</div>
+                        <div className="text-[13px] text-black">{sel.response_delay}</div>
+                    </div>
+                )}
+                <div>
+                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Jours depuis l&apos;envoi</div>
+                    <div className="text-[13px] text-black">
+                        {sel.sent_at ? Math.max(0, Math.floor((Date.now() - new Date(sel.sent_at).getTime()) / 86400000)) + " j" : "—"}
+                    </div>
+                </div>
+                <div>
+                    <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Relances envoyées</div>
+                    <div className="text-[13px] text-black">{sel.reminders_count ?? 0}</div>
+                </div>
+            </div>
+        )
+    }
+
+    function renderMatchedProducts(sel: Consultation) {
+        if (!sel.matched_products || sel.matched_products.length === 0) return null
+        return (
+            <div className="mb-3.5">
+                <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Produits matchés</div>
+                <div className="flex flex-wrap gap-1.5">
+                    {sel.matched_products.map((p: any, idx: number) => (
+                        <span key={idx} className="py-[3px] px-2.5 rounded-md text-xs font-medium bg-[#FAFFFD] border border-[#e0e0de] text-black">
+                            {p.name || p.product_name || p.label || JSON.stringify(p)}
+                            {p.quantity ? ` × ${p.quantity}` : ""}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    function renderReplySection(sel: Consultation) {
+        return (
+            <div className="mb-3.5">
+                <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Réponse reçue</div>
+                <div className="text-xs text-black leading-relaxed whitespace-pre-wrap py-2.5 px-3 bg-[#f0faf0] rounded-lg border border-[#c6e6c6] max-h-[200px] overflow-y-auto">
+                    {sel.reply_message}
+                </div>
+                <div className="mt-2.5">
+                    <button
+                        onClick={() => generateAIReply(sel)}
+                        disabled={aiReplyGenerating}
+                        className={`inline-flex items-center gap-1.5 py-1.5 px-3.5 rounded-md text-xs font-semibold border border-[#e0e0de] text-black ${aiReplyGenerating ? "bg-[#fef9e0] cursor-not-allowed" : "bg-[#FAFFFD] cursor-pointer"}`}
+                    >
+                        {aiReplyGenerating ? <Loader2 size={12} className="animate-spin" /> : <Brain size={12} />}
+                        {aiReplyGenerating ? "Génération..." : "Générer une réponse IA"}
+                    </button>
+                </div>
+                {aiReplyDraft && (
+                    <div className="mt-2.5">
+                        <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Réponse à envoyer</div>
+                        <textarea
+                            value={aiReplyDraft}
+                            onChange={(e) => setAiReplyDraft(e.target.value)}
+                            rows={6}
+                            className="w-full py-2.5 px-3 text-xs leading-relaxed border border-[#e0e0de] rounded-lg text-black resize-y outline-none box-border"
+                        />
+                        <button
+                            onClick={() => sendAdminReply(sel.consultation_id)}
+                            disabled={aiReplySending || !aiReplyDraft.trim()}
+                            className={`mt-2 inline-flex items-center gap-1.5 py-2 px-4 rounded-md text-xs font-semibold border-none bg-[#F4CF15] text-black ${aiReplySending ? "cursor-not-allowed opacity-70" : "cursor-pointer opacity-100"}`}
+                        >
+                            {aiReplySending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                            {aiReplySending ? "Envoi..." : "Envoyer cette réponse"}
+                        </button>
+                    </div>
+                )}
+                {renderMsg("reply_" + sel.consultation_id)}
+            </div>
+        )
+    }
+
     function renderSupplierListItem(c: Consultation) {
         const name = c.supplier_name || c.supplier_id
         const trade = c.supplier_trade || c.supplier_category
         return (
             <>
-                <div style={{ fontWeight: 600, fontSize: 13, color: C.dark, marginBottom: 2 }}>{name}</div>
-                {trade && <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{trade}</div>}
-                {c.supplier_email && <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>{c.supplier_email}</div>}
+                <div className="font-semibold text-[13px] text-black mb-0.5">{name}</div>
+                {trade && <div className="text-[11px] text-[#7a8080] mb-0.5">{trade}</div>}
+                {c.supplier_email && <div className="text-[10px] text-[#7a8080] mb-1">{c.supplier_email}</div>}
                 {c.matched_products && c.matched_products.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+                    <div className="flex flex-wrap gap-1 mb-1.5">
                         {c.matched_products.map((p: any, idx: number) => (
-                            <span key={idx} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 500, background: C.bg, border: "1px solid " + C.border, color: C.dark }}>
+                            <span key={idx} className="px-1.5 py-px rounded text-[10px] font-medium bg-[#f0f0ee] border border-[#e0e0de] text-black">
                                 {p.name || p.product_name || p.label || "Produit"}
                             </span>
                         ))}
@@ -880,17 +827,17 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     function renderConsultationStatus(status: string) {
-        const cfg: Record<string, { label: string; bg: string; color: string }> = {
-            draft: { label: "Brouillon", bg: "#fef9e0", color: "#b89a00" },
-            created: { label: "Cree", bg: "#f5f5f5", color: "#616161" },
-            pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-            sent: { label: "Envoye", bg: "#e8f0fe", color: "#1a3c7a" },
-            responded: { label: "Repondu", bg: "#e8f8ee", color: "#1a7a3c" },
-            declined: { label: "Decline", bg: "#fef2f2", color: "#991b1b" },
+        const cfg: Record<string, { label: string; bg: string; text: string }> = {
+            draft: { label: "Brouillon", bg: "bg-[#fef9e0]", text: "text-[#b89a00]" },
+            created: { label: "Cree", bg: "bg-[#f5f5f5]", text: "text-[#616161]" },
+            pending: { label: "En attente", bg: "bg-[#fef9e0]", text: "text-[#b89a00]" },
+            sent: { label: "Envoye", bg: "bg-[#e8f0fe]", text: "text-[#1a3c7a]" },
+            responded: { label: "Repondu", bg: "bg-[#e8f8ee]", text: "text-[#1a7a3c]" },
+            declined: { label: "Decline", bg: "bg-[#fef2f2]", text: "text-[#991b1b]" },
         }
-        const c = cfg[status] || { label: status, bg: "#f5f5f5", color: "#616161" }
+        const c = cfg[status] || { label: status, bg: "bg-[#f5f5f5]", text: "text-[#616161]" }
         return (
-            <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>
+            <span className={`inline-block py-[3px] px-2.5 rounded-full text-[11px] font-semibold ${c.bg} ${c.text}`}>
                 {c.label}
             </span>
         )
@@ -903,28 +850,26 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
         if (consultations.length === 0) {
             return (
-                <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                <div className="p-5 text-center text-[#7a8080] text-[13px]">
                     Aucune consultation trouvée. Lancez le routage en étape 1.
                 </div>
             )
         }
 
-        const detailLbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }
-
         return (
             <div>
-                <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, color: C.dark }}>
-                        <span style={{ fontWeight: 600 }}>{responded.length}</span> réponse(s)
+                <div className="flex gap-4 mb-3">
+                    <div className="text-[13px] text-black">
+                        <span className="font-semibold">{responded.length}</span> réponse(s)
                     </div>
-                    <div style={{ fontSize: 13, color: C.muted }}>
-                        <span style={{ fontWeight: 600 }}>{pending.length}</span> en attente
+                    <div className="text-[13px] text-[#7a8080]">
+                        <span className="font-semibold">{pending.length}</span> en attente
                     </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 0, border: "1px solid " + C.border, borderRadius: 10, overflow: "hidden", minHeight: 280 }}>
+                <div className="flex border border-[#e0e0de] rounded-[10px] overflow-hidden min-h-[280px]">
                     {/* Left: supplier list (40%) */}
-                    <div style={{ width: "40%", borderRight: "1px solid " + C.border, overflowY: "auto", maxHeight: 500 }}>
+                    <div className="w-[40%] border-r border-[#e0e0de] overflow-y-auto max-h-[500px]">
                         {allForPanel.map((c) => {
                             const isSelected = expandedConsultation === c.consultation_id
                             const hasReplied = c.status === "responded" || c.status === "replied" || c.reply_message != null
@@ -932,16 +877,11 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                 <div
                                     key={c.consultation_id}
                                     onClick={() => { setExpandedConsultation(isSelected ? null : c.consultation_id); setAiReplyDraft(""); setInlineAiReply(""); setInlineAiInput("") }}
-                                    style={{
-                                        padding: "12px 14px", cursor: "pointer",
-                                        backgroundColor: isSelected ? "#fafaf8" : C.white,
-                                        borderBottom: "1px solid " + C.bg,
-                                        borderLeft: isSelected ? "3px solid " + C.yellow : "3px solid transparent",
-                                    }}
+                                    className={`py-3 px-3.5 cursor-pointer border-b border-[#f0f0ee] border-l-[3px] ${isSelected ? "bg-[#fafaf8] border-l-[#F4CF15]" : "bg-[#FAFFFD] border-l-transparent"}`}
                                 >
-                                    <div style={{ opacity: hasReplied ? 1 : 0.6 }}>
+                                    <div className={hasReplied ? "opacity-100" : "opacity-60"}>
                                         {renderSupplierListItem(c)}
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <div className="flex items-center gap-2">
                                             {renderConsultationStatus(c.status)}
                                         </div>
                                     </div>
@@ -952,13 +892,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                                 sendReminder(c.consultation_id)
                                                 setMsg("reminder_" + c.consultation_id, "ok", "Relance envoyée")
                                             }}
-                                            className="btn-secondary"
-                                            style={{
-                                                marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4,
-                                                padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
-                                                border: "1px solid #e8d88e", background: "#fef9e0", color: "#b89a00",
-                                                cursor: "pointer", opacity: 1, pointerEvents: "auto" as const,
-                                            }}
+                                            className="mt-1.5 inline-flex items-center gap-1 py-1 px-2.5 rounded-[5px] text-[11px] font-semibold border border-[#e8d88e] bg-[#fef9e0] text-[#b89a00] cursor-pointer"
                                         >
                                             <Bell size={10} /> Relancer
                                         </button>
@@ -969,121 +903,38 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         })}
                     </div>
                     {/* Right: detail panel (60%) */}
-                    <div style={{ width: "60%", padding: "16px 20px", overflowY: "auto", maxHeight: 500, backgroundColor: "#fafaf8" }}>
+                    <div className="w-[60%] py-4 px-5 overflow-y-auto max-h-[500px] bg-[#fafaf8]">
                         {(() => {
                             const sel = allForPanel.find((c) => c.consultation_id === expandedConsultation)
                             if (!sel) return (
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, fontSize: 13 }}>
+                                <div className="flex items-center justify-center h-full text-[#7a8080] text-[13px]">
                                     Sélectionnez un fournisseur
                                 </div>
                             )
                             const hasReplied = sel.status === "responded" || sel.status === "replied" || sel.reply_message != null
                             return (
                                 <>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="text-[15px] font-bold text-black">
                                             {sel.supplier_name || sel.supplier_id.slice(0, 10)}
                                         </div>
                                         {renderConsultationStatus(sel.status)}
                                     </div>
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px", marginBottom: 16 }}>
-                                        <div>
-                                            <div style={detailLbl}>Date d'envoi</div>
-                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.sent_at ? formatDate(sel.sent_at) : "—"}</div>
-                                        </div>
-                                        <div>
-                                            <div style={detailLbl}>Date de réponse</div>
-                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.responded_at ? formatDate(sel.responded_at) : "—"}</div>
-                                        </div>
-                                        {sel.response_price != null && (
-                                            <div>
-                                                <div style={detailLbl}>Prix proposé</div>
-                                                <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(sel.response_price)}</div>
-                                            </div>
-                                        )}
-                                        {sel.response_delay && (
-                                            <div>
-                                                <div style={detailLbl}>Délai proposé</div>
-                                                <div style={{ fontSize: 13, color: C.dark }}>{sel.response_delay}</div>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <div style={detailLbl}>Jours depuis l'envoi</div>
-                                            <div style={{ fontSize: 13, color: C.dark }}>
-                                                {sel.sent_at ? Math.max(0, Math.floor((Date.now() - new Date(sel.sent_at).getTime()) / 86400000)) + " j" : "—"}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div style={detailLbl}>Relances envoyées</div>
-                                            <div style={{ fontSize: 13, color: C.dark }}>{sel.reminders_count ?? 0}</div>
-                                        </div>
-                                    </div>
+                                    {renderDetailGrid(sel)}
 
                                     {/* Supplier reply */}
                                     {hasReplied && sel.reply_message ? (
-                                        <div style={{ marginBottom: 14 }}>
-                                            <div style={detailLbl}>Réponse reçue</div>
-                                            <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "10px 12px", backgroundColor: "#f0faf0", borderRadius: 8, border: "1px solid #c6e6c6", maxHeight: 200, overflowY: "auto" }}>
-                                                {sel.reply_message}
-                                            </div>
-                                            <div style={{ marginTop: 10 }}>
-                                                <button
-                                                    onClick={() => generateAIReply(sel)}
-                                                    disabled={aiReplyGenerating}
-                                                    style={{
-                                                        display: "inline-flex", alignItems: "center", gap: 6,
-                                                        padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                        border: "1px solid " + C.border, background: aiReplyGenerating ? "#fef9e0" : C.white,
-                                                        color: C.dark, cursor: aiReplyGenerating ? "not-allowed" : "pointer",
-                                                    }}
-                                                >
-                                                    {aiReplyGenerating ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
-                                                    {aiReplyGenerating ? "Génération..." : "Générer une réponse IA"}
-                                                </button>
-                                            </div>
-                                            {aiReplyDraft && (
-                                                <div style={{ marginTop: 10 }}>
-                                                    <div style={detailLbl}>Réponse à envoyer</div>
-                                                    <textarea
-                                                        value={aiReplyDraft}
-                                                        onChange={(e) => setAiReplyDraft(e.target.value)}
-                                                        rows={6}
-                                                        style={{
-                                                            width: "100%", padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
-                                                            border: "1px solid " + C.border, borderRadius: 8, color: C.dark,
-                                                            resize: "vertical", outline: "none", boxSizing: "border-box",
-                                                        }}
-                                                    />
-                                                    <button
-                                                        onClick={() => sendAdminReply(sel.consultation_id)}
-                                                        disabled={aiReplySending || !aiReplyDraft.trim()}
-                                                        className="btn-primary"
-                                                        style={{
-                                                            marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
-                                                            padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                            border: "none", background: C.yellow, color: C.dark,
-                                                            cursor: aiReplySending ? "not-allowed" : "pointer",
-                                                            opacity: aiReplySending ? 0.7 : 1,
-                                                        }}
-                                                    >
-                                                        {aiReplySending ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={12} />}
-                                                        {aiReplySending ? "Envoi..." : "Envoyer cette réponse"}
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {renderMsg("reply_" + sel.consultation_id)}
-                                        </div>
+                                        renderReplySection(sel)
                                     ) : hasReplied ? (
-                                        <div style={{ padding: 16, textAlign: "center", color: C.muted, fontSize: 13, fontStyle: "italic" }}>
-                                            Ce fournisseur a répondu mais aucun message n'est disponible.
+                                        <div className="p-4 text-center text-[#7a8080] text-[13px] italic">
+                                            Ce fournisseur a répondu mais aucun message n&apos;est disponible.
                                         </div>
                                     ) : (
-                                        <div style={{ padding: 16, textAlign: "center", color: C.muted, fontSize: 13, fontStyle: "italic" }}>
+                                        <div className="p-4 text-center text-[#7a8080] text-[13px] italic">
                                             En attente de réponse de ce fournisseur.
                                         </div>
                                     )}
-                                    {/* Inline AI assistant */}
-                                    {renderInlineAI(sel, detailLbl)}
+                                    {renderInlineAI(sel)}
 
                                     {renderMsg("reminder_" + sel.consultation_id)}
                                 </>
@@ -1100,7 +951,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
         return (
             <div>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <div className="flex gap-2.5 items-center flex-wrap">
                     {renderBtn(
                         quotes.length === 0 ? "Generer le devis client" : "Generer une nouvelle version",
                         generateQuote,
@@ -1112,43 +963,29 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                 {/* Liste des versions */}
                 {sortedQuotes.length > 0 && (
-                    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="mt-3.5 flex flex-col gap-2">
                         {sortedQuotes.map((q) => (
                             <div
                                 key={q.quote_number}
-                                style={{
-                                    display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-                                    padding: "10px 14px", borderRadius: 8,
-                                    border: "1px solid " + (q.validated ? "#bbf7d0" : C.border),
-                                    background: q.validated ? "#f0fdf4" : C.white,
-                                }}
+                                className={`flex items-center gap-2.5 flex-wrap py-2.5 px-3.5 rounded-lg border ${q.validated ? "border-[#bbf7d0] bg-[#f0fdf4]" : "border-[#e0e0de] bg-[#FAFFFD]"}`}
                             >
-                                <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                <span className="text-[13px] font-semibold text-black">
                                     Version {q.version} — {q.quote_number}
                                 </span>
-                                <span style={{ fontSize: 12, color: C.muted }}>
+                                <span className="text-xs text-[#7a8080]">
                                     — {formatDateShort(q.generated_at || q.created_at || "")}
                                 </span>
-                                <span style={{
-                                    padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                    background: q.validated ? "#e8f8ee" : "#f5f5f5",
-                                    color: q.validated ? "#166534" : "#616161",
-                                }}>
+                                <span className={`py-0.5 px-2.5 rounded-full text-[11px] font-semibold ${q.validated ? "bg-[#e8f8ee] text-[#166534]" : "bg-[#f5f5f5] text-[#616161]"}`}>
                                     {q.validated ? (
-                                        <><CheckCircle size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />Valide</>
+                                        <><CheckCircle size={11} className="inline align-middle mr-1" />Valide</>
                                     ) : (
-                                        <><Clock size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />En attente</>
+                                        <><Clock size={11} className="inline align-middle mr-1" />En attente</>
                                     )}
                                 </span>
-                                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                                <div className="ml-auto flex gap-1.5">
                                     <button
                                         onClick={() => setPdfModal({ url: q.quote_url, title: `Devis ${q.quote_number}` })}
-                                        style={{
-                                            display: "inline-flex", alignItems: "center", gap: 4,
-                                            padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                            border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                            cursor: "pointer",
-                                        }}
+                                        className="inline-flex items-center gap-1 py-[5px] px-3 rounded-md text-xs font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black cursor-pointer"
                                     >
                                         <Eye size={13} />
                                         Voir
@@ -1156,12 +993,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     {!q.validated && (
                                         <button
                                             onClick={() => setConfirmValidateQuote(q)}
-                                            style={{
-                                                display: "inline-flex", alignItems: "center", gap: 4,
-                                                padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                                border: "none", background: "#166534", color: "#fff",
-                                                cursor: "pointer",
-                                            }}
+                                            className="inline-flex items-center gap-1 py-[5px] px-3 rounded-md text-xs font-semibold border-none bg-[#166534] text-white cursor-pointer"
                                         >
                                             <Check size={13} />
                                             Valider ce devis
@@ -1176,48 +1008,30 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 {/* Modale confirmation validation */}
                 {confirmValidateQuote && (
                     <>
-                        <div onClick={() => setConfirmValidateQuote(null)} style={{
-                            position: "fixed", inset: 0, zIndex: 1500,
-                            backgroundColor: "rgba(0,0,0,0.4)",
-                        }} />
-                        <div style={{
-                            position: "fixed", top: "50%", left: "50%",
-                            transform: "translate(-50%, -50%)", zIndex: 1501,
-                            background: C.white, borderRadius: 12, padding: 24,
-                            boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
-                            maxWidth: 420, width: "90vw", fontFamily: "Inter, sans-serif",
-                        }}>
-                            <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+                        <div onClick={() => setConfirmValidateQuote(null)} className="fixed inset-0 z-[1500] bg-black/40" />
+                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1501] bg-[#FAFFFD] rounded-xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.2)] max-w-[420px] w-[90vw] font-[Inter,sans-serif]">
+                            <div className="text-[15px] font-semibold text-black mb-3">
                                 Confirmer la validation
                             </div>
-                            <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>
+                            <div className="text-[13px] text-[#7a8080] mb-5">
                                 Confirmer la validation du devis <strong>{confirmValidateQuote.quote_number}</strong> ?
                             </div>
-                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                            <div className="flex gap-2 justify-end">
                                 <button
                                     onClick={() => setConfirmValidateQuote(null)}
-                                    style={{
-                                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                                        border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                        cursor: "pointer",
-                                    }}
+                                    className="py-2 px-4 rounded-lg text-[13px] font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black cursor-pointer"
                                 >
                                     Annuler
                                 </button>
                                 <button
                                     onClick={() => validateQuote(confirmValidateQuote)}
                                     disabled={loading["validate_quote"]}
-                                    style={{
-                                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                                        border: "none", background: "#166534", color: "#fff",
-                                        cursor: loading["validate_quote"] ? "wait" : "pointer",
-                                        opacity: loading["validate_quote"] ? 0.7 : 1,
-                                    }}
+                                    className={`py-2 px-4 rounded-lg text-[13px] font-semibold border-none bg-[#166534] text-white ${loading["validate_quote"] ? "cursor-wait opacity-70" : "cursor-pointer opacity-100"}`}
                                 >
                                     {loading["validate_quote"] ? (
-                                        <><Loader2 size={13} style={{ verticalAlign: "middle", marginRight: 4, animation: "spin 1s linear infinite" }} />Validation...</>
+                                        <><Loader2 size={13} className="inline align-middle mr-1 animate-spin" />Validation...</>
                                     ) : (
-                                        <><Check size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />Confirmer</>
+                                        <><Check size={13} className="inline align-middle mr-1" />Confirmer</>
                                     )}
                                 </button>
                             </div>
@@ -1234,14 +1048,14 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         return (
             <div>
                 {lastValidated ? (
-                    <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 13, color: "#166534" }}>
-                        <CheckCircle size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                        Devis <strong>{lastValidated.quote_number}</strong> valide par l'admin.
+                    <div className="mb-3.5 py-2.5 px-3.5 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] text-[13px] text-[#166534]">
+                        <CheckCircle size={14} className="inline align-middle mr-1.5" />
+                        Devis <strong>{lastValidated.quote_number}</strong> valide par l&apos;admin.
                     </div>
                 ) : (
-                    <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#fef9e0", border: "1px solid #fde68a", fontSize: 13, color: "#b89a00" }}>
-                        <Clock size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                        Aucun devis valide. Validez un devis dans l'etape precedente.
+                    <div className="mb-3.5 py-2.5 px-3.5 rounded-lg bg-[#fef9e0] border border-[#fde68a] text-[13px] text-[#b89a00]">
+                        <Clock size={14} className="inline align-middle mr-1.5" />
+                        Aucun devis valide. Validez un devis dans l&apos;etape precedente.
                     </div>
                 )}
                 {renderBtn(
@@ -1254,9 +1068,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         }
                         setLoad("validation", true)
                         try {
-                            const r = await fetch(`${API_URL}/api/project/${projectId}/validate-quote`, {
+                            const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}/validate-quote`, {
                                 method: "POST",
-                                headers: authHeaders(true),
                                 body: JSON.stringify({ quote_number: target.quote_number }),
                             })
                             const data = await r.json()
@@ -1278,31 +1091,31 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     }
 
     function renderDecisionBadge(decision: string) {
-        if (decision === "accepted") return <span style={{ color: "#166534", fontWeight: 600, fontSize: 12 }}><Check size={13} style={{ verticalAlign: "middle", marginRight: 2 }} />Accepte</span>
-        if (decision === "rejected") return <span style={{ color: "#991b1b", fontWeight: 600, fontSize: 12 }}><X size={13} style={{ verticalAlign: "middle", marginRight: 2 }} />Refuse</span>
-        return <span style={{ color: C.muted, fontSize: 12 }}><Clock size={13} style={{ verticalAlign: "middle", marginRight: 2 }} />En attente</span>
+        if (decision === "accepted") return <span className="text-[#166534] font-semibold text-xs"><Check size={13} className="inline align-middle mr-0.5" />Accepte</span>
+        if (decision === "rejected") return <span className="text-[#991b1b] font-semibold text-xs"><X size={13} className="inline align-middle mr-0.5" />Refuse</span>
+        return <span className="text-[#7a8080] text-xs"><Clock size={13} className="inline align-middle mr-0.5" />En attente</span>
     }
 
     function renderFinalStatus(status: string) {
-        const cfg: Record<string, { label: string; bg: string; color: string }> = {
-            accepted: { label: "Accepte", bg: "#e8f8ee", color: "#1a7a3c" },
-            rejected: { label: "Refuse", bg: "#fef2f2", color: "#991b1b" },
-            pending: { label: "En cours", bg: "#fef9e0", color: "#b89a00" },
+        const cfg: Record<string, { label: string; bg: string; text: string }> = {
+            accepted: { label: "Accepte", bg: "bg-[#e8f8ee]", text: "text-[#1a7a3c]" },
+            rejected: { label: "Refuse", bg: "bg-[#fef2f2]", text: "text-[#991b1b]" },
+            pending: { label: "En cours", bg: "bg-[#fef9e0]", text: "text-[#b89a00]" },
         }
-        const c = cfg[status] || { label: status, bg: "#f5f5f5", color: "#616161" }
-        return <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>{c.label}</span>
+        const c = cfg[status] || { label: status, bg: "bg-[#f5f5f5]", text: "text-[#616161]" }
+        return <span className={`py-[3px] px-2.5 rounded-full text-[11px] font-semibold ${c.bg} ${c.text}`}>{c.label}</span>
     }
 
     function renderInvoicing() {
         if (invoiceResult) {
             return (
                 <div>
-                    <div style={{ padding: "14px 16px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", marginBottom: 12 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#166534", marginBottom: 4 }}>
-                            <Check size={15} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                    <div className="py-3.5 px-4 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] mb-3">
+                        <div className="text-sm font-semibold text-[#166534] mb-1">
+                            <Check size={15} className="inline align-middle mr-1.5" />
                             Facture {invoiceResult.invoice?.invoice_number} generee
                         </div>
-                        <div style={{ fontSize: 13, color: "#166534" }}>
+                        <div className="text-[13px] text-[#166534]">
                             Total : {formatPrice(invoiceResult.invoice?.total || 0)}
                             {invoiceResult.invoice?.payment_type === "split" && (
                                 <span> — Acompte : {formatPrice(invoiceResult.invoice?.deposit_amount || 0)}</span>
@@ -1312,12 +1125,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     {invoiceResult.pdf_url && (
                         <button
                             onClick={() => setPdfModal({ url: invoiceResult.pdf_url!, title: `Facture ${invoiceResult.invoice?.invoice_number || ""}` })}
-                            style={{
-                                display: "inline-flex", alignItems: "center", gap: 6,
-                                padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                                border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                cursor: "pointer",
-                            }}
+                            className="inline-flex items-center gap-1.5 py-2 px-4 rounded-lg text-[13px] font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black cursor-pointer"
                         >
                             <Eye size={14} />
                             Voir la facture PDF
@@ -1332,33 +1140,26 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
         return (
             <div>
                 {/* Line items */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <div className="flex justify-between items-center mb-2">
+                    <div className="text-xs font-semibold text-[#7a8080] uppercase tracking-[0.5px]">
                         Lignes de facturation
                     </div>
                     <button
                         onClick={generateLinesViaAI}
                         disabled={aiGeneratingLines}
-                        className="btn-secondary"
-                        style={{
-                            display: "inline-flex", alignItems: "center", gap: 5,
-                            padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            border: "1px solid " + C.border, background: aiGeneratingLines ? "#fef9e0" : C.white,
-                            color: C.dark, cursor: aiGeneratingLines ? "not-allowed" : "pointer",
-                            opacity: aiGeneratingLines ? 0.7 : 1,
-                        }}
+                        className={`inline-flex items-center gap-[5px] py-[5px] px-3 rounded-md text-[11px] font-semibold border border-[#e0e0de] text-black ${aiGeneratingLines ? "bg-[#fef9e0] cursor-not-allowed opacity-70" : "bg-[#FAFFFD] cursor-pointer opacity-100"}`}
                     >
-                        {aiGeneratingLines ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Brain size={12} />}
+                        {aiGeneratingLines ? <Loader2 size={12} className="animate-spin" /> : <Brain size={12} />}
                         {aiGeneratingLines ? "Generation..." : "Generer les lignes via IA"}
                     </button>
                 </div>
                 {lineItems.map((li, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div key={idx} className="flex gap-2 mb-2 items-center flex-wrap">
                         <input
                             value={li.description}
                             onChange={(e) => updateLine(idx, "description", e.target.value)}
                             placeholder="Description"
-                            style={{ flex: 2, minWidth: 160, padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none" }}
+                            className="flex-[2] min-w-[160px] py-2 px-3 border border-[#e0e0de] rounded-md text-[13px] text-black outline-none"
                         />
                         <input
                             type="number"
@@ -1366,7 +1167,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             onChange={(e) => updateLine(idx, "quantity", Number(e.target.value))}
                             placeholder="Qte"
                             min={1}
-                            style={{ width: 70, padding: "8px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                            className="w-[70px] py-2 px-2.5 border border-[#e0e0de] rounded-md text-[13px] text-black outline-none text-center"
                         />
                         <input
                             type="number"
@@ -1375,13 +1176,13 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             placeholder="PU HT"
                             min={0}
                             step={0.01}
-                            style={{ width: 100, padding: "8px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "right" }}
+                            className="w-[100px] py-2 px-2.5 border border-[#e0e0de] rounded-md text-[13px] text-black outline-none text-right"
                         />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, width: 80, textAlign: "right" }}>
+                        <div className="text-[13px] font-semibold text-black w-20 text-right">
                             {formatPrice(li.quantity * li.unit_price)}
                         </div>
                         {lineItems.length > 1 && (
-                            <button onClick={() => removeLine(idx)} className="btn-danger" style={{ background: "none", border: "none", cursor: "pointer", color: "#991b1b", padding: 4 }}>
+                            <button onClick={() => removeLine(idx)} className="bg-transparent border-none cursor-pointer text-[#991b1b] p-1">
                                 <Trash2 size={14} />
                             </button>
                         )}
@@ -1389,25 +1190,25 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 ))}
                 <button
                     onClick={addLine}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", border: "1px dashed " + C.border, borderRadius: 6, background: "none", fontSize: 12, color: C.muted, cursor: "pointer", marginBottom: 16 }}
+                    className="inline-flex items-center gap-1 py-1.5 px-3 border border-dashed border-[#e0e0de] rounded-md bg-transparent text-xs text-[#7a8080] cursor-pointer mb-4"
                 >
                     <Plus size={13} /> Ajouter une ligne
                 </button>
 
                 {/* Subtotal */}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                <div className="flex justify-end mb-4">
+                    <div className="text-sm font-semibold text-black">
                         Sous-total HT : {formatPrice(subtotal)}
                     </div>
                 </div>
 
                 {/* Due days */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
-                    <label style={{ fontSize: 12, color: C.muted }}>Echeance :</label>
+                <div className="flex items-center gap-1.5 mb-4">
+                    <label className="text-xs text-[#7a8080]">Echeance :</label>
                     <select
                         value={dueDays}
                         onChange={(e) => setDueDays(Number(e.target.value))}
-                        style={{ padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none" }}
+                        className="py-1.5 px-2.5 border border-[#e0e0de] rounded-md text-[13px] text-black outline-none"
                     >
                         <option value={15}>15 jours</option>
                         <option value={30}>30 jours</option>
@@ -1425,23 +1226,18 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
     /* ─────── main render ─────── */
     return (
-        <div style={{ fontFamily: "Inter, sans-serif" }}>
-            <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div className="font-[Inter,sans-serif]">
+            <div className="flex flex-col">
                 {STEPS.map((step, idx) => {
                     const state = stepState(idx)
                     const Icon = step.icon
                     const isExpanded = expandedStep === step.key
 
                     return (
-                        <div key={step.key} style={{ position: "relative" }}>
+                        <div key={step.key} className="relative">
                             {/* Connector line */}
                             {idx > 0 && (
-                                <div style={{
-                                    position: "absolute", top: -8, left: 22,
-                                    width: 2, height: 8,
-                                    background: stepState(idx - 1) === "completed" ? "#22c55e" : C.border,
-                                }} />
+                                <div className={`absolute -top-2 left-[22px] w-0.5 h-2 ${stepState(idx - 1) === "completed" ? "bg-[#22c55e]" : "bg-[#e0e0de]"}`} />
                             )}
 
                             {/* Step header */}
@@ -1455,52 +1251,27 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     setExpandedStep(next)
                                     if (next) { setTimeout(() => { const el = stepRefs.current[next]; if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" }) } }, 100) }
                                 }}
-                                style={{
-                                    display: "flex", alignItems: "center", gap: 12,
-                                    padding: "14px 16px",
-                                    background: stepBg(state),
-                                    borderRadius: 10,
-                                    border: "1.5px solid " + stepBorder(state),
-                                    cursor: "pointer",
-                                    marginBottom: isExpanded ? 0 : 8,
-                                    borderBottomLeftRadius: isExpanded ? 0 : 10,
-                                    borderBottomRightRadius: isExpanded ? 0 : 10,
-                                    transition: "border-color 0.2s, background 0.2s",
-                                }}
+                                className={`flex items-center gap-3 py-3.5 px-4 rounded-[10px] border-[1.5px] cursor-pointer transition-colors duration-200 ${stepBgClass(state)} ${stepBorderClass(state)} ${isExpanded ? "mb-0 rounded-b-none" : "mb-2"}`}
                             >
                                 {/* Step number circle */}
-                                <div style={{
-                                    width: 32, height: 32, borderRadius: "50%",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    background: state === "completed" ? "#22c55e" : state === "active" ? C.yellow : "#e5e5e5",
-                                    color: state === "future" ? C.muted : C.dark,
-                                    fontSize: 13, fontWeight: 700, flexShrink: 0,
-                                }}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0 ${state === "completed" ? "bg-[#22c55e] text-black" : state === "active" ? "bg-[#F4CF15] text-black" : "bg-[#e5e5e5] text-[#7a8080]"}`}>
                                     {state === "completed" ? <Check size={16} color="#fff" /> : idx + 1}
                                 </div>
 
                                 <Icon size={18} color={stepIconColor(state)} />
 
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: state === "future" ? C.muted : C.dark }}>
+                                <div className="flex-1">
+                                    <div className={`text-sm font-semibold ${state === "future" ? "text-[#7a8080]" : "text-black"}`}>
                                         {step.label}
                                     </div>
                                 </div>
 
-                                {isExpanded ? <ChevronUp size={16} color={C.muted} /> : <ChevronDown size={16} color={C.muted} />}
+                                {isExpanded ? <ChevronUp size={16} color="#7a8080" /> : <ChevronDown size={16} color="#7a8080" />}
                             </div>
 
                             {/* Step content */}
                             {isExpanded && (
-                                <div style={{
-                                    padding: "16px 20px",
-                                    background: C.white,
-                                    border: "1.5px solid " + stepBorder(state),
-                                    borderTop: "none",
-                                    borderBottomLeftRadius: 10,
-                                    borderBottomRightRadius: 10,
-                                    marginBottom: 8,
-                                }}>
+                                <div className={`py-4 px-5 bg-[#FAFFFD] border-[1.5px] border-t-0 rounded-b-[10px] mb-2 ${stepBorderClass(state)}`}>
                                     {step.key === "routing" && renderRouting()}
                                     {step.key === "responses" && renderResponses()}
                                     {step.key === "quote" && renderQuote()}
@@ -1517,37 +1288,37 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             {confirmSendConsultation && (
                 <div
                     onClick={() => setConfirmSendConsultation(null)}
-                    style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" }}
+                    className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45"
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        style={{ backgroundColor: C.white, borderRadius: 14, padding: "28px 28px 24px", maxWidth: 560, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+                        className="bg-[#FAFFFD] rounded-[14px] pt-7 px-7 pb-6 max-w-[560px] w-[92%] max-h-[85vh] overflow-y-auto shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
                     >
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                        <h3 className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
                             <Send size={16} /> Confirmer l&apos;envoi
                         </h3>
-                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 20px" }}>
+                        <p className="text-[13px] text-[#7a8080] m-0 mb-5">
                             Vous allez envoyer cette consultation par email.
                         </p>
 
                         {/* Supplier */}
-                        <div style={{ marginBottom: 14 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Fournisseur</div>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                        <div className="mb-3.5">
+                            <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1">Fournisseur</div>
+                            <div className="text-sm font-semibold text-black">
                                 {confirmSendConsultation.supplier_name || confirmSendConsultation.supplier_id.slice(0, 12)}
                             </div>
                             {confirmSendConsultation.supplier_email && (
-                                <div style={{ fontSize: 12, color: C.muted }}>{confirmSendConsultation.supplier_email}</div>
+                                <div className="text-xs text-[#7a8080]">{confirmSendConsultation.supplier_email}</div>
                             )}
                         </div>
 
                         {/* Matched products */}
                         {confirmSendConsultation.matched_products && confirmSendConsultation.matched_products.length > 0 && (
-                            <div style={{ marginBottom: 14 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Produits</div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            <div className="mb-3.5">
+                                <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1.5">Produits</div>
+                                <div className="flex flex-wrap gap-1.5">
                                     {confirmSendConsultation.matched_products.map((p: any, idx: number) => (
-                                        <span key={idx} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: "#fefce8", border: "1px solid #fef08a", color: C.dark }}>
+                                        <span key={idx} className="py-1 px-2.5 rounded-md text-xs font-medium bg-[#fefce8] border border-[#fef08a] text-black">
                                             {p.name || p.product_name || p.label || JSON.stringify(p)}
                                             {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
                                         </span>
@@ -1558,15 +1329,15 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                         {/* Email preview */}
                         {(confirmSendConsultation.email_subject || confirmSendConsultation.email_body) && (
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Apercu email</div>
+                            <div className="mb-5">
+                                <div className="text-[11px] font-bold text-[#7a8080] uppercase tracking-[0.5px] mb-1.5">Apercu email</div>
                                 {confirmSendConsultation.email_subject && (
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 6 }}>
+                                    <div className="text-[13px] font-semibold text-black mb-1.5">
                                         {confirmSendConsultation.email_subject}
                                     </div>
                                 )}
                                 {confirmSendConsultation.email_body && (
-                                    <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "12px 14px", backgroundColor: "#fafaf8", borderRadius: 8, border: "1px solid " + C.border, maxHeight: 220, overflowY: "auto" }}>
+                                    <div className="text-xs text-black leading-relaxed whitespace-pre-wrap py-3 px-3.5 bg-[#fafaf8] rounded-lg border border-[#e0e0de] max-h-[220px] overflow-y-auto">
                                         {confirmSendConsultation.email_body}
                                     </div>
                                 )}
@@ -1576,11 +1347,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         {renderMsg("send_" + confirmSendConsultation.consultation_id)}
 
                         {/* Actions */}
-                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                        <div className="flex gap-2.5 justify-end mt-4">
                             <button
                                 onClick={() => setConfirmSendConsultation(null)}
-                                className="btn-secondary"
-                                style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                                className="py-[9px] px-[22px] rounded-lg border border-[#e0e0de] bg-[#FAFFFD] text-black text-[13px] font-semibold cursor-pointer"
                             >
                                 Annuler
                             </button>
@@ -1590,16 +1360,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                     setConfirmSendConsultation(null)
                                 }}
                                 disabled={loading["send_" + confirmSendConsultation.consultation_id]}
-                                className="btn-primary"
-                                style={{
-                                    padding: "9px 22px", borderRadius: 8, border: "none",
-                                    backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                                    display: "inline-flex", alignItems: "center", gap: 6,
-                                    opacity: loading["send_" + confirmSendConsultation.consultation_id] ? 0.6 : 1,
-                                }}
+                                className={`py-[9px] px-[22px] rounded-lg border-none bg-[#F4CF15] text-black text-[13px] font-bold cursor-pointer inline-flex items-center gap-1.5 ${loading["send_" + confirmSendConsultation.consultation_id] ? "opacity-60" : "opacity-100"}`}
                             >
                                 {loading["send_" + confirmSendConsultation.consultation_id]
-                                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Envoi...</>
+                                    ? <><Loader2 size={14} className="animate-spin" /> Envoi...</>
                                     : <><Send size={14} /> Confirmer l&apos;envoi</>
                                 }
                             </button>
@@ -1614,30 +1378,30 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 return (
                     <div
                         onClick={() => setConfirmSendAll(false)}
-                        style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" }}
+                        className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45"
                     >
                         <div
                             onClick={(e) => e.stopPropagation()}
-                            style={{ backgroundColor: C.white, borderRadius: 14, padding: "28px 28px 24px", maxWidth: 640, width: "92%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+                            className="bg-[#FAFFFD] rounded-[14px] pt-7 px-7 pb-6 max-w-[640px] w-[92%] max-h-[85vh] overflow-y-auto shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
                         >
-                            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                            <h3 className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
                                 <Send size={16} /> Envoyer {drafts.length} consultation{drafts.length > 1 ? "s" : ""}
                             </h3>
-                            <p style={{ fontSize: 13, color: C.muted, margin: "0 0 20px" }}>
+                            <p className="text-[13px] text-[#7a8080] m-0 mb-5">
                                 Les emails suivants seront envoyés aux fournisseurs.
                             </p>
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                            <div className="flex flex-col gap-3 mb-5">
                                 {drafts.map((c) => (
-                                    <div key={c.consultation_id} style={{ padding: "14px 16px", borderRadius: 10, border: "1px solid " + C.border, backgroundColor: "#fafaf8" }}>
+                                    <div key={c.consultation_id} className="py-3.5 px-4 rounded-[10px] border border-[#e0e0de] bg-[#fafaf8]">
                                         {/* Supplier */}
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                                        <div className="flex justify-between items-start mb-2">
                                             <div>
-                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                                <div className="text-sm font-semibold text-black">
                                                     {c.supplier_name || c.supplier_id.slice(0, 12)}
                                                 </div>
                                                 {c.supplier_email && (
-                                                    <div style={{ fontSize: 12, color: C.muted }}>{c.supplier_email}</div>
+                                                    <div className="text-xs text-[#7a8080]">{c.supplier_email}</div>
                                                 )}
                                             </div>
                                             {renderConsultationStatus(c.status)}
@@ -1645,9 +1409,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                                         {/* Matched products */}
                                         {c.matched_products && c.matched_products.length > 0 && (
-                                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                                            <div className="flex flex-wrap gap-1 mb-2">
                                                 {c.matched_products.map((p: any, idx: number) => (
-                                                    <span key={idx} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "#fefce8", border: "1px solid #fef08a", color: C.dark }}>
+                                                    <span key={idx} className="py-0.5 px-2 rounded text-[11px] font-medium bg-[#fefce8] border border-[#fef08a] text-black">
                                                         {p.name || p.product_name || p.label || JSON.stringify(p)}
                                                         {p.quantity ? ` \u00d7 ${p.quantity}` : ""}
                                                     </span>
@@ -1657,10 +1421,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
                                         {/* Email preview */}
                                         {c.email_subject && (
-                                            <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, marginBottom: 4 }}>{c.email_subject}</div>
+                                            <div className="text-xs font-semibold text-black mb-1">{c.email_subject}</div>
                                         )}
                                         {c.email_body && (
-                                            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 80, overflowY: "auto", padding: "6px 10px", backgroundColor: C.white, borderRadius: 6, border: "1px solid " + C.border }}>
+                                            <div className="text-[11px] text-[#7a8080] leading-normal whitespace-pre-wrap max-h-20 overflow-y-auto py-1.5 px-2.5 bg-[#FAFFFD] rounded-md border border-[#e0e0de]">
                                                 {c.email_body}
                                             </div>
                                         )}
@@ -1671,11 +1435,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                             {renderMsg("sendAll")}
 
                             {/* Actions */}
-                            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
+                            <div className="flex gap-2.5 justify-end mt-4">
                                 <button
                                     onClick={() => setConfirmSendAll(false)}
-                                    className="btn-secondary"
-                                    style={{ padding: "9px 22px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                                    className="py-[9px] px-[22px] rounded-lg border border-[#e0e0de] bg-[#FAFFFD] text-black text-[13px] font-semibold cursor-pointer"
                                 >
                                     Annuler
                                 </button>
@@ -1685,16 +1448,10 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                                         setConfirmSendAll(false)
                                     }}
                                     disabled={loading["sendAll"]}
-                                    className="btn-primary"
-                                    style={{
-                                        padding: "9px 22px", borderRadius: 8, border: "none",
-                                        backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                                        display: "inline-flex", alignItems: "center", gap: 6,
-                                        opacity: loading["sendAll"] ? 0.6 : 1,
-                                    }}
+                                    className={`py-[9px] px-[22px] rounded-lg border-none bg-[#F4CF15] text-black text-[13px] font-bold cursor-pointer inline-flex items-center gap-1.5 ${loading["sendAll"] ? "opacity-60" : "opacity-100"}`}
                                 >
                                     {loading["sendAll"]
-                                        ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Envoi...</>
+                                        ? <><Loader2 size={14} className="animate-spin" /> Envoi...</>
                                         : <><Send size={14} /> Confirmer l&apos;envoi ({drafts.length})</>
                                     }
                                 </button>

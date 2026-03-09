@@ -30,6 +30,9 @@ export class ApiError extends Error {
 export class LaFabApi {
   private baseUrl: string;
   private _token: string | null = null;
+  private _refreshToken: string | null = null;
+  private _refreshPromise: Promise<string | null> | null = null;
+  onTokenRefreshed?: (accessToken: string, refreshToken: string) => void;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
@@ -43,6 +46,14 @@ export class LaFabApi {
     this._token = value;
   }
 
+  get refreshToken(): string | null {
+    return this._refreshToken;
+  }
+
+  set refreshToken(value: string | null) {
+    this._refreshToken = value;
+  }
+
   // ----------------------------------------------------------
   // Private HTTP helpers
   // ----------------------------------------------------------
@@ -53,6 +64,25 @@ export class LaFabApi {
     return h;
   }
 
+  private async tryRefresh(): Promise<string | null> {
+    if (!this._refreshToken) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: this._refreshToken }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      this._token = data.access_token;
+      if (data.refresh_token) this._refreshToken = data.refresh_token;
+      this.onTokenRefreshed?.(data.access_token, data.refresh_token);
+      return data.access_token;
+    } catch {
+      return null;
+    }
+  }
+
   private async request<T>(method: string, path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
     let url = `${this.baseUrl}${path}`;
     if (params) {
@@ -60,11 +90,28 @@ export class LaFabApi {
       if (qs) url += `?${qs}`;
     }
 
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method,
       headers: this.headers(),
       body: body != null ? JSON.stringify(body) : undefined,
     });
+
+    if (res.status === 401) {
+      const json = await res.clone().json().catch(() => ({}));
+      if (json.error === "INVALID_TOKEN" || json.code === "TOKEN_EXPIRED") {
+        if (!this._refreshPromise) {
+          this._refreshPromise = this.tryRefresh().finally(() => { this._refreshPromise = null; });
+        }
+        const newToken = await this._refreshPromise;
+        if (newToken) {
+          res = await fetch(url, {
+            method,
+            headers: this.headers(),
+            body: body != null ? JSON.stringify(body) : undefined,
+          });
+        }
+      }
+    }
 
     const json = await res.json();
 
@@ -98,6 +145,7 @@ export class LaFabApi {
   async login(email: string, password: string): Promise<LoginResponse> {
     const res = await this.post<LoginResponse>("/api/auth/login", { email, password });
     this._token = res.session.access_token;
+    if (res.session.refresh_token) this._refreshToken = res.session.refresh_token;
     return res;
   }
 
@@ -109,12 +157,14 @@ export class LaFabApi {
       lastName,
     });
     this._token = res.session.access_token;
+    if (res.session.refresh_token) this._refreshToken = res.session.refresh_token;
     return res;
   }
 
   async logout(): Promise<void> {
     await this.post("/api/auth/logout");
     this._token = null;
+    this._refreshToken = null;
   }
 
   async getMe(): Promise<User> {

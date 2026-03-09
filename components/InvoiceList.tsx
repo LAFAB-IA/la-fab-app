@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
+import { fetchWithAuth } from "@/lib/api"
 import { FileText, Clock, CreditCard, CheckCircle2, ExternalLink } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 import Drawer from "@/components/shared/Drawer"
@@ -46,9 +47,7 @@ export default function InvoiceList() {
         if (authLoading) return
         if (!isAuthenticated || !token) { setError("Non authentifié"); setLoading(false); return }
 
-        fetch(`${API_URL}/api/invoice/list`, {
-            headers: { Authorization: "Bearer " + token },
-        })
+        fetchWithAuth(`${API_URL}/api/invoice/list`)
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setInvoices(data.invoices)
@@ -63,9 +62,8 @@ export default function InvoiceList() {
         setPayingId(invoiceId)
         setPayError("")
 
-        fetch(`${API_URL}/api/stripe/create-checkout/${invoiceId}?step=${step}`, {
+        fetchWithAuth(`${API_URL}/api/stripe/create-checkout/${invoiceId}?step=${step}`, {
             method: "POST",
-            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
         })
             .then((r) => r.json())
             .then((data) => {
