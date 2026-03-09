@@ -7,10 +7,12 @@ import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox,
-    SearchX, ChevronDown
+    SearchX, ChevronDown, MessageSquare
 } from "lucide-react"
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
+import Drawer from "@/components/shared/Drawer"
+import ProjectWorkspace from "@/components/ProjectWorkspace"
 
 const { useState, useEffect } = React
 
@@ -33,6 +35,8 @@ export default function SupplierConsultations() {
     const [replyData, setReplyData] = useState<Record<string, { response: string; price: string; delay: string; notes: string }>>({})
     const [sending, setSending] = useState<Record<string, boolean>>({})
     const [msgs, setMsgs] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
+    const [workspaceProjectId, setWorkspaceProjectId] = useState<string | null>(null)
+    const [workspaceDrawerOpen, setWorkspaceDrawerOpen] = useState(false)
 
     const lv = useListView(consultations, {
         storageKey: "consultations_view_mode",
@@ -155,7 +159,20 @@ export default function SupplierConsultations() {
                                 Envoye le {formatDate(c.sent_at || c.created_at)}
                             </div>
                         </div>
-                        {renderStatus(c.status)}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button
+                                onClick={() => { setWorkspaceProjectId(c.project_id); setWorkspaceDrawerOpen(true) }}
+                                style={{
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                    padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                    backgroundColor: C.bg, color: C.dark, border: "1px solid " + C.border,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <MessageSquare size={13} /> Espace projet
+                            </button>
+                            {renderStatus(c.status)}
+                        </div>
                     </div>
                     {c.specifications && (
                         <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
@@ -332,6 +349,10 @@ export default function SupplierConsultations() {
                     {lv.filtered.map(renderCard)}
                 </div>
             )}
+
+            <Drawer isOpen={workspaceDrawerOpen} onClose={() => setWorkspaceDrawerOpen(false)} title="Espace projet" width="900px">
+                {workspaceProjectId && <ProjectWorkspace projectId={workspaceProjectId} />}
+            </Drawer>
 
             <style>{`
                 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }

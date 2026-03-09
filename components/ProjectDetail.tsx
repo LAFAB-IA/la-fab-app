@@ -9,6 +9,7 @@ import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory, CalendarDays } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
+import ProjectWorkspace from "@/components/ProjectWorkspace"
 
 interface ProjectDetailProps {
     projectId?: string
@@ -42,6 +43,9 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [msgText, setMsgText] = useState("")
     const [sending, setSending] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+
+    // Tabs
+    const [activeTab, setActiveTab] = useState<"project" | "workspace">("project")
 
     // Fetch project
     useEffect(() => {
@@ -241,6 +245,27 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         <ProjectTimeline status={status} />
                     </div>
 
+                    {/* Tabs */}
+                    <div style={{ display: "flex", gap: 0, borderBottom: "2px solid " + C.border, marginTop: 24, marginBottom: 24 }}>
+                        {(["project", "workspace"] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                style={{
+                                    padding: "10px 20px", fontSize: 13, fontWeight: 700, color: activeTab === tab ? C.dark : C.muted,
+                                    background: "none", border: "none", cursor: "pointer",
+                                    borderBottom: activeTab === tab ? "2px solid " + C.yellow : "2px solid transparent",
+                                    marginBottom: -2, textTransform: "uppercase", letterSpacing: 0.5,
+                                }}
+                            >
+                                {tab === "project" ? "Projet" : "Espace projet"}
+                            </button>
+                        ))}
+                    </div>
+
+                    {activeTab === "workspace" && <ProjectWorkspace projectId={id!} />}
+
+                    {activeTab === "project" && <>
                     {/* Briefs */}
                     <div style={sec}>Briefs</div>
                     {briefsLoading ? (
@@ -840,6 +865,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             </button>
                         </div>
                     </div>
+                    </>}
 
                 </div>
             </div>
