@@ -7,10 +7,21 @@ import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox,
-    Search, X, SearchX, List, LayoutGrid, ChevronDown
+    SearchX, ChevronDown
 } from "lucide-react"
+import useListView from "@/hooks/useListView"
+import ListToolbar from "@/components/ListToolbar"
 
 const { useState, useEffect } = React
+
+const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
+    sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+    pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+    replied: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
+    responded: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
+    validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a" },
+}
+const STATUS_ORDER_C = ["sent", "pending", "replied", "responded", "validated"]
 
 export default function SupplierConsultations() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -18,19 +29,32 @@ export default function SupplierConsultations() {
     const [error, setError] = useState("")
     const [consultations, setConsultations] = useState<any[]>([])
 
-    const [search, setSearch] = useState("")
-    const [viewMode, setViewMode] = useState<"list" | "group">(() => {
-        if (typeof window !== "undefined") {
-            return (localStorage.getItem("consultations_view_mode") as "list" | "group") || "list"
-        }
-        return "list"
-    })
-    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-
     /* reply form state per consultation */
     const [replyData, setReplyData] = useState<Record<string, { response: string; price: string; delay: string; notes: string }>>({})
     const [sending, setSending] = useState<Record<string, boolean>>({})
     const [msgs, setMsgs] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
+
+    const lv = useListView(consultations, {
+        storageKey: "consultations_view_mode",
+        defaultViewMode: "list",
+        searchFields: (c) => [c.project_id, c.specifications, c.brief_description, c.response_text],
+        statusOptions: STATUS_ORDER_C.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i })),
+        getItemStatus: (c) => c.status || "pending",
+        getItemDate: (c) => c.sent_at || c.created_at,
+        sortOptions: [
+            { key: "date", label: "Date" },
+            { key: "status", label: "Statut" },
+        ],
+        getSortValue: (c, key) => {
+            switch (key) {
+                case "date": return new Date(c.sent_at || c.created_at).getTime()
+                case "status": return STATUS_ORDER_C.indexOf(c.status) === -1 ? 99 : STATUS_ORDER_C.indexOf(c.status)
+                default: return 0
+            }
+        },
+        defaultSortKey: "date",
+        defaultSortDir: "desc",
+    })
 
     useEffect(() => {
         if (authLoading) return
@@ -101,42 +125,6 @@ export default function SupplierConsultations() {
             <p style={{ color: "#c0392b" }}>{error}</p>
         </div>
     )
-
-    const q = search.toLowerCase().trim()
-    const filtered = q
-        ? consultations.filter(c => {
-            const fields = [c.project_id, c.specifications, c.brief_description, c.response_text]
-            return fields.some(f => f && String(f).toLowerCase().includes(q))
-        })
-        : consultations
-
-    const sorted = [...filtered].sort((a, b) =>
-        new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime()
-    )
-
-    const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
-        sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-        pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-        replied: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
-        responded: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
-        validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a" },
-    }
-    const STATUS_ORDER_C = ["sent", "pending", "replied", "responded", "validated"]
-
-    const grouped: Record<string, any[]> = {}
-    for (const c of sorted) {
-        const s = c.status || "pending"
-        if (!grouped[s]) grouped[s] = []
-        grouped[s].push(c)
-    }
-    const sortedStatuses = Object.keys(grouped).sort(
-        (a, b) => (STATUS_ORDER_C.indexOf(a) === -1 ? 99 : STATUS_ORDER_C.indexOf(a)) - (STATUS_ORDER_C.indexOf(b) === -1 ? 99 : STATUS_ORDER_C.indexOf(b))
-    )
-
-    function toggleView(mode: "list" | "group") {
-        setViewMode(mode)
-        localStorage.setItem("consultations_view_mode", mode)
-    }
 
     function renderCard(c: any) {
         const cId = c.consultation_id || c.id
@@ -266,63 +254,39 @@ export default function SupplierConsultations() {
                 </a>
             </div>
 
-            {/* Search + View toggle */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
-                <div style={{ flex: 1, position: "relative" }}>
-                    <Search size={15} style={{ position: "absolute", left: 12, top: 11, color: C.muted }} />
-                    <input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Rechercher une consultation..."
-                        style={{
-                            width: "100%", padding: "10px 36px", borderRadius: 8,
-                            border: "1px solid " + C.border, fontSize: 14, color: C.dark,
-                            backgroundColor: C.white, outline: "none", fontFamily: "inherit",
-                            boxSizing: "border-box",
-                        }}
-                    />
-                    {search && (
-                        <button
-                            onClick={() => setSearch("")}
-                            style={{ position: "absolute", right: 10, top: 10, background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 0 }}
-                        >
-                            <X size={16} />
-                        </button>
-                    )}
-                </div>
-                <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 8, border: "1px solid " + C.border, background: C.white }}>
-                    <button
-                        onClick={() => toggleView("list")}
-                        style={{
-                            padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                            background: viewMode === "list" ? C.yellow : "transparent",
-                            color: viewMode === "list" ? C.dark : C.muted,
-                        }}
-                    >
-                        <List size={16} />
-                    </button>
-                    <button
-                        onClick={() => toggleView("group")}
-                        style={{
-                            padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                            background: viewMode === "group" ? C.yellow : "transparent",
-                            color: viewMode === "group" ? C.dark : C.muted,
-                        }}
-                    >
-                        <LayoutGrid size={16} />
-                    </button>
-                </div>
-            </div>
+            {/* Toolbar */}
+            <ListToolbar
+                search={lv.search}
+                onSearchChange={lv.setSearch}
+                placeholder="Rechercher une consultation..."
+                viewModes={["list", "group"]}
+                viewMode={lv.viewMode}
+                onViewModeChange={lv.setViewMode}
+                filters={lv.filters}
+                onFiltersChange={lv.setFilters}
+                onFiltersReset={lv.resetFilters}
+                activeFilterCount={lv.activeFilterCount}
+                statusOptions={STATUS_ORDER_C.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i }))}
+                showDateFilter
+                sortOptions={[
+                    { key: "date", label: "Date" },
+                    { key: "status", label: "Statut" },
+                ]}
+                sortKey={lv.sortKey}
+                sortDir={lv.sortDir}
+                onSortKeyChange={lv.setSortKey}
+                onSortDirToggle={() => lv.setSortDir(lv.sortDir === "asc" ? "desc" : "asc")}
+            />
 
             {/* No search results */}
-            {consultations.length > 0 && filtered.length === 0 && (
+            {consultations.length > 0 && lv.filtered.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
                     <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation ne correspond a votre recherche</div>
                 </div>
             )}
 
-            {sorted.length === 0 && consultations.length === 0 && (
+            {lv.filtered.length === 0 && consultations.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
                     <Inbox size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation</div>
@@ -331,16 +295,16 @@ export default function SupplierConsultations() {
             )}
 
             {/* Group view */}
-            {viewMode === "group" && sorted.length > 0 && (
+            {lv.viewMode === "group" && lv.filtered.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 16 }}>
-                    {sortedStatuses.map(status => {
+                    {lv.sortedGroupKeys.map(status => {
                         const sc = STATUS_CFG[status] || { label: status, bg: "#f5f5f5", color: "#616161" }
-                        const items = grouped[status]
-                        const isCollapsed = !!collapsed[status]
+                        const items = lv.grouped[status]
+                        const isCollapsed = !!lv.collapsed[status]
                         return (
                             <div key={status}>
                                 <div
-                                    onClick={() => setCollapsed(prev => ({ ...prev, [status]: !prev[status] }))}
+                                    onClick={() => lv.toggleCollapsed(status)}
                                     style={{
                                         display: "flex", alignItems: "center", gap: 10,
                                         padding: "10px 16px", borderRadius: 10,
@@ -363,9 +327,9 @@ export default function SupplierConsultations() {
             )}
 
             {/* List view */}
-            {viewMode === "list" && sorted.length > 0 && (
+            {lv.viewMode === "list" && lv.filtered.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {sorted.map(renderCard)}
+                    {lv.filtered.map(renderCard)}
                 </div>
             )}
 

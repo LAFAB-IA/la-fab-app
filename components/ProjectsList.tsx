@@ -4,10 +4,12 @@ import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
-import { ClipboardList, ExternalLink, List, LayoutGrid, Search, X, SearchX, ChevronDown } from "lucide-react"
+import { ClipboardList, ExternalLink, SearchX, ChevronDown } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 import Drawer from "@/components/shared/Drawer"
 import ProjectDetail from "@/components/ProjectDetail"
+import useListView from "@/hooks/useListView"
+import ListToolbar from "@/components/ListToolbar"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -79,6 +81,39 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
     )
 }
 
+function ProjectGridCard({ project, onClick }: { project: any; onClick: () => void }) {
+    const sc = STATUS_CONFIG[project.status] || { label: project.status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
+    const hasPrice = project.pricing?.total_net != null
+
+    return (
+        <div
+            onClick={onClick}
+            className="row-hover"
+            style={{
+                backgroundColor: C.white, borderRadius: 12, padding: "16px 18px",
+                boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border,
+                cursor: "pointer", transition: "box-shadow 0.15s", position: "relative",
+            }}
+        >
+            <span style={{
+                position: "absolute", top: 12, right: 12,
+                padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border,
+            }}>
+                {sc.label}
+            </span>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 4, paddingRight: 90 }}>
+                {project.product?.label || project.brief_analysis?.product_type || "Brief uploade"}
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{project.project_id}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{formatDate(project.created_at)}</div>
+            {hasPrice && (
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginTop: 6 }}>{formatPrice(project.pricing.total_net)}</div>
+            )}
+        </div>
+    )
+}
+
 export default function ProjectsList() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [projects, setProjects] = useState<any[]>([])
@@ -87,19 +122,32 @@ export default function ProjectsList() {
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
 
-    // View mode
-    const [viewMode, setViewMode] = useState<"list" | "group">(() => {
-        if (typeof window !== "undefined") {
-            return (localStorage.getItem("projects_view_mode") as "list" | "group") || "list"
-        }
-        return "list"
+    const lv = useListView(projects, {
+        storageKey: "projects_view_mode",
+        defaultViewMode: "list",
+        searchFields: (p) => [p.product?.label, p.brief_analysis?.product_type, p.brief_analysis?.description, p.project_id, p.client_name, p.account_name],
+        statusOptions: STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i })),
+        getItemStatus: (p) => p.status || "unknown",
+        getItemDate: (p) => p.created_at,
+        getItemPrice: (p) => p.pricing?.total_net != null ? Number(p.pricing.total_net) : null,
+        sortOptions: [
+            { key: "date", label: "Date" },
+            { key: "name", label: "Nom" },
+            { key: "price", label: "Prix" },
+            { key: "status", label: "Statut" },
+        ],
+        getSortValue: (p, key) => {
+            switch (key) {
+                case "date": return new Date(p.created_at).getTime()
+                case "name": return p.product?.label || p.brief_analysis?.product_type || ""
+                case "price": return Number(p.pricing?.total_net) || 0
+                case "status": return STATUS_ORDER.indexOf(p.status) === -1 ? 99 : STATUS_ORDER.indexOf(p.status)
+                default: return 0
+            }
+        },
+        defaultSortKey: "date",
+        defaultSortDir: "desc",
     })
-
-    // Search
-    const [search, setSearch] = useState("")
-
-    // Collapsed groups
-    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
         if (authLoading) return
@@ -124,42 +172,6 @@ export default function ProjectsList() {
         setDrawerOpen(false)
         setSelectedProjectId(null)
     }
-
-    function toggleView(mode: "list" | "group") {
-        setViewMode(mode)
-        localStorage.setItem("projects_view_mode", mode)
-    }
-
-    function toggleGroup(status: string) {
-        setCollapsed(prev => ({ ...prev, [status]: !prev[status] }))
-    }
-
-    // Filter projects
-    const q = search.toLowerCase().trim()
-    const filtered = q
-        ? projects.filter(p => {
-            const fields = [
-                p.product?.label,
-                p.brief_analysis?.product_type,
-                p.brief_analysis?.description,
-                p.project_id,
-                p.client_name,
-                p.account_name,
-            ]
-            return fields.some(f => f && String(f).toLowerCase().includes(q))
-        })
-        : projects
-
-    // Group by status
-    const grouped: Record<string, any[]> = {}
-    for (const p of filtered) {
-        const s = p.status || "unknown"
-        if (!grouped[s]) grouped[s] = []
-        grouped[s].push(p)
-    }
-    const sortedStatuses = Object.keys(grouped).sort(
-        (a, b) => (STATUS_ORDER.indexOf(a) === -1 ? 99 : STATUS_ORDER.indexOf(a)) - (STATUS_ORDER.indexOf(b) === -1 ? 99 : STATUS_ORDER.indexOf(b))
-    )
 
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
@@ -192,53 +204,32 @@ export default function ProjectsList() {
                     </a>
                 </div>
 
-                {/* Search + View toggle */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
-                    <div style={{ flex: 1, position: "relative" }}>
-                        <Search size={15} style={{ position: "absolute", left: 12, top: 11, color: C.muted }} />
-                        <input
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder="Rechercher un projet..."
-                            style={{
-                                width: "100%", padding: "10px 36px", borderRadius: 8,
-                                border: "1px solid " + C.border, fontSize: 14, color: C.dark,
-                                backgroundColor: C.white, outline: "none", fontFamily: "inherit",
-                                boxSizing: "border-box",
-                            }}
-                        />
-                        {search && (
-                            <button
-                                onClick={() => setSearch("")}
-                                style={{ position: "absolute", right: 10, top: 10, background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 0 }}
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                    </div>
-                    <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 8, border: "1px solid " + C.border, background: C.white }}>
-                        <button
-                            onClick={() => toggleView("list")}
-                            style={{
-                                padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                                background: viewMode === "list" ? C.yellow : "transparent",
-                                color: viewMode === "list" ? C.dark : C.muted,
-                            }}
-                        >
-                            <List size={16} />
-                        </button>
-                        <button
-                            onClick={() => toggleView("group")}
-                            style={{
-                                padding: "6px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                                background: viewMode === "group" ? C.yellow : "transparent",
-                                color: viewMode === "group" ? C.dark : C.muted,
-                            }}
-                        >
-                            <LayoutGrid size={16} />
-                        </button>
-                    </div>
-                </div>
+                {/* Toolbar */}
+                <ListToolbar
+                    search={lv.search}
+                    onSearchChange={lv.setSearch}
+                    placeholder="Rechercher un projet..."
+                    viewModes={["list", "grid", "group"]}
+                    viewMode={lv.viewMode}
+                    onViewModeChange={lv.setViewMode}
+                    filters={lv.filters}
+                    onFiltersChange={lv.setFilters}
+                    onFiltersReset={lv.resetFilters}
+                    activeFilterCount={lv.activeFilterCount}
+                    statusOptions={STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i }))}
+                    showDateFilter
+                    showPriceFilter
+                    sortOptions={[
+                        { key: "date", label: "Date" },
+                        { key: "name", label: "Nom" },
+                        { key: "price", label: "Prix" },
+                        { key: "status", label: "Statut" },
+                    ]}
+                    sortKey={lv.sortKey}
+                    sortDir={lv.sortDir}
+                    onSortKeyChange={lv.setSortKey}
+                    onSortDirToggle={() => lv.setSortDir(lv.sortDir === "asc" ? "desc" : "asc")}
+                />
 
                 {/* Liste vide */}
                 {projects.length === 0 && (
@@ -259,7 +250,7 @@ export default function ProjectsList() {
                 )}
 
                 {/* No search results */}
-                {projects.length > 0 && filtered.length === 0 && (
+                {projects.length > 0 && lv.filtered.length === 0 && (
                     <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
                         <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
                         <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucun projet ne correspond a votre recherche</div>
@@ -267,26 +258,35 @@ export default function ProjectsList() {
                 )}
 
                 {/* List view */}
-                {viewMode === "list" && filtered.length > 0 && (
+                {lv.viewMode === "list" && lv.filtered.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {filtered.map((project: any) => (
+                        {lv.filtered.map((project: any) => (
                             <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
                         ))}
                     </div>
                 )}
 
+                {/* Grid view */}
+                {lv.viewMode === "grid" && lv.filtered.length > 0 && (
+                    <div className="list-grid-3col">
+                        {lv.filtered.map((project: any) => (
+                            <ProjectGridCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
+                        ))}
+                    </div>
+                )}
+
                 {/* Group view */}
-                {viewMode === "group" && filtered.length > 0 && (
+                {lv.viewMode === "group" && lv.filtered.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                        {sortedStatuses.map(status => {
+                        {lv.sortedGroupKeys.map(status => {
                             const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
-                            const items = grouped[status]
-                            const isCollapsed = !!collapsed[status]
+                            const items = lv.grouped[status]
+                            const isCollapsed = !!lv.collapsed[status]
 
                             return (
                                 <div key={status}>
                                     <div
-                                        onClick={() => toggleGroup(status)}
+                                        onClick={() => lv.toggleCollapsed(status)}
                                         style={{
                                             display: "flex", alignItems: "center", gap: 10,
                                             padding: "10px 16px", borderRadius: 10,

@@ -4,10 +4,12 @@ import React, { useEffect, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
-import { FileText, Clock, CreditCard, CheckCircle2, ExternalLink } from "lucide-react"
+import { FileText, Clock, CreditCard, CheckCircle2, ExternalLink, SearchX } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 import Drawer from "@/components/shared/Drawer"
 import InvoiceDetail from "@/components/InvoiceDetail"
+import useListView from "@/hooks/useListView"
+import ListToolbar from "@/components/ListToolbar"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
@@ -15,6 +17,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; 
     paid:    { label: "Payée",          bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
     overdue: { label: "En retard",      bg: "#fee",    color: "#c0392b", border: "#f5c6c6" },
 }
+
+const STATUS_ORDER = ["draft", "pending", "overdue", "paid"]
 
 function StatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
@@ -33,6 +37,42 @@ function SplitBadge({ label, color }: { label: string; color: string }) {
     )
 }
 
+function InvoiceGridCard({ invoice, onClick }: { invoice: any; onClick: () => void }) {
+    const sc = STATUS_CONFIG[invoice.status] || { label: invoice.status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
+
+    return (
+        <div
+            onClick={onClick}
+            className="row-hover"
+            style={{
+                backgroundColor: C.white, borderRadius: 12, padding: "16px 18px",
+                boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border,
+                cursor: "pointer", transition: "box-shadow 0.15s", position: "relative",
+            }}
+        >
+            <span style={{
+                position: "absolute", top: 12, right: 12,
+                padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border,
+            }}>
+                {sc.label}
+            </span>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 4, paddingRight: 80 }}>
+                {invoice.invoice_number}
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{invoice.project_id}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 6 }}>
+                {formatPrice(Number(invoice.total))}
+            </div>
+            {invoice.due_at && (
+                <div style={{ fontSize: 12, color: invoice.status === "overdue" ? "#c0392b" : C.muted }}>
+                    Échéance : {formatDate(invoice.due_at)}
+                </div>
+            )}
+        </div>
+    )
+}
+
 export default function InvoiceList() {
     const { token, isAuthenticated, isLoading: authLoading } = useAuth()
     const [invoices, setInvoices] = useState<any[]>([])
@@ -42,6 +82,31 @@ export default function InvoiceList() {
     const [payError, setPayError] = useState("")
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
+
+    const lv = useListView(invoices, {
+        storageKey: "invoices_view_mode",
+        defaultViewMode: "list",
+        searchFields: (inv) => [inv.invoice_number, inv.project_id],
+        statusOptions: STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i })),
+        getItemStatus: (inv) => inv.status || "draft",
+        getItemDate: (inv) => inv.due_at || inv.created_at,
+        getItemPrice: (inv) => inv.total != null ? Number(inv.total) : null,
+        sortOptions: [
+            { key: "date", label: "Date" },
+            { key: "amount", label: "Montant" },
+            { key: "status", label: "Statut" },
+        ],
+        getSortValue: (inv, key) => {
+            switch (key) {
+                case "date": return new Date(inv.due_at || inv.created_at).getTime()
+                case "amount": return Number(inv.total) || 0
+                case "status": return STATUS_ORDER.indexOf(inv.status) === -1 ? 99 : STATUS_ORDER.indexOf(inv.status)
+                default: return 0
+            }
+        },
+        defaultSortKey: "date",
+        defaultSortDir: "desc",
+    })
 
     useEffect(() => {
         if (authLoading) return
@@ -110,6 +175,32 @@ export default function InvoiceList() {
                     <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{invoices.length} facture{invoices.length > 1 ? "s" : ""}</p>
                 </div>
 
+                {/* Toolbar */}
+                <ListToolbar
+                    search={lv.search}
+                    onSearchChange={lv.setSearch}
+                    placeholder="Rechercher une facture..."
+                    viewModes={["list", "grid"]}
+                    viewMode={lv.viewMode}
+                    onViewModeChange={lv.setViewMode}
+                    filters={lv.filters}
+                    onFiltersChange={lv.setFilters}
+                    onFiltersReset={lv.resetFilters}
+                    activeFilterCount={lv.activeFilterCount}
+                    statusOptions={STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i }))}
+                    showDateFilter
+                    showPriceFilter
+                    sortOptions={[
+                        { key: "date", label: "Date" },
+                        { key: "amount", label: "Montant" },
+                        { key: "status", label: "Statut" },
+                    ]}
+                    sortKey={lv.sortKey}
+                    sortDir={lv.sortDir}
+                    onSortKeyChange={lv.setSortKey}
+                    onSortDirToggle={() => lv.setSortDir(lv.sortDir === "asc" ? "desc" : "asc")}
+                />
+
                 {payError && (
                     <div style={{ marginBottom: 16, padding: "12px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>
                         {payError}
@@ -125,135 +216,154 @@ export default function InvoiceList() {
                     </div>
                 )}
 
-                {/* Cartes factures */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {invoices.map((invoice: any) => {
-                        const isPaying = payingId === invoice.id
-                        const isSplit = invoice.payment_type === "split"
-                        const step = invoice.payment_step
+                {/* No search results */}
+                {invoices.length > 0 && lv.filtered.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
+                        <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
+                        <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune facture ne correspond a votre recherche</div>
+                    </div>
+                )}
 
-                        return (
-                            <div
-                                key={invoice.id}
-                                style={{ backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}
-                            >
-                                {/* Ligne principale */}
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                                    <div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 4 }}>
-                                            {invoice.invoice_number}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: C.muted }}>{invoice.project_id}</div>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                                        <StatusBadge status={invoice.status} />
-                                        {isSplit && step === "deposit_paid" && <SplitBadge label="Acompte payé" color="green" />}
-                                        {isSplit && step === "fully_paid" && <SplitBadge label="Payé intégralement" color="green" />}
-                                    </div>
-                                </div>
+                {/* Grid view */}
+                {lv.viewMode === "grid" && lv.filtered.length > 0 && (
+                    <div className="list-grid-3col">
+                        {lv.filtered.map((invoice: any) => (
+                            <InvoiceGridCard key={invoice.id} invoice={invoice} onClick={() => openInvoice(invoice.id)} />
+                        ))}
+                    </div>
+                )}
 
-                                {/* Infos */}
-                                <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16 }}>
-                                    <div>
-                                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Montant TTC</div>
-                                        <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{formatPrice(Number(invoice.total))}</div>
-                                    </div>
-                                    {invoice.due_at && (
+                {/* List view - Cartes factures */}
+                {lv.viewMode === "list" && lv.filtered.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {lv.filtered.map((invoice: any) => {
+                            const isPaying = payingId === invoice.id
+                            const isSplit = invoice.payment_type === "split"
+                            const step = invoice.payment_step
+
+                            return (
+                                <div
+                                    key={invoice.id}
+                                    style={{ backgroundColor: C.white, borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 3px rgba(58,64,64,0.08)", border: "1px solid " + C.border }}
+                                >
+                                    {/* Ligne principale */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                                         <div>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Échéance</div>
-                                            <div style={{ fontSize: 13, color: invoice.status === "overdue" ? "#c0392b" : C.dark, fontWeight: 500 }}>
-                                                {formatDate(invoice.due_at)}
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 4 }}>
+                                                {invoice.invoice_number}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: C.muted }}>{invoice.project_id}</div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                                            <StatusBadge status={invoice.status} />
+                                            {isSplit && step === "deposit_paid" && <SplitBadge label="Acompte payé" color="green" />}
+                                            {isSplit && step === "fully_paid" && <SplitBadge label="Payé intégralement" color="green" />}
+                                        </div>
+                                    </div>
+
+                                    {/* Infos */}
+                                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 16 }}>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Montant TTC</div>
+                                            <div style={{ fontSize: 18, color: C.dark, fontWeight: 700 }}>{formatPrice(Number(invoice.total))}</div>
+                                        </div>
+                                        {invoice.due_at && (
+                                            <div>
+                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Échéance</div>
+                                                <div style={{ fontSize: 13, color: invoice.status === "overdue" ? "#c0392b" : C.dark, fontWeight: 500 }}>
+                                                    {formatDate(invoice.due_at)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {invoice.paid_at && (
+                                            <div>
+                                                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Payée le</div>
+                                                <div style={{ fontSize: 13, color: "#1a7a3c", fontWeight: 500 }}>
+                                                    {formatDate(invoice.paid_at)}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Split payment info */}
+                                    {isSplit && (
+                                        <div style={{ padding: "12px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, marginBottom: 16, fontSize: 13, color: C.dark }}>
+                                            <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Paiement en 2 fois</div>
+                                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                                <span>Acompte 30% : <strong>{formatPrice(Number(invoice.deposit_amount))}</strong></span>
+                                                <span style={{ color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
+                                                    {step === "deposit_paid" || step === "fully_paid" ? "Paye" : "En attente"}
+                                                </span>
+                                            </div>
+                                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                <span>Solde 70% : <strong>{formatPrice(Number(invoice.balance_amount))}</strong></span>
+                                                <span style={{ color: step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
+                                                    {step === "fully_paid" ? "Paye" : "En attente"}
+                                                </span>
                                             </div>
                                         </div>
                                     )}
-                                    {invoice.paid_at && (
-                                        <div>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Payée le</div>
-                                            <div style={{ fontSize: 13, color: "#1a7a3c", fontWeight: 500 }}>
-                                                {formatDate(invoice.paid_at)}
+
+                                    {/* Actions */}
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        <button
+                                            onClick={() => openInvoice(invoice.id)}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                                        >
+                                            <FileText size={14} />Voir la facture
+                                        </button>
+
+                                        {/* Split: deposit pending */}
+                                        {isSplit && step === "pending" && (
+                                            <button
+                                                onClick={() => handlePay(invoice.id, "deposit")}
+                                                disabled={isPaying}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            >
+                                                {isPaying
+                                                    ? <><Clock size={14} />Redirection...</>
+                                                    : <><CreditCard size={14} />Payer l&apos;acompte ({formatPrice(Number(invoice.deposit_amount))})</>}
+                                            </button>
+                                        )}
+
+                                        {/* Split: balance pending */}
+                                        {isSplit && step === "deposit_paid" && (
+                                            <button
+                                                onClick={() => handlePay(invoice.id, "balance")}
+                                                disabled={isPaying}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            >
+                                                {isPaying
+                                                    ? <><Clock size={14} />Redirection...</>
+                                                    : <><CreditCard size={14} />Payer le solde ({formatPrice(Number(invoice.balance_amount))})</>}
+                                            </button>
+                                        )}
+
+                                        {/* Full payment */}
+                                        {!isSplit && invoice.status !== "paid" && (invoice.status === "pending" || invoice.status === "overdue") && (
+                                            <button
+                                                onClick={() => handlePay(invoice.id, "full")}
+                                                disabled={isPaying}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
+                                            >
+                                                {isPaying
+                                                    ? <><Clock size={14} />Redirection...</>
+                                                    : <><CreditCard size={14} />Payer ({formatPrice(Number(invoice.total))})</>}
+                                            </button>
+                                        )}
+
+                                        {/* Paid badge */}
+                                        {invoice.status === "paid" && (
+                                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                                                <CheckCircle2 size={14} />Paiement reçu
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Split payment info */}
-                                {isSplit && (
-                                    <div style={{ padding: "12px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border, marginBottom: 16, fontSize: 13, color: C.dark }}>
-                                        <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Paiement en 2 fois</div>
-                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                            <span>Acompte 30% : <strong>{formatPrice(Number(invoice.deposit_amount))}</strong></span>
-                                            <span style={{ color: step === "deposit_paid" || step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
-                                                {step === "deposit_paid" || step === "fully_paid" ? "Paye" : "En attente"}
-                                            </span>
-                                        </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span>Solde 70% : <strong>{formatPrice(Number(invoice.balance_amount))}</strong></span>
-                                            <span style={{ color: step === "fully_paid" ? "#1a7a3c" : C.muted, fontWeight: 600 }}>
-                                                {step === "fully_paid" ? "Paye" : "En attente"}
-                                            </span>
-                                        </div>
+                                        )}
                                     </div>
-                                )}
-
-                                {/* Actions */}
-                                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                    <button
-                                        onClick={() => openInvoice(invoice.id)}
-                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                                    >
-                                        <FileText size={14} />Voir la facture
-                                    </button>
-
-                                    {/* Split: deposit pending */}
-                                    {isSplit && step === "pending" && (
-                                        <button
-                                            onClick={() => handlePay(invoice.id, "deposit")}
-                                            disabled={isPaying}
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
-                                        >
-                                            {isPaying
-                                                ? <><Clock size={14} />Redirection...</>
-                                                : <><CreditCard size={14} />Payer l&apos;acompte ({formatPrice(Number(invoice.deposit_amount))})</>}
-                                        </button>
-                                    )}
-
-                                    {/* Split: balance pending */}
-                                    {isSplit && step === "deposit_paid" && (
-                                        <button
-                                            onClick={() => handlePay(invoice.id, "balance")}
-                                            disabled={isPaying}
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
-                                        >
-                                            {isPaying
-                                                ? <><Clock size={14} />Redirection...</>
-                                                : <><CreditCard size={14} />Payer le solde ({formatPrice(Number(invoice.balance_amount))})</>}
-                                        </button>
-                                    )}
-
-                                    {/* Full payment */}
-                                    {!isSplit && invoice.status !== "paid" && (invoice.status === "pending" || invoice.status === "overdue") && (
-                                        <button
-                                            onClick={() => handlePay(invoice.id, "full")}
-                                            disabled={isPaying}
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 24px", backgroundColor: isPaying ? C.muted : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isPaying ? "not-allowed" : "pointer" }}
-                                        >
-                                            {isPaying
-                                                ? <><Clock size={14} />Redirection...</>
-                                                : <><CreditCard size={14} />Payer ({formatPrice(Number(invoice.total))})</>}
-                                        </button>
-                                    )}
-
-                                    {/* Paid badge */}
-                                    {invoice.status === "paid" && (
-                                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
-                                            <CheckCircle2 size={14} />Paiement reçu
-                                        </div>
-                                    )}
                                 </div>
-                            </div>
-                        )
-                    })}
-                </div>
+                            )
+                        })}
+                    </div>
+                )}
 
             </div>
 

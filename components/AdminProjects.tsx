@@ -5,11 +5,13 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
-import { ArrowLeft, ChevronDown, ChevronUp, Search, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import AdminProjectFlow from "@/components/AdminProjectFlow"
 import Drawer from "@/components/shared/Drawer"
 import ProjectDetail from "@/components/ProjectDetail"
+import useListView from "@/hooks/useListView"
+import ListToolbar from "@/components/ListToolbar"
 
 const { useEffect, useState } = React
 
@@ -32,7 +34,6 @@ export default function AdminProjects() {
     const [projects, setProjects] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-    const [search, setSearch] = useState("")
     const [filterStatus, setFilterStatus] = useState("all")
     const [sortKey, setSortKey] = useState<SortKey>("date")
     const [sortDir, setSortDir] = useState<SortDir>("desc")
@@ -74,6 +75,16 @@ export default function AdminProjects() {
     const [dragCol, setDragCol] = useState<string | null>(null)
     const [dragOverCol, setDragOverCol] = useState<string | null>(null)
     const tableRef = React.useRef<HTMLTableElement>(null)
+
+    const lv = useListView(projects, {
+        storageKey: "admin_projects_view_mode",
+        defaultViewMode: "list",
+        searchFields: (p) => [p.project_id, p.account_id, p.brief_analysis?.product_type, p.product?.label],
+        statusOptions: STATUS_OPTIONS.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i })),
+        getItemStatus: (p) => p.status || "created",
+        getItemDate: (p) => p.created_at,
+        getItemPrice: (p) => p.pricing?.total_net != null ? Number(p.pricing.total_net) : null,
+    })
 
     // Column resize handler
     React.useEffect(() => {
@@ -289,16 +300,9 @@ export default function AdminProjects() {
         setBulkStatusDropdown(false)
     }
 
-    const filtered = projects.filter((p) => {
-        const matchStatus = filterStatus === "all" || p.status === filterStatus
-        const matchSearch =
-            search === "" ||
-            (p.project_id || "").toLowerCase().includes(search.toLowerCase()) ||
-            (p.account_id || "").toLowerCase().includes(search.toLowerCase()) ||
-            (p.brief_analysis?.product_type || "").toLowerCase().includes(search.toLowerCase()) ||
-            (p.product?.label || "").toLowerCase().includes(search.toLowerCase())
-        return matchStatus && matchSearch
-    })
+    const filtered = lv.filtered.filter((p) =>
+        filterStatus === "all" || p.status === filterStatus
+    )
 
     const sorted = [...filtered].sort((a, b) => {
         let cmp = 0
@@ -423,31 +427,22 @@ export default function AdminProjects() {
                     })}
                 </div>
 
-                {/* Search + Filter */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-                    <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-                        <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.muted }} />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Rechercher par ID, client, produit..."
-                            style={{ width: "100%", padding: "12px 16px 12px 40px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 14, backgroundColor: C.white, color: C.dark, boxSizing: "border-box", outline: "none" }}
-                        />
-                    </div>
-                    <div style={{ position: "relative" }}>
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            style={{ padding: "10px 14px", paddingRight: 32, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, backgroundColor: C.white, color: C.dark, outline: "none", appearance: "none" as const, cursor: "pointer" }}
-                        >
-                            <option value="all">Tous les statuts</option>
-                            {STATUS_OPTIONS.map((key) => (
-                                <option key={key} value={key}>{STATUS_CONFIG[key].label}</option>
-                            ))}
-                        </select>
-                        <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: C.muted }} />
-                    </div>
-                </div>
+                {/* Search + Filters */}
+                <ListToolbar
+                    search={lv.search}
+                    onSearchChange={lv.setSearch}
+                    placeholder="Rechercher par ID, client, produit..."
+                    viewModes={["list"]}
+                    viewMode={lv.viewMode}
+                    onViewModeChange={lv.setViewMode}
+                    filters={lv.filters}
+                    onFiltersChange={lv.setFilters}
+                    onFiltersReset={lv.resetFilters}
+                    activeFilterCount={lv.activeFilterCount}
+                    statusOptions={STATUS_OPTIONS.map((s, i) => ({ value: s, label: STATUS_CONFIG[s]?.label || s, order: i }))}
+                    showDateFilter
+                    showPriceFilter
+                />
 
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>{sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}</span>
