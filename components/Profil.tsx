@@ -78,7 +78,6 @@ export default function Profil() {
     const [isDirty, setIsDirty] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [saved, setSaved] = useState(false)
     const [error, setError] = useState("")
 
     // Mot de passe
@@ -95,8 +94,10 @@ export default function Profil() {
     const isOAuthUser = provider !== "email"
 
     // Autosave
-    const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle")
+    const [toast, setToast] = useState<{ type: "success" | "error"; message: string; visible: boolean } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Avatar
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -186,11 +187,19 @@ export default function Profil() {
             .catch(() => {})
     }, [])
 
-    function doSaveProfile(p: ProfileData) {
+    function showToast(type: "success" | "error", message: string) {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+        setToast({ type, message, visible: true })
+        toastTimerRef.current = setTimeout(() => {
+            setToast(prev => prev ? { ...prev, visible: false } : null)
+            setTimeout(() => setToast(null), 400)
+        }, 2500)
+    }
+
+    function doSaveProfile(p: ProfileData, isRetry = false) {
         const token = getToken()
         if (!token) return
         setSaving(true)
-        setAutoSaveStatus("saving")
         setError("")
 
         const body = {
@@ -213,23 +222,31 @@ export default function Profil() {
                 const data = await r.clone().json()
                 console.log("[PROFIL] save body:", data)
                 if (data.ok) {
-                    setSaved(true)
                     setIsDirty(false)
                     setOriginalProfile({ ...p })
-                    setAutoSaveStatus("saved")
-                    setTimeout(() => { setSaved(false); setAutoSaveStatus("idle") }, 2000)
+                    showToast("success", "Modifications enregistrees")
                 } else {
-                    setError(data.message || data.error || data.code || "Échec de la sauvegarde")
-                    setAutoSaveStatus("error")
+                    const msg = data.message || data.error || data.code || "Echec de l'enregistrement"
+                    setError(msg)
+                    if (!isRetry) {
+                        showToast("error", "Echec de l'enregistrement — reessai dans 3s")
+                        retryRef.current = setTimeout(() => doSaveProfile(p, true), 3000)
+                    } else {
+                        showToast("error", "Echec de l'enregistrement")
+                    }
                 }
                 setSaving(false)
             })
-            .catch((err) => { console.error("[PROFIL] save error:", err); setError("Erreur réseau"); setAutoSaveStatus("error"); setSaving(false) })
-    }
-
-    function handleSaveProfile() {
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-        doSaveProfile(profile)
+            .catch((err) => {
+                console.error("[PROFIL] save error:", err)
+                setSaving(false)
+                if (!isRetry) {
+                    showToast("error", "Echec de l'enregistrement — reessai dans 3s")
+                    retryRef.current = setTimeout(() => doSaveProfile(p, true), 3000)
+                } else {
+                    showToast("error", "Echec de l'enregistrement")
+                }
+            })
     }
 
     function handleChangePassword() {
@@ -306,7 +323,7 @@ export default function Profil() {
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box", paddingBottom: 100 }}>
+        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box" }}>
             <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
                 {/* Header */}
@@ -468,55 +485,21 @@ export default function Profil() {
 
             </div>
 
-            {/* ── Autosave indicator (discreet, top-right of content) ── */}
-            {autoSaveStatus !== "idle" && !isDirty && (
+            {/* ── Toast autosave ── */}
+            {toast && (
                 <div style={{
-                    position: "fixed", bottom: 20, right: 24, zIndex: 800,
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "8px 16px", borderRadius: 20,
-                    backgroundColor: autoSaveStatus === "saved" ? "#e8f8ee" : autoSaveStatus === "error" ? "#fee" : "#fff",
-                    border: "1px solid " + (autoSaveStatus === "saved" ? "#b7e4c7" : autoSaveStatus === "error" ? "#f5c6c6" : C.border),
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                    fontSize: 13, fontWeight: 600,
-                    color: autoSaveStatus === "saved" ? "#1a7a3c" : autoSaveStatus === "error" ? "#c0392b" : C.muted,
-                    transition: "opacity 0.3s ease",
+                    position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+                    zIndex: 900, display: "flex", alignItems: "center", gap: 8,
+                    padding: "12px 24px", borderRadius: 12,
+                    backgroundColor: toast.type === "success" ? "#000" : "#c0392b",
+                    color: "#fff", fontSize: 14, fontWeight: 600,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                    opacity: toast.visible ? 1 : 0,
+                    transition: "opacity 0.35s ease",
+                    pointerEvents: "none",
                 }}>
-                    {autoSaveStatus === "saving" && "Sauvegarde automatique..."}
-                    {autoSaveStatus === "saved" && <><Check size={14} /> Sauvegardé</>}
-                </div>
-            )}
-
-            {/* ── Fixed bottom save bar (visible when dirty: pending autosave or error) ── */}
-            {(isDirty || autoSaveStatus === "error") && (
-                <div style={{
-                    position: "fixed", bottom: 0, left: 64, right: 0, zIndex: 800,
-                    backgroundColor: "#fff", borderTop: "1px solid " + C.border,
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "16px 32px", boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
-                }}>
-                    <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 8,
-                        backgroundColor: autoSaveStatus === "error" ? "#fee" : C.yellow,
-                        color: autoSaveStatus === "error" ? "#c0392b" : C.dark,
-                        fontWeight: 700, fontSize: 13, borderRadius: 20,
-                        padding: "6px 14px",
-                    }}>
-                        {autoSaveStatus === "pending" && "Sauvegarde automatique..."}
-                        {autoSaveStatus === "saving" && "Sauvegarde en cours..."}
-                        {autoSaveStatus === "error" && "Échec — cliquez pour réessayer"}
-                        {(autoSaveStatus === "idle" || autoSaveStatus === "saved") && "Modifications non sauvegardées"}
-                    </span>
-                    <button
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                        style={{
-                            padding: "10px 24px", backgroundColor: C.dark, color: C.white,
-                            border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
-                            cursor: saving ? "not-allowed" : "pointer",
-                        }}
-                    >
-                        {saving ? "Sauvegarde..." : "Sauvegarder maintenant"}
-                    </button>
+                    {toast.type === "success" && <Check size={16} />}
+                    {toast.message}
                 </div>
             )}
         </div>

@@ -3,13 +3,14 @@
 import React from "react"
 import { usePathname } from "next/navigation"
 import { C } from "@/lib/constants"
-import { FolderKanban, FileText, CalendarDays, User } from "lucide-react"
+import { LayoutDashboard, FolderKanban, FileText, CalendarDays, User } from "lucide-react"
 
 const LINKS = [
-    { href: "/projets",   label: "Projets",  icon: <FolderKanban size={18} /> },
-    { href: "/factures",  label: "Factures", icon: <FileText size={18} /> },
-    { href: "/planning",  label: "Planning", icon: <CalendarDays size={18} /> },
-    { href: "/profil",    label: "Profil",   icon: <User size={18} /> },
+    { href: "/dashboard",  label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+    { href: "/projets",    label: "Projets",   icon: <FolderKanban size={18} /> },
+    { href: "/factures",   label: "Factures",  icon: <FileText size={18} /> },
+    { href: "/planning",   label: "Planning",  icon: <CalendarDays size={18} /> },
+    { href: "/profil",     label: "Profil",    icon: <User size={18} /> },
 ]
 
 export default function ClientSidebar() {
