@@ -427,6 +427,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         }
 
                         if (["quoted", "devis_envoye", "en_attente_validation", "sent"].includes(status)) {
+                            console.log('[CTA] status match:', status, ["devis_envoye", "quoted", "sent", "en_attente_validation"].includes(status))
                             const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
                             return (
                                 <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
@@ -715,7 +716,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                     style={{
                                         display: "flex", alignItems: "center", gap: 8,
                                         padding: "10px 12px", backgroundColor: dragOverIdx === idx ? "rgba(244,207,21,0.08)" : C.bg,
-                                        borderRadius: 8, border: isEstimated ? "2px solid #ef4444" : "1px solid " + C.border,
+                                        borderRadius: 8, border: "1px solid " + C.border,
                                         opacity: dragIdx === idx ? 0.5 : 1,
                                     }}
                                 >
@@ -728,7 +729,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             style={{ flex: 1, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0, width: "100%" }}
                                         />
                                         {isEstimated && (
-                                            <span title={`Dimensions estimees automatiquement : ${p.width} × ${p.height} mm`} style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", whiteSpace: "nowrap", flexShrink: 0 }}>Estime</span>
+                                            <span title={`Largeur estimee : ${p.width}mm | Hauteur estimee : ${p.height}mm`} style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", whiteSpace: "nowrap", flexShrink: 0 }}>Estime</span>
                                         )}
                                     </div>
                                     <input

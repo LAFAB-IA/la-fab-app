@@ -48,7 +48,10 @@ export function projectDisplayName(project: any, role?: string): string {
         if (products.length > 2) productName += ` +${products.length - 2}`
     }
     if (!productName) {
-        productName = project.product?.label || project.brief_analysis?.product_type || "Projet"
+        productName = project.product?.label
+            || project.brief_analysis?.product_type
+            || project.title
+            || (project.project_id ? "Projet " + project.project_id.slice(-6) : (project.id ? "Projet " + String(project.id).slice(-6) : "Projet"))
     }
 
     if (role === "admin") {
