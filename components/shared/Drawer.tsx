@@ -50,11 +50,13 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
         if (!isOpen) return
         const el = bodyRef.current
         if (!el) return
-        el.scrollTop = 0
-        const raf = requestAnimationFrame(() => { el.scrollTop = 0 })
-        const t1 = setTimeout(() => { el.scrollTop = 0 }, 50)
-        const t2 = setTimeout(() => { el.scrollTop = 0 }, 150)
-        return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2) }
+        const reset = () => { el.scrollTop = 0 }
+        reset()
+        const raf = requestAnimationFrame(reset)
+        const t1 = setTimeout(reset, 50)
+        const t2 = setTimeout(reset, 150)
+        const t3 = setTimeout(reset, 400)
+        return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
     }, [isOpen])
 
     // Resize handlers
@@ -162,7 +164,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                 </div>
 
                 {/* Body */}
-                <div ref={bodyRef} style={{ flex: 1, overflowY: "auto", padding: 24, overflowAnchor: "none" as any }}>
+                <div ref={bodyRef} data-scroll-anchor="top" style={{ flex: 1, overflowY: "auto", padding: 24, overflowAnchor: "none" as any }}>
                     {children}
                 </div>
             </div>

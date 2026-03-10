@@ -110,12 +110,10 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         fetchBriefs()
     }, [project, fetchBriefs])
 
-    // Scroll to bottom of messages area when messages change (not on first load)
-    const messagesInitRef = useRef(false)
-    useEffect(() => {
-        if (!messagesInitRef.current) { messagesInitRef.current = true; return }
+    // Scroll to bottom of messages only after sending a new message
+    function scrollMessagesToBottom() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
-    }, [messages])
+    }
 
     function handleSendMessage() {
         if (!token || !msgText.trim() || sending) return
@@ -129,6 +127,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                 if (data.ok && data.message) {
                     setMessages((prev) => [...prev, data.message])
                     setMsgText("")
+                    setTimeout(scrollMessagesToBottom, 100)
                 }
                 setSending(false)
             })
