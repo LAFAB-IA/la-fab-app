@@ -167,6 +167,18 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
             .catch(() => setUploading(false))
     }
 
+    async function handleOpenBrief(briefId: string) {
+        try {
+            const res = await fetchWithAuth(`${API_URL}/api/project/${id}/brief-signed-url?brief_id=${briefId}`)
+            const data = await res.json()
+            if (data.ok && data.file_url) {
+                window.open(data.file_url, "_blank")
+            }
+        } catch (e) {
+            console.error("Erreur URL brief:", e)
+        }
+    }
+
     function handleDrop(e: React.DragEvent) {
         e.preventDefault()
         setDragOver(false)
@@ -544,8 +556,9 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         const ext = fileUrl ? fileUrl.split("?")[0].split(".").pop()?.toLowerCase() || "" : ""
                                         const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
                                         const isPdf = ext === "pdf"
+                                        const briefId = brief.id || brief.brief_id || ""
                                         return (
-                                            <div key={brief.id || bIdx} style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                                            <div key={briefId || bIdx} style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fileUrl && (isImage || isPdf) ? 12 : 0 }}>
                                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                         <BriefIcon size={16} color={C.dark} />
@@ -557,9 +570,12 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                         )}
                                                     </div>
                                                     {fileUrl && (
-                                                        <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                                                        <button
+                                                            onClick={() => handleOpenBrief(briefId)}
+                                                            style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
+                                                        >
                                                             <Download size={13} /> Telecharger
-                                                        </a>
+                                                        </button>
                                                     )}
                                                 </div>
                                                 {fileUrl && isImage && (
@@ -568,7 +584,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                 {fileUrl && isPdf && (
                                                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                                                         <button
-                                                            onClick={() => window.open(fileUrl, "_blank")}
+                                                            onClick={() => handleOpenBrief(briefId)}
                                                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
                                                         >
                                                             <FileText size={14} /> Ouvrir le PDF
@@ -585,9 +601,12 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         return (
                                             <div style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isImage || isPdf ? 12 : 0 }}>
-                                                    <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                                                    <button
+                                                        onClick={() => handleOpenBrief("legacy")}
+                                                        style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}
+                                                    >
                                                         <BIcon size={14} /> Telecharger ({bLabel})
-                                                    </a>
+                                                    </button>
                                                 </div>
                                                 {isImage && (
                                                     <img src={project.brief_file_url} alt="Brief" style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
@@ -595,7 +614,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                 {isPdf && (
                                                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                                                         <button
-                                                            onClick={() => window.open(project.brief_file_url, "_blank")}
+                                                            onClick={() => handleOpenBrief("legacy")}
                                                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
                                                         >
                                                             <FileText size={14} /> Ouvrir le PDF
