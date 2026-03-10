@@ -153,9 +153,9 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
 
     /* ─────── helpers ─────── */
 
-    function setMsg(key: string, type: "ok" | "err", text: string) {
+    function setMsg(key: string, type: "ok" | "err", text: string, persistent?: boolean) {
         setMessages((p) => ({ ...p, [key]: { type, text } }))
-        if (type === "ok") setTimeout(() => setMessages((p) => { const n = { ...p }; delete n[key]; return n }), 4000)
+        if (type === "ok" && !persistent) setTimeout(() => setMessages((p) => { const n = { ...p }; delete n[key]; return n }), 4000)
     }
 
     function setLoad(key: string, v: boolean) {
@@ -270,7 +270,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             const r = await fetchWithAuth(`${API_URL}/api/project/${projectId}/generate-quote`, { method: "POST" })
             const data = await r.json()
             if (data.ok) {
-                setMsg("quote", "ok", `Devis ${data.quote_number} genere`)
+                setMsg("quote", "ok", `Devis ${data.quote_number} genere`, true)
                 await fetchQuotes()
             } else {
                 setMsg("quote", "err", data.error || "Erreur generation devis")
@@ -288,7 +288,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             })
             const data = await r.json()
             if (data.ok) {
-                setMsg("quote", "ok", `Devis ${quote.quote_number} valide`)
+                setMsg("quote", "ok", `Devis ${quote.quote_number} valide`, true)
                 await fetchQuotes()
             } else {
                 setMsg("quote", "err", data.error || "Erreur validation devis")
@@ -317,7 +317,7 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
             const data = await r.json()
             if (data.ok) {
                 setInvoiceResult(data)
-                setMsg("invoice", "ok", `Facture ${data.invoice?.invoice_number} generee`)
+                setMsg("invoice", "ok", `Facture ${data.invoice?.invoice_number} generee`, true)
             } else {
                 setMsg("invoice", "err", data.error || "Erreur facturation")
             }

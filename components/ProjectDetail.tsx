@@ -386,185 +386,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     {/* Project content */}
                     <div style={{ borderTop: "1px solid " + C.border, marginTop: 24 }}>
 
-                    {/* Prochaines etapes — rendered FIRST, visible at top */}
-                    {(() => {
-                        const effectiveRole = user?.role || "client"
-                        if (effectiveRole !== "client") return null
-
-                        if (["pending", "created", "analysed", "analyzed", "brief_recu", "en_analyse"].includes(status)) {
-                            const products = brief_analysis?.products
-                            const hasProducts = Array.isArray(products) && products.length > 0
-                            return (
-                                <div style={{ padding: "18px 22px", backgroundColor: "#fef9e0", borderRadius: 10, border: "1px solid #f4cf1588", marginTop: 16, marginBottom: 8 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <Clock size={16} color="#b89a00" />
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#b89a00" }}>Brief recu et analyse</span>
-                                    </div>
-                                    <p style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, margin: "0 0 12px" }}>
-                                        Votre brief est en cours de traitement. Notre equipe interroge les fournisseurs partenaires.
-                                    </p>
-                                    {hasProducts && (
-                                        <div style={{ backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border, marginBottom: 12 }}>
-                                            <div style={lbl}>Produits detectes</div>
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
-                                                {products.map((p: any, i: number) => (
-                                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.dark }}>
-                                                        <span>{p.product_type || p.name || "Produit"}</span>
-                                                        <span style={{ color: C.muted }}>{p.quantity || p.quantity_detected || ""}{(p.quantity || p.quantity_detected) ? " ex." : ""}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <button
-                                        onClick={() => document.querySelector('[data-section="messages"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
-                                    >
-                                        <MessageSquare size={14} /> Contacter notre equipe
-                                    </button>
-                                </div>
-                            )
-                        }
-
-                        if (["quoted", "devis_envoye", "en_attente_validation", "sent"].includes(status)) {
-                            console.log('[CTA] status match:', status, ["devis_envoye", "quoted", "sent", "en_attente_validation"].includes(status))
-                            const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
-                            return (
-                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <CheckCircle2 size={16} color="#1a7a3c" />
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Votre devis est pret</span>
-                                    </div>
-                                    {pricing?.total_net != null && (
-                                        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
-                                            <div>
-                                                <div style={lbl}>Total HT</div>
-                                                <div style={{ fontSize: 16, fontWeight: 600, color: C.dark }}>{formatPrice(pricing.total_net)}</div>
-                                            </div>
-                                            <div>
-                                                <div style={lbl}>Total TTC</div>
-                                                <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{formatPrice(pricing.total_net * 1.2)}</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                        <button
-                                            onClick={() => {
-                                                if (quotedInvoice) {
-                                                    handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")
-                                                } else {
-                                                    // Fetch invoices then pay
-                                                    fetchWithAuth(`${API_URL}/api/invoice/list?project_id=${id}`)
-                                                        .then(r => r.json())
-                                                        .then(data => {
-                                                            const inv = data.invoices?.find((i: any) => i.status === "pending")
-                                                            if (inv) handlePay(inv.id, inv.payment_type === "split" ? "deposit" : "full")
-                                                            else alert("Facture en cours de generation, reessayez dans quelques instants.")
-                                                        })
-                                                        .catch(() => alert("Erreur lors de la recuperation de la facture."))
-                                                }
-                                            }}
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-                                        >
-                                            <CreditCard size={16} /> Valider et payer
-                                        </button>
-                                        {quote_url && (
-                                            <a
-                                                href={quote_url}
-                                                target="_blank"
-                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
-                                            >
-                                                <FileText size={14} /> Telecharger le devis PDF
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        if (["in_production", "en_production", "validated", "ordered"].includes(status)) {
-                            const plan = brief_analysis?.production_plan
-                            const lotStatusCfg: Record<string, { label: string; bg: string; color: string }> = {
-                                pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-                                in_progress: { label: "En cours", bg: "#fff3e0", color: "#e65100" },
-                                completed: { label: "Termine", bg: "#e8f8ee", color: "#1a7a3c" },
-                            }
-                            return (
-                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f0fe", borderRadius: 10, border: "1px solid #a8b8db", marginTop: 16, marginBottom: 8 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <Clock size={16} color="#1a3c7a" />
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a3c7a" }}>Commande en cours de production</span>
-                                    </div>
-                                    {plan?.lots?.length > 0 ? (
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                                            {plan.lots.map((lot: any) => {
-                                                const sc = lotStatusCfg[lot.status || "pending"] || lotStatusCfg.pending
-                                                const lotName = lot.products?.length > 0
-                                                    ? lot.products.map((p: any) => p.name).filter(Boolean).join(", ")
-                                                    : (lot.recommended_supplier || `Lot ${lot.lot_number}`)
-                                                return (
-                                                    <div key={lot.lot_number} style={{ padding: "12px 14px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border }}>
-                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                                                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{lotName}</span>
-                                                            <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
-                                                        </div>
-                                                        <div style={{ fontSize: 12, color: C.muted }}>
-                                                            MAD souhaitee : {project.wished_delivery_date ? formatDate(project.wished_delivery_date) : "A definir"}
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>Votre commande est en cours de fabrication.</p>
-                                    )}
-                                </div>
-                            )
-                        }
-
-                        if (["delivered", "termine", "completed"].includes(status)) {
-                            const paidInvoice = invoices.find((inv: any) => inv.status === "paid") || invoices[invoices.length - 1]
-                            return (
-                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <CheckCircle2 size={16} color="#1a7a3c" />
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Projet termine</span>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                        {paidInvoice && (
-                                            <a
-                                                href={`/facture/${paidInvoice.id}`}
-                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
-                                            >
-                                                <Download size={14} /> Telecharger la facture finale
-                                            </a>
-                                        )}
-                                        <a
-                                            href="/projet/nouveau"
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
-                                        >
-                                            <Plus size={14} /> Nouveau projet
-                                        </a>
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        return null
-                    })()}
-
-                    {/* Contacter LA FAB — all client statuses */}
-                    {(user?.role || "client") === "client" && (
-                        <div style={{ marginTop: 12, marginBottom: 8 }}>
-                            <button
-                                onClick={() => messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
-                            >
-                                <MessageSquare size={14} /> Contacter LA FAB
-                            </button>
-                        </div>
-                    )}
-
                     {/* Briefs - toggle viewer */}
                     <div style={sec}>Briefs</div>
                     {briefsLoading ? (
@@ -1121,6 +942,184 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             </button>
                         </div>
                     </div>
+
+                    {/* Prochaines etapes — rendered LAST, after Messages */}
+                    {(() => {
+                        const effectiveRole = user?.role || "client"
+                        if (effectiveRole !== "client") return null
+
+                        if (["pending", "created", "analysed", "analyzed", "brief_recu", "en_analyse"].includes(status)) {
+                            const products = brief_analysis?.products
+                            const hasProducts = Array.isArray(products) && products.length > 0
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#fef9e0", borderRadius: 10, border: "1px solid #f4cf1588", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <Clock size={16} color="#b89a00" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#b89a00" }}>Brief recu et analyse</span>
+                                    </div>
+                                    <p style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, margin: "0 0 12px" }}>
+                                        Votre brief est en cours de traitement. Notre equipe interroge les fournisseurs partenaires.
+                                    </p>
+                                    {hasProducts && (
+                                        <div style={{ backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border, marginBottom: 12 }}>
+                                            <div style={lbl}>Produits detectes</div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                                                {products.map((p: any, i: number) => (
+                                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.dark }}>
+                                                        <span>{p.product_type || p.name || "Produit"}</span>
+                                                        <span style={{ color: C.muted }}>{p.quantity || p.quantity_detected || ""}{(p.quantity || p.quantity_detected) ? " ex." : ""}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
+                                    >
+                                        <MessageSquare size={14} /> Contacter notre equipe
+                                    </button>
+                                </div>
+                            )
+                        }
+
+                        if (["quoted", "devis_envoye", "en_attente_validation", "sent"].includes(status)) {
+                            console.log('[CTA] status match:', status)
+                            const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <CheckCircle2 size={16} color="#1a7a3c" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Votre devis est pret</span>
+                                    </div>
+                                    {pricing?.total_net != null && (
+                                        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+                                            <div>
+                                                <div style={lbl}>Total HT</div>
+                                                <div style={{ fontSize: 16, fontWeight: 600, color: C.dark }}>{formatPrice(pricing.total_net)}</div>
+                                            </div>
+                                            <div>
+                                                <div style={lbl}>Total TTC</div>
+                                                <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{formatPrice(pricing.total_net * 1.2)}</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        <button
+                                            onClick={() => {
+                                                if (quotedInvoice) {
+                                                    handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")
+                                                } else {
+                                                    fetchWithAuth(`${API_URL}/api/invoice/list?project_id=${id}`)
+                                                        .then(r => r.json())
+                                                        .then(data => {
+                                                            const inv = data.invoices?.find((i: any) => i.status === "pending")
+                                                            if (inv) handlePay(inv.id, inv.payment_type === "split" ? "deposit" : "full")
+                                                            else alert("Facture en cours de generation, reessayez dans quelques instants.")
+                                                        })
+                                                        .catch(() => alert("Erreur lors de la recuperation de la facture."))
+                                                }
+                                            }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                                        >
+                                            <CreditCard size={16} /> Valider et payer
+                                        </button>
+                                        {quote_url && (
+                                            <a
+                                                href={quote_url}
+                                                target="_blank"
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
+                                            >
+                                                <FileText size={14} /> Telecharger le devis PDF
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        if (["in_production", "en_production", "validated", "ordered"].includes(status)) {
+                            const plan = brief_analysis?.production_plan
+                            const lotStatusCfg: Record<string, { label: string; bg: string; color: string }> = {
+                                pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+                                in_progress: { label: "En cours", bg: "#fff3e0", color: "#e65100" },
+                                completed: { label: "Termine", bg: "#e8f8ee", color: "#1a7a3c" },
+                            }
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f0fe", borderRadius: 10, border: "1px solid #a8b8db", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <Clock size={16} color="#1a3c7a" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a3c7a" }}>Commande en cours de production</span>
+                                    </div>
+                                    {plan?.lots?.length > 0 ? (
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                                            {plan.lots.map((lot: any) => {
+                                                const sc = lotStatusCfg[lot.status || "pending"] || lotStatusCfg.pending
+                                                const lotName = lot.products?.length > 0
+                                                    ? lot.products.map((p: any) => p.name).filter(Boolean).join(", ")
+                                                    : (lot.recommended_supplier || `Lot ${lot.lot_number}`)
+                                                return (
+                                                    <div key={lot.lot_number} style={{ padding: "12px 14px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                                                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{lotName}</span>
+                                                            <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
+                                                        </div>
+                                                        <div style={{ fontSize: 12, color: C.muted }}>
+                                                            MAD souhaitee : {project.wished_delivery_date ? formatDate(project.wished_delivery_date) : "A definir"}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>Votre commande est en cours de fabrication.</p>
+                                    )}
+                                </div>
+                            )
+                        }
+
+                        if (["delivered", "termine", "completed"].includes(status)) {
+                            const paidInvoice = invoices.find((inv: any) => inv.status === "paid") || invoices[invoices.length - 1]
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <CheckCircle2 size={16} color="#1a7a3c" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Projet termine</span>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        {paidInvoice && (
+                                            <a
+                                                href={`/facture/${paidInvoice.id}`}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                            >
+                                                <Download size={14} /> Telecharger la facture finale
+                                            </a>
+                                        )}
+                                        <a
+                                            href="/projet/nouveau"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
+                                        >
+                                            <Plus size={14} /> Nouveau projet
+                                        </a>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        return null
+                    })()}
+
+                    {/* Contacter LA FAB — all client statuses */}
+                    {(user?.role || "client") === "client" && (
+                        <div style={{ marginTop: 12, marginBottom: 8 }}>
+                            <button
+                                onClick={() => messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
+                            >
+                                <MessageSquare size={14} /> Contacter LA FAB
+                            </button>
+                        </div>
+                    )}
                     </div>
 
                 </div>

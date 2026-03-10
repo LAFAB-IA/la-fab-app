@@ -36,11 +36,14 @@ export async function fetchWithAuth(
     headers.set("Content-Type", "application/json");
   }
 
+  console.log('[fetchWithAuth]', url, 'token:', token ? token.slice(0, 20) + '...' : 'NONE');
+
   let res = await fetch(url, { ...options, headers });
 
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
+    console.warn('[fetchWithAuth]', res.status, url);
     const body = await res.clone().json().catch(() => ({}));
-    if (body.code === "TOKEN_EXPIRED" || body.error === "INVALID_TOKEN") {
+    if (body.code === "TOKEN_EXPIRED" || body.error === "INVALID_TOKEN" || res.status === 403) {
       // Deduplicate concurrent refreshes
       if (!refreshPromise) {
         refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
@@ -49,13 +52,16 @@ export async function fetchWithAuth(
       if (newToken) {
         headers.set("Authorization", `Bearer ${newToken}`);
         res = await fetch(url, { ...options, headers });
+        console.log('[fetchWithAuth] retried after refresh:', res.status, url);
         window.dispatchEvent(new CustomEvent("token-refreshed", { detail: newToken }));
         return res;
       }
     }
     // Refresh failed or other 401 → logout
-    clearToken();
-    window.location.href = "/login";
+    if (res.status === 401) {
+      clearToken();
+      window.location.href = "/login";
+    }
   }
 
   return res;
