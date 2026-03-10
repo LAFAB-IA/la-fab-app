@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, ExternalLink } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -32,6 +32,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [briefs, setBriefs] = useState<any[]>([])
     const [briefsLoading, setBriefsLoading] = useState(false)
     const [showUpload, setShowUpload] = useState(false)
+    const [showBrief, setShowBrief] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [dragOver, setDragOver] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -350,68 +351,233 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
                     {/* Project content */}
                     <div style={{ borderTop: "1px solid " + C.border, marginTop: 24 }}>
-                    {/* Briefs - inline preview */}
+
+                    {/* Prochaines etapes — rendered FIRST, visible at top */}
+                    {(() => {
+                        const effectiveRole = user?.role || "client"
+                        if (effectiveRole !== "client") return null
+
+                        if (["pending", "created", "brief_recu", "en_analyse"].includes(status)) {
+                            const products = brief_analysis?.products
+                            const hasProducts = Array.isArray(products) && products.length > 0
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#fef9e0", borderRadius: 10, border: "1px solid #f4cf1588", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <Clock size={16} color="#b89a00" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#b89a00" }}>Brief recu et analyse</span>
+                                    </div>
+                                    <p style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, margin: "0 0 12px" }}>
+                                        Votre brief est en cours de traitement. Notre equipe interroge les fournisseurs partenaires.
+                                    </p>
+                                    {hasProducts && (
+                                        <div style={{ backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
+                                            <div style={lbl}>Produits detectes</div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                                                {products.map((p: any, i: number) => (
+                                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: C.dark }}>
+                                                        <span>{p.product_type || p.name || "Produit"}</span>
+                                                        <span style={{ color: C.muted }}>{p.quantity || p.quantity_detected || ""}{(p.quantity || p.quantity_detected) ? " ex." : ""}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        }
+
+                        if (["quoted", "devis_envoye", "en_attente_validation"].includes(status)) {
+                            const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <CheckCircle2 size={16} color="#1a7a3c" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Votre devis est pret</span>
+                                    </div>
+                                    {pricing?.total_net != null && (
+                                        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+                                            <div>
+                                                <div style={lbl}>Total HT</div>
+                                                <div style={{ fontSize: 16, fontWeight: 600, color: C.dark }}>{formatPrice(pricing.total_net)}</div>
+                                            </div>
+                                            <div>
+                                                <div style={lbl}>Total TTC</div>
+                                                <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>{formatPrice(pricing.total_net * 1.2)}</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        {quotedInvoice ? (
+                                            <button
+                                                onClick={() => handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                                            >
+                                                <CreditCard size={16} /> Valider et payer
+                                            </button>
+                                        ) : (
+                                            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Facture en cours de generation...</p>
+                                        )}
+                                        {quote_url && (
+                                            <a
+                                                href={quote_url}
+                                                target="_blank"
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
+                                            >
+                                                <FileText size={14} /> Telecharger le devis PDF
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        if (["in_production", "en_production", "validated", "ordered"].includes(status)) {
+                            const plan = brief_analysis?.production_plan
+                            const lotStatusCfg: Record<string, { label: string; bg: string; color: string }> = {
+                                pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+                                in_progress: { label: "En cours", bg: "#fff3e0", color: "#e65100" },
+                                completed: { label: "Termine", bg: "#e8f8ee", color: "#1a7a3c" },
+                            }
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f0fe", borderRadius: 10, border: "1px solid #a8b8db", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <Clock size={16} color="#1a3c7a" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a3c7a" }}>Commande en cours de production</span>
+                                    </div>
+                                    {plan?.lots?.length > 0 ? (
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                                            {plan.lots.map((lot: any) => {
+                                                const sc = lotStatusCfg[lot.status || "pending"] || lotStatusCfg.pending
+                                                const lotName = lot.products?.length > 0
+                                                    ? lot.products.map((p: any) => p.name).filter(Boolean).join(", ")
+                                                    : (lot.recommended_supplier || `Lot ${lot.lot_number}`)
+                                                return (
+                                                    <div key={lot.lot_number} style={{ padding: "12px 14px", backgroundColor: C.white, borderRadius: 8, border: "1px solid " + C.border }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                                                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{lotName}</span>
+                                                            <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
+                                                        </div>
+                                                        <div style={{ fontSize: 12, color: C.muted }}>
+                                                            MAD souhaitee : {project.wished_delivery_date ? formatDate(project.wished_delivery_date) : "A definir"}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p style={{ fontSize: 13, color: C.muted, margin: "0 0 12px" }}>Votre commande est en cours de fabrication.</p>
+                                    )}
+                                </div>
+                            )
+                        }
+
+                        if (["delivered", "termine", "completed"].includes(status)) {
+                            const paidInvoice = invoices.find((inv: any) => inv.status === "paid") || invoices[invoices.length - 1]
+                            return (
+                                <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <CheckCircle2 size={16} color="#1a7a3c" />
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a7a3c" }}>Projet termine</span>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                        {paidInvoice && (
+                                            <a
+                                                href={`/facture/${paidInvoice.id}`}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                            >
+                                                <Download size={14} /> Telecharger la facture finale
+                                            </a>
+                                        )}
+                                        <a
+                                            href="/projet/nouveau"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
+                                        >
+                                            <Plus size={14} /> Nouveau projet
+                                        </a>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        return null
+                    })()}
+
+                    {/* Briefs - toggle viewer */}
                     <div style={sec}>Briefs</div>
                     {briefsLoading ? (
                         <p style={{ fontSize: 13, color: C.muted }}>Chargement des briefs...</p>
-                    ) : briefs.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            {briefs.map((brief: any, bIdx: number) => {
-                                const fileUrl = brief.file_url || brief.brief_file_url
-                                const { Icon: BriefIcon, label: fileLabel } = fileUrl ? getBriefIcon(fileUrl) : { Icon: File, label: "fichier" }
-                                const ext = fileUrl ? fileUrl.split("?")[0].split(".").pop()?.toLowerCase() || "" : ""
-                                const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
-                                const isPdf = ext === "pdf"
-                                return (
-                                    <div key={brief.id || bIdx} style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fileUrl && (isImage || isPdf) ? 12 : 0 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                <BriefIcon size={16} color={C.dark} />
-                                                <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
-                                                    {brief.file_name || brief.original_filename || `Brief ${bIdx + 1}`}
-                                                </span>
-                                                {brief.created_at && (
-                                                    <span style={{ fontSize: 12, color: C.muted }}>{formatDate(brief.created_at)}</span>
+                    ) : (briefs.length > 0 || project.brief_file_url) ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {/* Toggle button */}
+                            <button
+                                onClick={() => setShowBrief(!showBrief)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 8, background: C.bg, fontSize: 13, fontWeight: 600, color: C.dark, cursor: "pointer", alignSelf: "flex-start" }}
+                            >
+                                {showBrief ? <EyeOff size={14} /> : <Eye size={14} />}
+                                {showBrief ? "Masquer le brief" : "Voir le brief"}
+                                {briefs.length > 1 && ` (${briefs.length})`}
+                            </button>
+
+                            {/* Brief viewer (conditional) */}
+                            {showBrief && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                    {briefs.length > 0 ? briefs.map((brief: any, bIdx: number) => {
+                                        const fileUrl = brief.file_url || brief.brief_file_url
+                                        const { Icon: BriefIcon } = fileUrl ? getBriefIcon(fileUrl) : { Icon: File }
+                                        const ext = fileUrl ? fileUrl.split("?")[0].split(".").pop()?.toLowerCase() || "" : ""
+                                        const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
+                                        const isPdf = ext === "pdf"
+                                        return (
+                                            <div key={brief.id || bIdx} style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fileUrl && (isImage || isPdf) ? 12 : 0 }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                        <BriefIcon size={16} color={C.dark} />
+                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                                            {brief.file_name || brief.original_filename || `Brief ${bIdx + 1}`}
+                                                        </span>
+                                                        {brief.created_at && (
+                                                            <span style={{ fontSize: 12, color: C.muted }}>{formatDate(brief.created_at)}</span>
+                                                        )}
+                                                    </div>
+                                                    {fileUrl && (
+                                                        <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                                                            <Download size={13} /> Telecharger
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                {fileUrl && isImage && (
+                                                    <img src={fileUrl} alt={brief.file_name || "Brief"} style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
+                                                )}
+                                                {fileUrl && isPdf && (
+                                                    <iframe src={fileUrl} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title={brief.file_name || "Brief PDF"} />
                                                 )}
                                             </div>
-                                            {fileUrl && (
-                                                <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                                                    <Download size={13} /> Telecharger
-                                                </a>
-                                            )}
-                                        </div>
-                                        {/* Inline preview */}
-                                        {fileUrl && isImage && (
-                                            <img src={fileUrl} alt={brief.file_name || "Brief"} style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
-                                        )}
-                                        {fileUrl && isPdf && (
-                                            <iframe src={fileUrl} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title={brief.file_name || "Brief PDF"} />
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    ) : project.brief_file_url ? (() => {
-                        const ext = project.brief_file_url.split("?")[0].split(".").pop()?.toLowerCase() || ""
-                        const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
-                        const isPdf = ext === "pdf"
-                        const { Icon: BIcon, label: bLabel } = getBriefIcon(project.brief_file_url)
-                        return (
-                            <div style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isImage || isPdf ? 12 : 0 }}>
-                                    <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                                        <BIcon size={14} /> Telecharger ({bLabel})
-                                    </a>
+                                        )
+                                    }) : project.brief_file_url ? (() => {
+                                        const ext = project.brief_file_url.split("?")[0].split(".").pop()?.toLowerCase() || ""
+                                        const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
+                                        const isPdf = ext === "pdf"
+                                        const { Icon: BIcon, label: bLabel } = getBriefIcon(project.brief_file_url)
+                                        return (
+                                            <div style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isImage || isPdf ? 12 : 0 }}>
+                                                    <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                                                        <BIcon size={14} /> Telecharger ({bLabel})
+                                                    </a>
+                                                </div>
+                                                {isImage && (
+                                                    <img src={project.brief_file_url} alt="Brief" style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
+                                                )}
+                                                {isPdf && (
+                                                    <iframe src={project.brief_file_url} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title="Brief PDF" />
+                                                )}
+                                            </div>
+                                        )
+                                    })() : null}
                                 </div>
-                                {isImage && (
-                                    <img src={project.brief_file_url} alt="Brief" style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
-                                )}
-                                {isPdf && (
-                                    <iframe src={project.brief_file_url} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title="Brief PDF" />
-                                )}
-                            </div>
-                        )
-                    })() : (
+                            )}
+                        </div>
+                    ) : (
                         <p style={{ fontSize: 13, color: C.muted }}>Aucun brief uploade.</p>
                     )}
 
@@ -480,7 +646,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         onChange={(e) => updateProduct(idx, "quantity", parseInt(e.target.value) || 0)}
                                         placeholder="Qte"
                                         min={0}
-                                        style={{ width: 60, padding: "6px 8px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                        style={{ width: 72, minWidth: 72, padding: "6px 8px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
                                     />
                                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                                         <input
@@ -594,20 +760,10 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                     </div>
                                                 )}
                                                 {isClient && (
-                                                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                                                        <span style={{ color: C.muted }}>Livraison estimee :</span>
-                                                        <input
-                                                            type="date"
-                                                            defaultValue={lot.estimated_delivery_date || ""}
-                                                            onChange={(e) => {
-                                                                const milestoneId = lot.milestone_id || lot.lot_number
-                                                                fetchWithAuth(`${API_URL}/api/project/${id}/milestones/${milestoneId}`, {
-                                                                    method: "PATCH",
-                                                                    body: JSON.stringify({ estimated_date: e.target.value }),
-                                                                }).catch(() => {})
-                                                            }}
-                                                            style={{ padding: "4px 8px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 12, color: C.dark, outline: "none" }}
-                                                        />
+                                                    <div style={{ fontSize: 12, color: C.muted }}>
+                                                        MAD souhaitee : <strong style={{ color: C.dark }}>
+                                                            {project.wished_delivery_date ? formatDate(project.wished_delivery_date) : "A definir"}
+                                                        </strong>
                                                     </div>
                                                 )}
                                                 {!isClient && lot.estimated_delay_days != null && (
@@ -806,88 +962,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             })}
                         </div>
                     )}
-
-                    {/* Prochaines etapes — client actions */}
-                    {(user?.role === "client" || !user?.role || (typeof window !== "undefined" && localStorage.getItem("role_override") === "client")) && (() => {
-                        if (["quoted", "devis_envoye", "en_attente_validation"].includes(status)) {
-                            const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
-                            return (
-                                <>
-                                    <div style={sec}>Prochaines etapes</div>
-                                    <div style={{ padding: "18px 22px", backgroundColor: "#e8f0fe", borderRadius: 10, border: "1px solid #a8b8db" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                            <CreditCard size={16} color="#1a3c7a" />
-                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1a3c7a" }}>Devis en attente de validation</span>
-                                        </div>
-                                        {pricing?.total_net != null && (
-                                            <div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 12 }}>
-                                                {formatPrice(pricing.total_net * 1.2)} TTC
-                                            </div>
-                                        )}
-                                        {quotedInvoice ? (
-                                            <button
-                                                onClick={() => handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")}
-                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-                                            >
-                                                <CreditCard size={16} /> Accepter le devis et payer
-                                            </button>
-                                        ) : (
-                                            <p style={{ fontSize: 13, color: C.muted }}>Facture en cours de generation...</p>
-                                        )}
-                                    </div>
-                                </>
-                            )
-                        }
-                        if (["in_production", "en_production"].includes(status)) {
-                            const plan = brief_analysis?.production_plan
-                            return (
-                                <>
-                                    <div style={sec}>Prochaines etapes</div>
-                                    <div style={{ padding: "18px 22px", backgroundColor: "#fff3e0", borderRadius: 10, border: "1px solid #ffcc80" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                            <Clock size={16} color="#e65100" />
-                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#e65100" }}>Production en cours</span>
-                                        </div>
-                                        {plan?.lots?.length > 0 ? (
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                                {plan.lots.map((lot: any) => (
-                                                    <div key={lot.lot_number} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
-                                                        <span style={{ color: C.dark, fontWeight: 500 }}>{lot.products?.map((p: any) => p.name).filter(Boolean).join(", ") || lot.recommended_supplier || `Lot ${lot.lot_number}`}</span>
-                                                        <span style={{ color: C.muted }}>{lot.estimated_delay_days ? `${lot.estimated_delay_days}j estime` : "—"}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p style={{ fontSize: 13, color: C.muted }}>Votre commande est en cours de fabrication.</p>
-                                        )}
-                                    </div>
-                                </>
-                            )
-                        }
-                        if (["delivered", "termine"].includes(status)) {
-                            const paidInvoice = invoices.find((inv: any) => inv.status === "paid") || invoices[invoices.length - 1]
-                            return (
-                                <>
-                                    <div style={sec}>Prochaines etapes</div>
-                                    <div style={{ padding: "18px 22px", backgroundColor: "#e0f2f1", borderRadius: 10, border: "1px solid #80cbc4" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                            <CheckCircle2 size={16} color="#004d40" />
-                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#004d40" }}>Projet termine</span>
-                                        </div>
-                                        {paidInvoice && (
-                                            <a
-                                                href={`/facture/${paidInvoice.id}`}
-                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
-                                            >
-                                                <Download size={14} /> Telecharger la facture finale
-                                            </a>
-                                        )}
-                                    </div>
-                                </>
-                            )
-                        }
-                        return null
-                    })()}
 
                     {/* Messages */}
                     <div style={sec}>Messages</div>

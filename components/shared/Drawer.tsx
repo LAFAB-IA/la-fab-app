@@ -4,7 +4,7 @@ import * as React from "react"
 import { X, GripHorizontal } from "lucide-react"
 import { C } from "@/lib/constants"
 
-const { useEffect, useCallback, useState, useRef } = React
+const { useEffect, useLayoutEffect, useCallback, useState, useRef } = React
 
 interface DrawerProps {
     isOpen: boolean
@@ -38,17 +38,23 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
         }
     }, [isOpen, handleKeyDown])
 
-    // Force scroll to top when drawer opens — separate effect to ensure DOM is ready
+    // Force scroll to top when drawer opens — useLayoutEffect runs before paint
+    useLayoutEffect(() => {
+        if (!isOpen) return
+        const el = bodyRef.current
+        if (el) el.scrollTop = 0
+    }, [isOpen])
+
+    // Fallback: also force after content renders async
     useEffect(() => {
         if (!isOpen) return
         const el = bodyRef.current
-        if (el) {
-            el.scrollTop = 0
-            // Also force after animation frame in case content renders async
-            const raf = requestAnimationFrame(() => { el.scrollTop = 0 })
-            const timeout = setTimeout(() => { el.scrollTop = 0 }, 50)
-            return () => { cancelAnimationFrame(raf); clearTimeout(timeout) }
-        }
+        if (!el) return
+        el.scrollTop = 0
+        const raf = requestAnimationFrame(() => { el.scrollTop = 0 })
+        const t1 = setTimeout(() => { el.scrollTop = 0 }, 50)
+        const t2 = setTimeout(() => { el.scrollTop = 0 }, 150)
+        return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2) }
     }, [isOpen])
 
     // Resize handlers
@@ -156,7 +162,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                 </div>
 
                 {/* Body */}
-                <div ref={bodyRef} style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+                <div ref={bodyRef} style={{ flex: 1, overflowY: "auto", padding: 24, overflowAnchor: "none" as any }}>
                     {children}
                 </div>
             </div>
