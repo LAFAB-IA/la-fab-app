@@ -170,13 +170,18 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
     async function handleOpenBrief(briefId: string) {
         try {
-            const res = await fetchWithAuth(`${API_URL}/api/project/brief/signed-url?project_id=${id}&brief_id=${briefId}`)
+            const url = `${API_URL}/api/project/brief/signed-url?project_id=${id}&brief_id=${briefId}`
+            console.log('[handleOpenBrief] calling:', url)
+            const res = await fetchWithAuth(url)
             const data = await res.json()
+            console.log('[handleOpenBrief] response:', data)
             if (data.ok && data.file_url) {
                 window.open(data.file_url, "_blank")
+            } else {
+                console.warn('[handleOpenBrief] no file_url in response:', data)
             }
         } catch (e) {
-            console.error("Erreur URL brief:", e)
+            console.error("[handleOpenBrief] error:", e)
         }
     }
 
@@ -381,11 +386,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     {/* Project content */}
                     <div style={{ borderTop: "1px solid " + C.border, marginTop: 24 }}>
 
-                    {/* Debug — temporaire */}
-                    <div style={{ fontSize: 11, color: "gray", marginTop: 12 }}>
-                        status: {project.status} | role: {user?.role || "client"}
-                    </div>
-
                     {/* Prochaines etapes — rendered FIRST, visible at top */}
                     {(() => {
                         const effectiveRole = user?.role || "client"
@@ -573,7 +573,8 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         const ext = fileUrl ? fileUrl.split("?")[0].split(".").pop()?.toLowerCase() || "" : ""
                                         const isImage = ["jpg", "jpeg", "png", "webp"].includes(ext)
                                         const isPdf = ext === "pdf"
-                                        const briefId = brief.id || brief.brief_id || ""
+                                        const briefId = brief.id || brief.brief_id || brief.upload_id || ""
+                                        if (bIdx === 0) console.log('[Briefs] brief object keys:', Object.keys(brief), 'briefId resolved:', briefId)
                                         return (
                                             <div key={briefId || bIdx} style={{ padding: "14px 16px", backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: fileUrl && (isImage || isPdf) ? 12 : 0 }}>
