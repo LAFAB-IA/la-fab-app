@@ -20,6 +20,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
     const startX = useRef(0)
     const startW = useRef(0)
     const panelRef = useRef<HTMLDivElement>(null)
+    const bodyRef = useRef<HTMLDivElement>(null)
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === "Escape") onClose()
@@ -30,6 +31,10 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
             document.addEventListener("keydown", handleKeyDown)
             document.body.style.overflow = "hidden"
             setDrawerWidth(null)
+            // Scroll body to top when drawer opens
+            requestAnimationFrame(() => {
+                bodyRef.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
+            })
         }
         return () => {
             document.removeEventListener("keydown", handleKeyDown)
@@ -142,7 +147,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                 </div>
 
                 {/* Body */}
-                <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+                <div ref={bodyRef} style={{ flex: 1, overflowY: "auto", padding: 24 }}>
                     {children}
                 </div>
             </div>

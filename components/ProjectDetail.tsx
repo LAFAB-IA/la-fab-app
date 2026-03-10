@@ -7,9 +7,8 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Route, Layers, AlertTriangle, Upload, Plus, MapPin, ArrowRight, Factory, CalendarDays } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
-import ProjectWorkspace from "@/components/ProjectWorkspace"
 
 interface ProjectDetailProps {
     projectId?: string
@@ -44,8 +43,12 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [sending, setSending] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // Tabs
-    const [activeTab, setActiveTab] = useState<"project" | "workspace">("project")
+    // Editable product list
+    const [productList, setProductList] = useState<Array<{ id: string; name: string; quantity: number; width: number; height: number; unit: string }>>([])
+    const [productsDirty, setProductsDirty] = useState(false)
+    const [savingProducts, setSavingProducts] = useState(false)
+    const [dragIdx, setDragIdx] = useState<number | null>(null)
+    const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
     // Fetch project
     useEffect(() => {
@@ -182,6 +185,69 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         return { Icon: File, label: ext.toUpperCase() || "fichier" }
     }
 
+    // Initialize product list from brief_analysis
+    useEffect(() => {
+        const analysis = briefs?.[0]?.brief_analysis ?? project?.brief_analysis
+        if (!analysis?.products || !Array.isArray(analysis.products)) return
+        setProductList(analysis.products.map((p: any, i: number) => {
+            const dims = p.dimensions || ""
+            let w = 0, h = 0, unit = "mm"
+            const match = dims.match(/(\d+)\s*[x×]\s*(\d+)\s*(mm|cm)?/i)
+            if (match) { w = parseInt(match[1]); h = parseInt(match[2]); unit = match[3] || "mm" }
+            return {
+                id: `prod_${i}_${Date.now()}`,
+                name: p.product_type || p.name || "",
+                quantity: parseInt(p.quantity || p.quantity_detected || "0") || 0,
+                width: w, height: h, unit,
+            }
+        }))
+        setProductsDirty(false)
+    }, [briefs, project])
+
+    function updateProduct(idx: number, field: string, value: any) {
+        setProductList(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p))
+        setProductsDirty(true)
+    }
+
+    function removeProduct(idx: number) {
+        setProductList(prev => prev.filter((_, i) => i !== idx))
+        setProductsDirty(true)
+    }
+
+    function addProduct() {
+        setProductList(prev => [...prev, { id: `prod_new_${Date.now()}`, name: "", quantity: 1, width: 0, height: 0, unit: "mm" }])
+        setProductsDirty(true)
+    }
+
+    async function saveProducts() {
+        if (!token || !id || savingProducts) return
+        setSavingProducts(true)
+        try {
+            const r = await fetchWithAuth(`${API_URL}/api/project/${id}/products`, {
+                method: "PATCH",
+                body: JSON.stringify({ products: productList }),
+            })
+            const data = await r.json()
+            if (data.ok) setProductsDirty(false)
+        } catch {}
+        setSavingProducts(false)
+    }
+
+    function handleProductDragStart(idx: number) { setDragIdx(idx) }
+    function handleProductDragOver(e: React.DragEvent, idx: number) { e.preventDefault(); setDragOverIdx(idx) }
+    function handleProductDrop(idx: number) {
+        if (dragIdx == null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
+        setProductList(prev => {
+            const items = [...prev]
+            const [moved] = items.splice(dragIdx, 1)
+            items.splice(idx, 0, moved)
+            return items
+        })
+        setProductsDirty(true)
+        setDragIdx(null)
+        setDragOverIdx(null)
+    }
+
     const lbl = { fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.8, marginBottom: 2 }
     const sec = { fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 16, marginTop: 32, paddingBottom: 8, borderBottom: "1px solid " + C.border }
 
@@ -245,178 +311,47 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         <ProjectTimeline status={status} />
                     </div>
 
-                    {/* Tabs */}
-                    <div style={{ display: "flex", gap: 0, borderBottom: "2px solid " + C.border, marginTop: 24, marginBottom: 24 }}>
-                        {(["project", "workspace"] as const).map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                style={{
-                                    padding: "10px 20px", fontSize: 13, fontWeight: 700, color: activeTab === tab ? C.dark : C.muted,
-                                    background: "none", border: "none", cursor: "pointer",
-                                    borderBottom: activeTab === tab ? "2px solid " + C.yellow : "2px solid transparent",
-                                    marginBottom: -2, textTransform: "uppercase", letterSpacing: 0.5,
-                                }}
-                            >
-                                {tab === "project" ? "Projet" : "Espace projet"}
-                            </button>
-                        ))}
-                    </div>
-
-                    {activeTab === "workspace" && <ProjectWorkspace projectId={id!} />}
-
-                    {activeTab === "project" && <>
-                    {/* Briefs */}
+                    {/* Project content */}
+                    <div style={{ borderTop: "1px solid " + C.border, marginTop: 24 }}>
+                    {/* Briefs - file downloads */}
                     <div style={sec}>Briefs</div>
                     {briefsLoading ? (
                         <p style={{ fontSize: 13, color: C.muted }}>Chargement des briefs...</p>
                     ) : briefs.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {briefs.map((brief: any, bIdx: number) => {
-                                const analysis = brief.brief_analysis
                                 const fileUrl = brief.file_url || brief.brief_file_url
-                                const { Icon: BriefIcon, label: fileLabel } = fileUrl ? getBriefIcon(fileUrl) : { Icon: File, label: "fichier" }
+                                const { Icon: BriefIcon } = fileUrl ? getBriefIcon(fileUrl) : { Icon: File }
                                 return (
-                                    <div key={brief.id || bIdx} style={{ padding: 18, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
-                                        {/* Brief header */}
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                <BriefIcon size={16} color={C.dark} />
-                                                <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
-                                                    {brief.file_name || brief.original_filename || `Brief ${bIdx + 1}`}
-                                                </span>
-                                                {brief.file_type && (
-                                                    <span style={{ fontSize: 11, color: C.muted, backgroundColor: C.white, padding: "2px 8px", borderRadius: 4 }}>
-                                                        {brief.file_type}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                {brief.created_at && (
-                                                    <span style={{ fontSize: 12, color: C.muted }}>{formatDate(brief.created_at)}</span>
-                                                )}
-                                                {fileUrl && (
-                                                    <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                                                        <Download size={13} /> Télécharger
-                                                    </a>
-                                                )}
-                                            </div>
+                                    <div key={brief.id || bIdx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", backgroundColor: C.bg, borderRadius: 8, border: "1px solid " + C.border }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <BriefIcon size={16} color={C.dark} />
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                                {brief.file_name || brief.original_filename || `Brief ${bIdx + 1}`}
+                                            </span>
+                                            {brief.created_at && (
+                                                <span style={{ fontSize: 12, color: C.muted }}>{formatDate(brief.created_at)}</span>
+                                            )}
                                         </div>
-
-                                        {/* Products table (new multi-product format) */}
-                                        {analysis?.products && Array.isArray(analysis.products) && analysis.products.length > 0 ? (
-                                            <div style={{ overflowX: "auto" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                                                    <thead>
-                                                        <tr>
-                                                            {["Produit", "Quantité", "Dimensions", "Support", "Finitions"].map((h) => (
-                                                                <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
-                                                            ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {analysis.products.map((p: any, pIdx: number) => (
-                                                            <tr key={pIdx}>
-                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, fontWeight: 500, color: C.dark }}>{p.product_type || p.name || "—"}</td>
-                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.quantity || p.quantity_detected || "—"}</td>
-                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.dimensions || "—"}</td>
-                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.material || p.support || "—"}</td>
-                                                                <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.finish || p.finitions || "—"}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : analysis ? (
-                                            /* Fallback: single product (ancien format) */
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px" }}>
-                                                {[
-                                                    { label: "Produit",    val: analysis.product_type },
-                                                    { label: "Quantité",   val: analysis.quantity_detected ? analysis.quantity_detected + " ex." : null },
-                                                    { label: "Dimensions", val: analysis.dimensions },
-                                                    { label: "Support",    val: analysis.material },
-                                                    { label: "Finitions",  val: analysis.finish },
-                                                    { label: "Délai",      val: analysis.delivery_deadline },
-                                                ].filter((i) => i.val).map((item) => (
-                                                    <div key={item.label}>
-                                                        <div style={lbl}>{item.label}</div>
-                                                        <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{item.val}</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : null}
-
-                                        {/* Raw extraction */}
-                                        {analysis?.raw_extraction && (
-                                            <div style={{ marginTop: 12, backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
-                                                <div style={lbl}>Extraction brute</div>
-                                                <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, marginTop: 4 }}>{analysis.raw_extraction}</div>
-                                            </div>
+                                        {fileUrl && (
+                                            <a href={fileUrl} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", backgroundColor: C.dark, color: C.white, borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                                                <Download size={13} /> Telecharger
+                                            </a>
                                         )}
                                     </div>
                                 )
                             })}
                         </div>
-                    ) : brief_analysis ? (
-                        /* Fallback: pas de /briefs mais brief_analysis existe sur le projet */
-                        <div style={{ padding: 18, backgroundColor: C.bg, borderRadius: 10, border: "1px solid " + C.border }}>
-                            {brief_analysis.products && Array.isArray(brief_analysis.products) && brief_analysis.products.length > 0 ? (
-                                <div style={{ overflowX: "auto" }}>
-                                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                                        <thead>
-                                            <tr>
-                                                {["Produit", "Quantité", "Dimensions", "Support", "Finitions"].map((h) => (
-                                                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: C.muted, borderBottom: "1px solid " + C.border, textTransform: "uppercase" }}>{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {brief_analysis.products.map((p: any, pIdx: number) => (
-                                                <tr key={pIdx}>
-                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, fontWeight: 500, color: C.dark }}>{p.product_type || p.name || "—"}</td>
-                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.quantity || p.quantity_detected || "—"}</td>
-                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.dimensions || "—"}</td>
-                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.material || p.support || "—"}</td>
-                                                    <td style={{ padding: "8px 10px", borderBottom: "1px solid " + C.border, color: C.dark }}>{p.finish || p.finitions || "—"}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px" }}>
-                                    {[
-                                        { label: "Produit",    val: brief_analysis.product_type },
-                                        { label: "Quantité",   val: brief_analysis.quantity_detected ? brief_analysis.quantity_detected + " ex." : null },
-                                        { label: "Dimensions", val: brief_analysis.dimensions },
-                                        { label: "Support",    val: brief_analysis.material },
-                                        { label: "Finitions",  val: brief_analysis.finish },
-                                        { label: "Délai",      val: brief_analysis.delivery_deadline },
-                                    ].filter((i) => i.val).map((item) => (
-                                        <div key={item.label}>
-                                            <div style={lbl}>{item.label}</div>
-                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{item.val}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {brief_analysis.raw_extraction && (
-                                <div style={{ marginTop: 12, backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
-                                    <div style={lbl}>Extraction brute</div>
-                                    <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6, marginTop: 4 }}>{brief_analysis.raw_extraction}</div>
-                                </div>
-                            )}
-                            {project.brief_file_url && (() => {
-                                const { Icon: BIcon, label: bLabel } = getBriefIcon(project.brief_file_url)
-                                return (
-                                    <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 12, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                                        <BIcon size={14} /> Télécharger ({bLabel})
-                                    </a>
-                                )
-                            })()}
+                    ) : project.brief_file_url ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {(() => { const { Icon: BIcon, label: bLabel } = getBriefIcon(project.brief_file_url); return (
+                                <a href={project.brief_file_url} target="_blank" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                                    <BIcon size={14} /> Telecharger ({bLabel})
+                                </a>
+                            )})()}
                         </div>
                     ) : (
-                        <p style={{ fontSize: 13, color: C.muted }}>Aucun brief uploadé.</p>
+                        <p style={{ fontSize: 13, color: C.muted }}>Aucun brief uploade.</p>
                     )}
 
                     {/* Add brief button + upload zone */}
@@ -445,178 +380,177 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                 <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileSelect} />
                                 <Upload size={24} color={C.muted} style={{ marginBottom: 8 }} />
                                 <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
-                                    {uploading ? "Upload en cours..." : "Glissez un fichier ou cliquez pour sélectionner"}
+                                    {uploading ? "Upload en cours..." : "Glissez un fichier ou cliquez pour selectionner"}
                                 </div>
                                 <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>PDF, image, tableur...</div>
                             </div>
                         )}
                     </div>
 
-                    {/* Plan de production */}
+                    {/* Editable product list */}
+                    <div style={sec}>Produits</div>
+                    {productList.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {productList.map((p, idx) => (
+                                <div
+                                    key={p.id}
+                                    draggable
+                                    onDragStart={() => handleProductDragStart(idx)}
+                                    onDragOver={(e) => handleProductDragOver(e, idx)}
+                                    onDrop={() => handleProductDrop(idx)}
+                                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 8,
+                                        padding: "10px 12px", backgroundColor: dragOverIdx === idx ? "rgba(244,207,21,0.08)" : C.bg,
+                                        borderRadius: 8, border: "1px solid " + C.border,
+                                        opacity: dragIdx === idx ? 0.5 : 1,
+                                    }}
+                                >
+                                    <GripVertical size={16} color={C.muted} style={{ cursor: "grab", flexShrink: 0 }} />
+                                    <input
+                                        value={p.name}
+                                        onChange={(e) => updateProduct(idx, "name", e.target.value)}
+                                        placeholder="Nom du produit"
+                                        style={{ flex: 2, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0 }}
+                                    />
+                                    <input
+                                        type="number"
+                                        value={p.quantity || ""}
+                                        onChange={(e) => updateProduct(idx, "quantity", parseInt(e.target.value) || 0)}
+                                        placeholder="Qte"
+                                        min={0}
+                                        style={{ width: 60, padding: "6px 8px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                    />
+                                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                        <input
+                                            type="number"
+                                            value={p.width || ""}
+                                            onChange={(e) => updateProduct(idx, "width", parseInt(e.target.value) || 0)}
+                                            placeholder="L"
+                                            min={0}
+                                            style={{ width: 52, padding: "6px 6px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                        />
+                                        <span style={{ fontSize: 12, color: C.muted }}>x</span>
+                                        <input
+                                            type="number"
+                                            value={p.height || ""}
+                                            onChange={(e) => updateProduct(idx, "height", parseInt(e.target.value) || 0)}
+                                            placeholder="H"
+                                            min={0}
+                                            style={{ width: 52, padding: "6px 6px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                        />
+                                        <select
+                                            value={p.unit}
+                                            onChange={(e) => updateProduct(idx, "unit", e.target.value)}
+                                            style={{ padding: "6px 4px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 12, color: C.dark, outline: "none", background: C.white }}
+                                        >
+                                            <option value="mm">mm</option>
+                                            <option value="cm">cm</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => removeProduct(idx)}
+                                        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "#c0392b", flexShrink: 0 }}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p style={{ fontSize: 13, color: C.muted }}>Aucun produit.</p>
+                    )}
+                    <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                        <button
+                            onClick={addProduct}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px dashed " + C.border, borderRadius: 8, background: "none", fontSize: 13, fontWeight: 600, color: C.muted, cursor: "pointer" }}
+                        >
+                            <Plus size={14} /> Ajouter un produit
+                        </button>
+                        {productsDirty && (
+                            <button
+                                onClick={saveProducts}
+                                disabled={savingProducts}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: savingProducts ? "not-allowed" : "pointer", opacity: savingProducts ? 0.6 : 1 }}
+                            >
+                                <Save size={14} /> {savingProducts ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Plan de production — table view */}
                     {brief_analysis?.production_plan && (() => {
                         const plan = brief_analysis.production_plan
-                        const deliveryAddress = brief_analysis?.delivery?.address || brief_analysis?.delivery_address
+                        const isAdmin = user?.role === "admin"
+                        const isClient = user?.role === "client" || !user?.role
                         return (
                             <>
-                                <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
-                                    <Route size={14} /> Plan de production
-                                </div>
+                                <div style={sec}>Plan de production</div>
                                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-                                    Optimisé par l&apos;IA — {plan.total_lots} lots
+                                    {plan.total_lots} etape{plan.total_lots > 1 ? "s" : ""}
                                 </div>
 
-                                {/* Route visualization */}
-                                {plan.lots?.length > 0 && (
-                                    <div style={{ display: "flex", alignItems: "center", gap: 0, overflowX: "auto", padding: "16px 0", marginBottom: 16 }}>
-                                        {/* Start: Brief client */}
-                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
-                                            <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: C.bg, border: `2px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                <FileText size={16} color={C.dark} />
-                                            </div>
-                                            <span style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center" }}>Brief client</span>
-                                        </div>
-                                        {/* Lots */}
-                                        {plan.lots.map((lot: any) => (
-                                            <React.Fragment key={lot.lot_number}>
-                                                <div style={{ width: 32, height: 2, backgroundColor: C.yellow, flexShrink: 0 }} />
-                                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
-                                                    <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: C.yellow, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                        <Factory size={16} color={C.dark} />
+                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                    {plan.lots?.map((lot: any) => {
+                                        const lotStatus = lot.status || "pending"
+                                        const statusCfg: Record<string, { label: string; bg: string; color: string }> = {
+                                            pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
+                                            in_progress: { label: "En cours", bg: "#fff3e0", color: "#e65100" },
+                                            completed: { label: "Termine", bg: "#e8f8ee", color: "#1a7a3c" },
+                                        }
+                                        const sc = statusCfg[lotStatus] || statusCfg.pending
+                                        return (
+                                            <div key={lot.lot_number} style={{
+                                                padding: "14px 18px", backgroundColor: C.bg, borderRadius: 10,
+                                                border: "1px solid " + C.border,
+                                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                                flexWrap: "wrap", gap: 10,
+                                            }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>
+                                                        {lot.recommended_supplier || `Etape ${lot.lot_number}`}
+                                                    </span>
+                                                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, backgroundColor: sc.bg, color: sc.color }}>
+                                                        {sc.label}
+                                                    </span>
+                                                    {lot.is_amalgame && (
+                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: C.dark, backgroundColor: "rgba(244,207,21,0.15)", padding: "3px 8px", borderRadius: 6 }}>
+                                                            <Layers size={12} /> Amalgame
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                                    {isAdmin && lot.recommended_supplier && (
+                                                        <span style={{ fontSize: 12, color: C.muted }}>
+                                                            Fournisseur : {lot.recommended_supplier}
+                                                        </span>
+                                                    )}
+                                                    {lot.estimated_delay_days != null && (
+                                                        <span style={{ fontSize: 12, color: C.muted }}>
+                                                            {lot.estimated_delay_days}j estime
+                                                        </span>
+                                                    )}
+                                                    {lot.total_estimated_ht != null && (
+                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                                            {formatPrice(lot.total_estimated_ht)} HT
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {/* Product names */}
+                                                {lot.products?.length > 0 && (
+                                                    <div style={{ width: "100%", fontSize: 12, color: C.muted }}>
+                                                        {lot.products.map((p: any) => p.name).filter(Boolean).join(", ")}
                                                     </div>
-                                                    <span style={{ fontSize: 10, fontWeight: 600, color: C.dark, marginTop: 4, textAlign: "center", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                        {lot.recommended_supplier || `Lot ${lot.lot_number}`}
-                                                    </span>
-                                                    {lot.supplier_recommendation?.city && (
-                                                        <span style={{ fontSize: 9, color: C.muted }}>{lot.supplier_recommendation.city}</span>
-                                                    )}
-                                                </div>
-                                            </React.Fragment>
-                                        ))}
-                                        {/* End: Delivery */}
-                                        <div style={{ width: 32, height: 2, backgroundColor: C.yellow, flexShrink: 0 }} />
-                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: 80 }}>
-                                            <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#e8f8ee", border: "2px solid #a8dbb8", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                <MapPin size={16} color="#1a7a3c" />
-                                            </div>
-                                            <span style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: "center", maxWidth: 90 }}>
-                                                {deliveryAddress || "Livraison"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                    {plan.lots?.map((lot: any) => (
-                                        <div key={lot.lot_number} style={{
-                                            borderRadius: 10,
-                                            padding: "16px 18px",
-                                            backgroundColor: C.bg,
-                                            border: `1px solid ${C.border}`,
-                                            borderLeftWidth: 3,
-                                            borderLeftColor: lot.is_amalgame ? C.yellow : C.border,
-                                        }}>
-                                            {/* Lot header */}
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>Lot {lot.lot_number}</span>
-                                                    {lot.recommended_supplier && (
-                                                        <span style={{ fontSize: 11, fontWeight: 600, color: C.white, backgroundColor: C.dark, padding: "2px 8px", borderRadius: 4 }}>
-                                                            {lot.recommended_supplier}
-                                                        </span>
-                                                    )}
-                                                    {lot.supplier_recommendation?.tier && (
-                                                        <span style={{ fontSize: 10, fontWeight: 600, color: C.yellow, backgroundColor: "rgba(244,207,21,0.15)", padding: "2px 6px", borderRadius: 4 }}>
-                                                            {lot.supplier_recommendation.tier}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {lot.estimated_delay_days != null && (
-                                                    <span style={{ fontSize: 12, color: C.muted }}>
-                                                        Délai estimé : {lot.estimated_delay_days} jours
-                                                    </span>
                                                 )}
                                             </div>
-
-                                            {/* Supplier recommendation details */}
-                                            {(lot.supplier_recommendation || lot.supplier_id) && (
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, padding: "8px 10px", backgroundColor: C.white, borderRadius: 6, border: `1px solid ${C.border}` }}>
-                                                    <Factory size={13} color={C.muted} />
-                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>
-                                                        {lot.supplier_recommendation?.name || lot.recommended_supplier || "Fournisseur"}
-                                                    </span>
-                                                    {lot.supplier_recommendation?.city && (
-                                                        <span style={{ fontSize: 11, color: C.muted }}>
-                                                            <MapPin size={11} style={{ verticalAlign: "middle", marginRight: 2 }} />
-                                                            {lot.supplier_recommendation.city}
-                                                        </span>
-                                                    )}
-                                                    {lot.supplier_recommendation?.trust_score != null && (
-                                                        <span style={{ fontSize: 11, fontWeight: 600, color: "#1a7a3c", backgroundColor: "#e8f8ee", padding: "1px 6px", borderRadius: 4 }}>
-                                                            Score : {lot.supplier_recommendation.trust_score}/100
-                                                        </span>
-                                                    )}
-                                                    {deliveryAddress && lot.supplier_recommendation?.city && (
-                                                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: C.muted, marginLeft: "auto" }}>
-                                                            <MapPin size={10} />{lot.supplier_recommendation.city}
-                                                            <ArrowRight size={10} />
-                                                            <MapPin size={10} />{deliveryAddress}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Amalgame badge */}
-                                            {lot.is_amalgame && (
-                                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "6px 10px", backgroundColor: "rgba(244,207,21,0.12)", borderRadius: 6 }}>
-                                                    <Layers size={14} color={C.yellow} />
-                                                    <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>Amalgame</span>
-                                                    {lot.amalgame_reason && (
-                                                        <span style={{ fontSize: 12, color: C.muted, marginLeft: 4 }}>— {lot.amalgame_reason}</span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Products list */}
-                                            {lot.products?.map((p: any, idx: number) => (
-                                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderTop: idx > 0 ? `1px solid ${C.border}` : "none" }}>
-                                                    <div>
-                                                        <span style={{ fontSize: 13, fontWeight: 500, color: C.dark }}>{p.name}</span>
-                                                        {p.quantity && <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>× {p.quantity}</span>}
-                                                    </div>
-                                                    {p.estimated_price_ht != null && (
-                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{formatPrice(p.estimated_price_ht)} HT</span>
-                                                    )}
-                                                </div>
-                                            ))}
-
-                                            {/* Lot total */}
-                                            {lot.total_estimated_ht != null && (
-                                                <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8, marginTop: 4, borderTop: `1px solid ${C.border}` }}>
-                                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Total : {formatPrice(lot.total_estimated_ht)} HT</span>
-                                                </div>
-                                            )}
-
-                                            {/* Supplier reason */}
-                                            {lot.supplier_reason && (
-                                                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, fontStyle: "italic" }}>
-                                                    {lot.supplier_reason}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
 
                                 {/* Global total */}
                                 {plan.total_estimated_ht != null && (
                                     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Total estimé : {formatPrice(plan.total_estimated_ht)} HT</span>
-                                    </div>
-                                )}
-
-                                {/* Optimization notes */}
-                                {plan.optimization_notes && (
-                                    <div style={{ marginTop: 12, fontSize: 13, color: C.muted, lineHeight: 1.6, backgroundColor: C.bg, borderRadius: 8, padding: 12 }}>
-                                        {plan.optimization_notes}
+                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Total estime : {formatPrice(plan.total_estimated_ht)} HT</span>
                                     </div>
                                 )}
 
@@ -808,6 +742,88 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         </div>
                     )}
 
+                    {/* Prochaines etapes — client actions */}
+                    {(user?.role === "client" || !user?.role) && (() => {
+                        if (status === "quoted") {
+                            const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
+                            return (
+                                <>
+                                    <div style={sec}>Prochaines etapes</div>
+                                    <div style={{ padding: "18px 22px", backgroundColor: "#e8f0fe", borderRadius: 10, border: "1px solid #a8b8db" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                            <CreditCard size={16} color="#1a3c7a" />
+                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1a3c7a" }}>Devis en attente de validation</span>
+                                        </div>
+                                        {pricing?.total_net != null && (
+                                            <div style={{ fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 12 }}>
+                                                {formatPrice(pricing.total_net * 1.2)} TTC
+                                            </div>
+                                        )}
+                                        {quotedInvoice ? (
+                                            <button
+                                                onClick={() => handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                                            >
+                                                <CreditCard size={16} /> Accepter le devis et payer
+                                            </button>
+                                        ) : (
+                                            <p style={{ fontSize: 13, color: C.muted }}>Facture en cours de generation...</p>
+                                        )}
+                                    </div>
+                                </>
+                            )
+                        }
+                        if (status === "in_production") {
+                            const plan = brief_analysis?.production_plan
+                            return (
+                                <>
+                                    <div style={sec}>Prochaines etapes</div>
+                                    <div style={{ padding: "18px 22px", backgroundColor: "#fff3e0", borderRadius: 10, border: "1px solid #ffcc80" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                            <Clock size={16} color="#e65100" />
+                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#e65100" }}>Production en cours</span>
+                                        </div>
+                                        {plan?.lots?.length > 0 ? (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                                {plan.lots.map((lot: any) => (
+                                                    <div key={lot.lot_number} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+                                                        <span style={{ color: C.dark, fontWeight: 500 }}>{lot.recommended_supplier || `Etape ${lot.lot_number}`}</span>
+                                                        <span style={{ color: C.muted }}>{lot.estimated_delay_days ? `${lot.estimated_delay_days}j estime` : "—"}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p style={{ fontSize: 13, color: C.muted }}>Votre commande est en cours de fabrication.</p>
+                                        )}
+                                    </div>
+                                </>
+                            )
+                        }
+                        if (status === "delivered") {
+                            const paidInvoice = invoices.find((inv: any) => inv.status === "paid") || invoices[invoices.length - 1]
+                            return (
+                                <>
+                                    <div style={sec}>Prochaines etapes</div>
+                                    <div style={{ padding: "18px 22px", backgroundColor: "#e0f2f1", borderRadius: 10, border: "1px solid #80cbc4" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                            <CheckCircle2 size={16} color="#004d40" />
+                                            <span style={{ fontSize: 14, fontWeight: 700, color: "#004d40" }}>Projet termine</span>
+                                        </div>
+                                        {paidInvoice && (
+                                            <a
+                                                href={`/facture/${paidInvoice.id}`}
+                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                                            >
+                                                <Download size={14} /> Telecharger la facture finale
+                                            </a>
+                                        )}
+                                    </div>
+                                </>
+                            )
+                        }
+                        return null
+                    })()}
+
                     {/* Messages */}
                     <div style={sec}>Messages</div>
                     <div style={{ backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border, overflow: "hidden" }}>
@@ -865,7 +881,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             </button>
                         </div>
                     </div>
-                    </>}
+                    </div>
 
                 </div>
             </div>

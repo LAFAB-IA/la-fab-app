@@ -209,7 +209,7 @@ export default function ProjectsList() {
                     search={lv.search}
                     onSearchChange={lv.setSearch}
                     placeholder="Rechercher un projet..."
-                    viewModes={["list", "grid", "group"]}
+                    viewModes={["list", "grid"]}
                     viewMode={lv.viewMode}
                     onViewModeChange={lv.setViewMode}
                     filters={lv.filters}
@@ -257,26 +257,8 @@ export default function ProjectsList() {
                     </div>
                 )}
 
-                {/* List view */}
-                {lv.viewMode === "list" && lv.filtered.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {lv.filtered.map((project: any) => (
-                            <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
-                        ))}
-                    </div>
-                )}
-
-                {/* Grid view */}
-                {lv.viewMode === "grid" && lv.filtered.length > 0 && (
-                    <div className="list-grid-3col">
-                        {lv.filtered.map((project: any) => (
-                            <ProjectGridCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
-                        ))}
-                    </div>
-                )}
-
-                {/* Group view */}
-                {lv.viewMode === "group" && lv.filtered.length > 0 && (
+                {/* Always grouped view — list or grid cards inside each group */}
+                {lv.filtered.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                         {lv.sortedGroupKeys.map(status => {
                             const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
@@ -310,11 +292,19 @@ export default function ProjectsList() {
                                         </span>
                                     </div>
                                     {!isCollapsed && (
-                                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
-                                            {items.map((project: any) => (
-                                                <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
-                                            ))}
-                                        </div>
+                                        lv.viewMode === "grid" ? (
+                                            <div className="list-grid-3col" style={{ marginTop: 10 }}>
+                                                {items.map((project: any) => (
+                                                    <ProjectGridCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                                                {items.map((project: any) => (
+                                                    <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
+                                                ))}
+                                            </div>
+                                        )
                                     )}
                                 </div>
                             )

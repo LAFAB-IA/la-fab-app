@@ -69,7 +69,14 @@ export default function useListView<T>(data: T[], config: ListViewConfig<T>): Us
     const [viewMode, setViewModeState] = useState<ViewMode>(() => {
         if (typeof window !== "undefined") {
             const saved = localStorage.getItem(config.storageKey) as ViewMode | null
-            if (saved) return saved
+            if (saved) {
+                // Migration: "group" is no longer a standalone mode, fall back to "list"
+                if (saved === "group") {
+                    localStorage.setItem(config.storageKey, "list")
+                    return "list"
+                }
+                return saved
+            }
         }
         return config.defaultViewMode
     })
