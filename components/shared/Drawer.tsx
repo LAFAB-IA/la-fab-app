@@ -11,10 +11,11 @@ interface DrawerProps {
     onClose: () => void
     title?: string
     width?: string
+    headerActions?: React.ReactNode
     children: React.ReactNode
 }
 
-export default function Drawer({ isOpen, onClose, title, width = "720px", children }: DrawerProps) {
+export default function Drawer({ isOpen, onClose, title, width = "720px", headerActions, children }: DrawerProps) {
     const [drawerWidth, setDrawerWidth] = useState<number | null>(null)
     const dragging = useRef(false)
     const startX = useRef(0)
@@ -140,7 +141,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                 {/* Header */}
                 <div style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "16px 24px",
+                    padding: "10px 24px",
                     borderBottom: "1px solid " + C.border,
                     flexShrink: 0,
                 }}>
@@ -149,18 +150,21 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
                     ) : (
                         <div />
                     )}
-                    <button
-                        onClick={onClose}
-                        style={{
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            width: 32, height: 32, borderRadius: 8,
-                            border: "1px solid " + C.border,
-                            background: C.white, cursor: "pointer",
-                            color: C.dark,
-                        }}
-                    >
-                        <X size={16} />
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {headerActions}
+                        <button
+                            onClick={onClose}
+                            style={{
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                width: 32, height: 32, borderRadius: 8,
+                                border: "1px solid " + C.border,
+                                background: C.white, cursor: "pointer",
+                                color: C.dark,
+                            }}
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Body */}

@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, ExternalLink } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -308,9 +308,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
         <div style={{ fontFamily: "Inter, sans-serif" }}>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-                {onClose ? (
-                    <button onClick={onClose} style={{ color: C.muted, fontSize: 14, fontWeight: 500, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Fermer</button>
-                ) : (
+                {!onClose && (
                     <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
                 )}
 
@@ -354,6 +352,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     {/* Prochaines etapes — rendered FIRST, visible at top */}
                     {(() => {
                         const effectiveRole = user?.role || "client"
+                        console.log('[ProjectDetail] status:', status, 'effectiveRole:', effectiveRole)
                         if (effectiveRole !== "client") return null
 
                         if (["pending", "created", "brief_recu", "en_analyse"].includes(status)) {
@@ -385,7 +384,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             )
                         }
 
-                        if (["quoted", "devis_envoye", "en_attente_validation"].includes(status)) {
+                        if (["quoted", "devis_envoye", "en_attente_validation", "sent"].includes(status)) {
                             const quotedInvoice = invoices.find((inv: any) => inv.status === "pending")
                             return (
                                 <div style={{ padding: "18px 22px", backgroundColor: "#e8f8ee", borderRadius: 10, border: "1px solid #a8dbb8", marginTop: 16, marginBottom: 8 }}>
@@ -548,7 +547,14 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                     <img src={fileUrl} alt={brief.file_name || "Brief"} style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
                                                 )}
                                                 {fileUrl && isPdf && (
-                                                    <iframe src={fileUrl} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title={brief.file_name || "Brief PDF"} />
+                                                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                                        <button
+                                                            onClick={() => window.open(fileUrl, "_blank")}
+                                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
+                                                        >
+                                                            <FileText size={14} /> Ouvrir le PDF
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         )
@@ -568,7 +574,14 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                     <img src={project.brief_file_url} alt="Brief" style={{ width: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white }} />
                                                 )}
                                                 {isPdf && (
-                                                    <iframe src={project.brief_file_url} style={{ width: "100%", height: 400, border: "1px solid " + C.border, borderRadius: 8 }} title="Brief PDF" />
+                                                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                                        <button
+                                                            onClick={() => window.open(project.brief_file_url, "_blank")}
+                                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
+                                                        >
+                                                            <FileText size={14} /> Ouvrir le PDF
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         )
@@ -637,7 +650,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         value={p.name}
                                         onChange={(e) => updateProduct(idx, "name", e.target.value)}
                                         placeholder="Nom du produit"
-                                        style={{ flex: 2, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0 }}
+                                        style={{ flex: 1, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0, width: "100%" }}
                                     />
                                     <input
                                         type="number"

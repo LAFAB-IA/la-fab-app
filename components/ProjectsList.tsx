@@ -319,25 +319,22 @@ export default function ProjectsList() {
                 isOpen={drawerOpen}
                 onClose={closeDrawer}
                 title={selectedProjectId ? "Detail du projet" : undefined}
+                headerActions={selectedProjectId ? (
+                    <a
+                        href={`/projet/${selectedProjectId}`}
+                        style={{
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                            border: "1px solid " + C.border, background: C.white, color: C.dark,
+                            textDecoration: "none",
+                        }}
+                    >
+                        <ExternalLink size={13} /> Pleine page
+                    </a>
+                ) : undefined}
             >
                 {selectedProjectId && (
-                    <>
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-                            <a
-                                href={`/projet/${selectedProjectId}`}
-                                className="btn-secondary"
-                                style={{
-                                    display: "inline-flex", alignItems: "center", gap: 6,
-                                    padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                    border: "1px solid " + C.border, background: C.white, color: C.dark,
-                                    textDecoration: "none",
-                                }}
-                            >
-                                <ExternalLink size={13} /> Ouvrir en pleine page
-                            </a>
-                        </div>
-                        <ProjectDetail projectId={selectedProjectId} onClose={closeDrawer} />
-                    </>
+                    <ProjectDetail projectId={selectedProjectId} onClose={closeDrawer} />
                 )}
             </Drawer>
         </div>

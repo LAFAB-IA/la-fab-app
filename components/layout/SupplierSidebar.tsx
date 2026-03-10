@@ -2,10 +2,11 @@
 
 import { usePathname } from "next/navigation"
 import { C } from "@/lib/constants"
-import { LayoutDashboard, MessageSquare, CalendarDays } from "lucide-react"
+import { LayoutDashboard, FolderOpen, MessageSquare, CalendarDays } from "lucide-react"
 
 const LINKS = [
     { href: "/supplier/dashboard",     label: "Dashboard",      icon: <LayoutDashboard size={16} /> },
+    { href: "/supplier/projects",      label: "Projets",        icon: <FolderOpen size={16} /> },
     { href: "/supplier/consultations", label: "Consultations",  icon: <MessageSquare size={16} /> },
     { href: "/planning",               label: "Planning",       icon: <CalendarDays size={16} /> },
 ]
