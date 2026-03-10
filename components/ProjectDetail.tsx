@@ -170,7 +170,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
     async function handleOpenBrief(briefId: string) {
         try {
-            const res = await fetchWithAuth(`${API_URL}/api/project/${id}/brief-signed-url?brief_id=${briefId}`)
+            const res = await fetchWithAuth(`${API_URL}/api/project/brief/signed-url?project_id=${id}&brief_id=${briefId}`)
             const data = await res.json()
             if (data.ok && data.file_url) {
                 window.open(data.file_url, "_blank")
@@ -381,13 +381,17 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     {/* Project content */}
                     <div style={{ borderTop: "1px solid " + C.border, marginTop: 24 }}>
 
+                    {/* Debug — temporaire */}
+                    <div style={{ fontSize: 11, color: "gray", marginTop: 12 }}>
+                        status: {project.status} | role: {user?.role || "client"}
+                    </div>
+
                     {/* Prochaines etapes — rendered FIRST, visible at top */}
                     {(() => {
                         const effectiveRole = user?.role || "client"
-                        console.log('[ProjectDetail] status:', status, 'effectiveRole:', effectiveRole)
                         if (effectiveRole !== "client") return null
 
-                        if (["pending", "created", "brief_recu", "en_analyse"].includes(status)) {
+                        if (["pending", "created", "analysed", "analyzed", "brief_recu", "en_analyse"].includes(status)) {
                             const products = brief_analysis?.products
                             const hasProducts = Array.isArray(products) && products.length > 0
                             return (
