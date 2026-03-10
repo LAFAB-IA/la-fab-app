@@ -31,16 +31,25 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", childr
             document.addEventListener("keydown", handleKeyDown)
             document.body.style.overflow = "hidden"
             setDrawerWidth(null)
-            // Scroll body to top when drawer opens
-            requestAnimationFrame(() => {
-                bodyRef.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
-            })
         }
         return () => {
             document.removeEventListener("keydown", handleKeyDown)
             document.body.style.overflow = ""
         }
     }, [isOpen, handleKeyDown])
+
+    // Force scroll to top when drawer opens — separate effect to ensure DOM is ready
+    useEffect(() => {
+        if (!isOpen) return
+        const el = bodyRef.current
+        if (el) {
+            el.scrollTop = 0
+            // Also force after animation frame in case content renders async
+            const raf = requestAnimationFrame(() => { el.scrollTop = 0 })
+            const timeout = setTimeout(() => { el.scrollTop = 0 }, 50)
+            return () => { cancelAnimationFrame(raf); clearTimeout(timeout) }
+        }
+    }, [isOpen])
 
     // Resize handlers
     const onMouseDown = useCallback((e: React.MouseEvent) => {
