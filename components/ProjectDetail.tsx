@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff } from "lucide-react"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, Check } from "lucide-react"
 import { formatPrice, formatDate } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -50,6 +50,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [savingProducts, setSavingProducts] = useState(false)
     const [dragIdx, setDragIdx] = useState<number | null>(null)
     const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+    const [estimatedDimensions, setEstimatedDimensions] = useState<Set<string>>(new Set())
 
     // Fetch project
     useEffect(() => {
@@ -191,43 +192,58 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     useEffect(() => {
         const analysis = briefs?.[0]?.brief_analysis ?? project?.brief_analysis
         if (!analysis?.products || !Array.isArray(analysis.products)) return
-        setProductList(analysis.products.map((p: any, i: number) => {
+        const estimated = new Set<string>()
+        const products = analysis.products.map((p: any, i: number) => {
             const dims = p.dimensions || ""
             let w = 0, h = 0, unit = "mm"
             const dimMatch = dims.match(/(\d+)\s*[x×]\s*(\d+)\s*(mm|cm)?/i)
             if (dimMatch) { w = parseInt(dimMatch[1]); h = parseInt(dimMatch[2]); unit = dimMatch[3] || "mm" }
             const name = p.product_type || p.name || ""
-            // Auto-fill dimensions from A-format in name
-            const aMatch = name.match(/\b(A[0-6])\b/i)
-            if (aMatch && w === 0 && h === 0) {
-                const AF: Record<string, { w: number; h: number }> = {
-                    A0: { w: 841, h: 1189 }, A1: { w: 594, h: 841 }, A2: { w: 420, h: 594 },
-                    A3: { w: 297, h: 420 }, A4: { w: 210, h: 297 }, A5: { w: 148, h: 210 }, A6: { w: 105, h: 148 },
-                }
-                const fmt = AF[aMatch[1].toUpperCase()]
-                if (fmt) { w = fmt.w; h = fmt.h }
+            const prodId = `prod_${i}_${Date.now()}`
+            // Auto-fill dimensions from format detection
+            if (w === 0 && h === 0) {
+                const fmt = detectFormat(name)
+                if (fmt) { w = fmt.w; h = fmt.h; estimated.add(prodId) }
             }
             return {
-                id: `prod_${i}_${Date.now()}`,
+                id: prodId,
                 name,
                 quantity: parseInt(p.quantity || p.quantity_detected || "0") || 0,
                 width: w, height: h, unit,
             }
-        }))
+        })
+        setProductList(products)
+        setEstimatedDimensions(estimated)
         setProductsDirty(false)
     }, [briefs, project])
 
-    const A_FORMATS: Record<string, { w: number; h: number }> = {
-        A0: { w: 841, h: 1189 }, A1: { w: 594, h: 841 }, A2: { w: 420, h: 594 },
-        A3: { w: 297, h: 420 }, A4: { w: 210, h: 297 }, A5: { w: 148, h: 210 }, A6: { w: 105, h: 148 },
+    const FORMAT_MAP: Record<string, { w: number; h: number }> = {
+        "a0": { w: 841, h: 1189 }, "a1": { w: 594, h: 841 }, "a2": { w: 420, h: 594 },
+        "a3": { w: 297, h: 420 }, "a4": { w: 210, h: 297 }, "a5": { w: 148, h: 210 }, "a6": { w: 105, h: 148 },
+        "carte de visite": { w: 85, h: 55 }, "cartes de visite": { w: 85, h: 55 },
+        "flyer": { w: 148, h: 210 }, "flyer a5": { w: 148, h: 210 },
+        "affiche": { w: 420, h: 594 }, "poster": { w: 420, h: 594 },
+        "kakemono": { w: 800, h: 2000 },
+        "banderole": { w: 3000, h: 1000 },
+        "roll-up": { w: 850, h: 2000 }, "rollup": { w: 850, h: 2000 },
+        "bache": { w: 3000, h: 2000 }, "bâche": { w: 3000, h: 2000 },
     }
 
-    function applyAFormat(name: string, current: { width: number; height: number; unit: string }) {
-        const match = name.match(/\b(A[0-6])\b/i)
-        if (match) {
-            const fmt = A_FORMATS[match[1].toUpperCase()]
-            if (fmt) return { width: fmt.w, height: fmt.h, unit: "mm" }
+    function detectFormat(name: string): { w: number; h: number } | null {
+        const lower = name.toLowerCase().trim()
+        // Check A-formats first (exact word match)
+        const aMatch = lower.match(/\b(a[0-6])\b/)
+        if (aMatch && FORMAT_MAP[aMatch[1]]) return FORMAT_MAP[aMatch[1]]
+        // Check product type keywords
+        for (const key of Object.keys(FORMAT_MAP)) {
+            if (key.length > 2 && lower.includes(key)) return FORMAT_MAP[key]
         }
+        return null
+    }
+
+    function applyAutoFormat(name: string, current: { width: number; height: number; unit: string }) {
+        const fmt = detectFormat(name)
+        if (fmt) return { width: fmt.w, height: fmt.h, unit: "mm" }
         return current
     }
 
@@ -236,10 +252,13 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
             if (i !== idx) return p
             const updated = { ...p, [field]: value }
             if (field === "name") {
-                const dims = applyAFormat(value, updated)
-                updated.width = dims.width
-                updated.height = dims.height
-                updated.unit = dims.unit
+                const fmt = detectFormat(value)
+                if (fmt) {
+                    updated.width = fmt.w
+                    updated.height = fmt.h
+                    updated.unit = "mm"
+                    setEstimatedDimensions(prev => new Set(prev).add(p.id))
+                }
             }
             return updated
         }))
@@ -630,7 +649,9 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     <div style={sec}>Produits</div>
                     {productList.length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {productList.map((p, idx) => (
+                            {productList.map((p, idx) => {
+                                const isEstimated = estimatedDimensions.has(p.id)
+                                return (
                                 <div
                                     key={p.id}
                                     draggable
@@ -641,17 +662,22 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                     style={{
                                         display: "flex", alignItems: "center", gap: 8,
                                         padding: "10px 12px", backgroundColor: dragOverIdx === idx ? "rgba(244,207,21,0.08)" : C.bg,
-                                        borderRadius: 8, border: "1px solid " + C.border,
+                                        borderRadius: 8, border: isEstimated ? "2px solid #ef4444" : "1px solid " + C.border,
                                         opacity: dragIdx === idx ? 0.5 : 1,
                                     }}
                                 >
                                     <GripVertical size={16} color={C.muted} style={{ cursor: "grab", flexShrink: 0 }} />
-                                    <input
-                                        value={p.name}
-                                        onChange={(e) => updateProduct(idx, "name", e.target.value)}
-                                        placeholder="Nom du produit"
-                                        style={{ flex: 1, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0, width: "100%" }}
-                                    />
+                                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                        <input
+                                            value={p.name}
+                                            onChange={(e) => updateProduct(idx, "name", e.target.value)}
+                                            placeholder="Nom du produit"
+                                            style={{ flex: 1, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0, width: "100%" }}
+                                        />
+                                        {isEstimated && (
+                                            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", whiteSpace: "nowrap", flexShrink: 0 }}>Estime</span>
+                                        )}
+                                    </div>
                                     <input
                                         type="number"
                                         value={p.quantity || ""}
@@ -687,6 +713,15 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             <option value="cm">cm</option>
                                         </select>
                                     </div>
+                                    {isEstimated && (
+                                        <button
+                                            onClick={() => setEstimatedDimensions(prev => { const next = new Set(prev); next.delete(p.id); return next })}
+                                            title="Valider les dimensions"
+                                            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "#16a34a", flexShrink: 0 }}
+                                        >
+                                            <Check size={14} />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => removeProduct(idx)}
                                         style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", background: "none", cursor: "pointer", color: "#c0392b", flexShrink: 0 }}
@@ -694,7 +729,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     ) : (
                         <p style={{ fontSize: 13, color: C.muted }}>Aucun produit.</p>
@@ -836,10 +871,10 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         return (
                             <>
                                 <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
-                                    {showEstimate ? "Estimation (basee sur l'analyse IA)" : "Informations"}
+                                    {showEstimate ? "Notre estimation" : "Informations"}
                                     {showEstimate && (
                                         <span style={{ fontSize: 10, fontWeight: 700, color: C.dark, backgroundColor: C.yellow, padding: "2px 8px", borderRadius: 4 }}>
-                                            Estimation IA
+                                            Estimation
                                         </span>
                                     )}
                                 </div>

@@ -147,18 +147,9 @@ export default function Navbar() {
             padding: "0 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
             fontFamily: "Inter, sans-serif",
         }}>
-            {/* ── Logo → role-based home ── */}
-            <div
-                onClick={() => {
-                    if (isAuthenticated && user?.role) {
-                        const dest = user.role === "admin" ? "/admin/dashboard"
-                            : user.role === "supplier" ? "/supplier/dashboard"
-                            : "/dashboard"
-                        window.location.href = dest
-                    } else {
-                        window.location.href = "/"
-                    }
-                }}
+            {/* ── Logo → landing page ── */}
+            <Link
+                href="/"
                 style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", cursor: "pointer" }}
             >
                 <div style={{
@@ -169,7 +160,7 @@ export default function Navbar() {
                     LF
                 </div>
                 <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
-            </div>
+            </Link>
 
             {/* ── Spacer centre ── */}
             <div style={{ flex: 1 }} />
