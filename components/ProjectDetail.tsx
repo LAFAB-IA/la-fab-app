@@ -404,7 +404,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         Votre brief est en cours de traitement. Notre equipe interroge les fournisseurs partenaires.
                                     </p>
                                     {hasProducts && (
-                                        <div style={{ backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border }}>
+                                        <div style={{ backgroundColor: C.white, borderRadius: 8, padding: 12, border: "1px solid " + C.border, marginBottom: 12 }}>
                                             <div style={lbl}>Produits detectes</div>
                                             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
                                                 {products.map((p: any, i: number) => (
@@ -416,6 +416,12 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             </div>
                                         </div>
                                     )}
+                                    <button
+                                        onClick={() => document.querySelector('[data-section="messages"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
+                                    >
+                                        <MessageSquare size={14} /> Contacter notre equipe
+                                    </button>
                                 </div>
                             )
                         }
@@ -441,16 +447,26 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         </div>
                                     )}
                                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                        {quotedInvoice ? (
-                                            <button
-                                                onClick={() => handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")}
-                                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-                                            >
-                                                <CreditCard size={16} /> Valider et payer
-                                            </button>
-                                        ) : (
-                                            <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Facture en cours de generation...</p>
-                                        )}
+                                        <button
+                                            onClick={() => {
+                                                if (quotedInvoice) {
+                                                    handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")
+                                                } else {
+                                                    // Fetch invoices then pay
+                                                    fetchWithAuth(`${API_URL}/api/invoice/list?project_id=${id}`)
+                                                        .then(r => r.json())
+                                                        .then(data => {
+                                                            const inv = data.invoices?.find((i: any) => i.status === "pending")
+                                                            if (inv) handlePay(inv.id, inv.payment_type === "split" ? "deposit" : "full")
+                                                            else alert("Facture en cours de generation, reessayez dans quelques instants.")
+                                                        })
+                                                        .catch(() => alert("Erreur lors de la recuperation de la facture."))
+                                                }
+                                            }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                                        >
+                                            <CreditCard size={16} /> Valider et payer
+                                        </button>
                                         {quote_url && (
                                             <a
                                                 href={quote_url}
@@ -1048,7 +1064,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     )}
 
                     {/* Messages */}
-                    <div ref={messagesSectionRef} style={sec}>Messages</div>
+                    <div ref={messagesSectionRef} data-section="messages" style={sec}>Messages</div>
                     <div style={{ backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border, overflow: "hidden" }}>
                         {/* Message list */}
                         <div style={{ maxHeight: 360, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
