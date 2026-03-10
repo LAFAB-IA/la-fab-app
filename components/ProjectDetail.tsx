@@ -7,8 +7,8 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
-import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, Check } from "lucide-react"
-import { formatPrice, formatDate } from "@/lib/format"
+import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, Check, MessageSquare } from "lucide-react"
+import { formatPrice, formatDate, projectDisplayName } from "@/lib/format"
 
 interface ProjectDetailProps {
     projectId?: string
@@ -43,6 +43,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [msgText, setMsgText] = useState("")
     const [sending, setSending] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesSectionRef = useRef<HTMLDivElement>(null)
 
     // Editable product list
     const [productList, setProductList] = useState<Array<{ id: string; name: string; quantity: number; width: number; height: number; unit: string }>>([])
@@ -349,7 +350,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                         <div>
                             <div style={{ fontSize: 22, fontWeight: 700, color: C.dark }}>
-                                {brief_analysis?.product_type || product?.label || "Projet"}
+                                {projectDisplayName(project, user?.role)}
                             </div>
                             <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{id}</div>
                         </div>
@@ -531,6 +532,18 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         return null
                     })()}
 
+                    {/* Contacter LA FAB — all client statuses */}
+                    {(user?.role || "client") === "client" && (
+                        <div style={{ marginTop: 12, marginBottom: 8 }}>
+                            <button
+                                onClick={() => messagesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, background: C.white, cursor: "pointer" }}
+                            >
+                                <MessageSquare size={14} /> Contacter LA FAB
+                            </button>
+                        </div>
+                    )}
+
                     {/* Briefs - toggle viewer */}
                     <div style={sec}>Briefs</div>
                     {briefsLoading ? (
@@ -694,7 +707,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             style={{ flex: 1, padding: "6px 10px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", minWidth: 0, width: "100%" }}
                                         />
                                         {isEstimated && (
-                                            <span style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", whiteSpace: "nowrap", flexShrink: 0 }}>Estime</span>
+                                            <span title={`Dimensions estimees automatiquement : ${p.width} × ${p.height} mm`} style={{ padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fecaca", whiteSpace: "nowrap", flexShrink: 0 }}>Estime</span>
                                         )}
                                     </div>
                                     <input
@@ -712,7 +725,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             onChange={(e) => updateProduct(idx, "width", parseInt(e.target.value) || 0)}
                                             placeholder="L"
                                             min={0}
-                                            style={{ width: 80, minWidth: 80, padding: "6px 6px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                            style={{ width: 80, minWidth: 80, padding: "6px 6px", border: isEstimated ? "2px solid #ef4444" : "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
                                         />
                                         <span style={{ fontSize: 12, color: C.muted }}>x</span>
                                         <input
@@ -721,7 +734,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             onChange={(e) => updateProduct(idx, "height", parseInt(e.target.value) || 0)}
                                             placeholder="H"
                                             min={0}
-                                            style={{ width: 80, minWidth: 80, padding: "6px 6px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
+                                            style={{ width: 80, minWidth: 80, padding: "6px 6px", border: isEstimated ? "2px solid #ef4444" : "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", textAlign: "center" }}
                                         />
                                         <select
                                             value={p.unit}
@@ -1030,7 +1043,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                     )}
 
                     {/* Messages */}
-                    <div style={sec}>Messages</div>
+                    <div ref={messagesSectionRef} style={sec}>Messages</div>
                     <div style={{ backgroundColor: C.bg, borderRadius: 12, border: "1px solid " + C.border, overflow: "hidden" }}>
                         {/* Message list */}
                         <div style={{ maxHeight: 360, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>

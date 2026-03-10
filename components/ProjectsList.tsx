@@ -5,7 +5,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import { ClipboardList, ExternalLink, SearchX, ChevronDown } from "lucide-react"
-import { formatPrice, formatDate } from "@/lib/format"
+import { formatPrice, formatDate, projectDisplayName } from "@/lib/format"
 import Drawer from "@/components/shared/Drawer"
 import ProjectDetail from "@/components/ProjectDetail"
 import useListView from "@/hooks/useListView"
@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
     )
 }
 
-function ProjectCard({ project, onClick }: { project: any; onClick: () => void }) {
+function ProjectCard({ project, onClick, role }: { project: any; onClick: () => void; role?: string }) {
     const sc = STATUS_CONFIG[project.status] || { color: C.muted }
     const hasPrice = project.pricing?.total_net != null
 
@@ -46,9 +46,16 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 4 }}>
-                        {project.product?.label || project.brief_analysis?.product_type || "Brief uploade"}
+                        {projectDisplayName(project, role)}
                     </div>
                     <div style={{ fontSize: 12, color: C.muted }}>{project.project_id}</div>
+                    {role === "admin" && project.supplier_name && (
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                            <span style={{ padding: "2px 6px", borderRadius: 4, backgroundColor: C.bg, border: "1px solid " + C.border, fontSize: 10, fontWeight: 600 }}>
+                                Fournisseur : {project.supplier_name}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <StatusBadge status={project.status} />
             </div>
@@ -81,7 +88,7 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
     )
 }
 
-function ProjectGridCard({ project, onClick }: { project: any; onClick: () => void }) {
+function ProjectGridCard({ project, onClick, role }: { project: any; onClick: () => void; role?: string }) {
     const sc = STATUS_CONFIG[project.status] || { label: project.status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
     const hasPrice = project.pricing?.total_net != null
 
@@ -103,9 +110,16 @@ function ProjectGridCard({ project, onClick }: { project: any; onClick: () => vo
                 {sc.label}
             </span>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 4, paddingRight: 90 }}>
-                {project.product?.label || project.brief_analysis?.product_type || "Brief uploade"}
+                {projectDisplayName(project, role)}
             </div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{project.project_id}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: role === "admin" && project.supplier_name ? 4 : 10 }}>{project.project_id}</div>
+            {role === "admin" && project.supplier_name && (
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 6 }}>
+                    <span style={{ padding: "2px 6px", borderRadius: 4, backgroundColor: C.bg, border: "1px solid " + C.border, fontWeight: 600 }}>
+                        Fournisseur : {project.supplier_name}
+                    </span>
+                </div>
+            )}
             <div style={{ fontSize: 12, color: C.muted }}>{formatDate(project.created_at)}</div>
             {hasPrice && (
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.dark, marginTop: 6 }}>{formatPrice(project.pricing.total_net)}</div>
@@ -115,7 +129,7 @@ function ProjectGridCard({ project, onClick }: { project: any; onClick: () => vo
 }
 
 export default function ProjectsList() {
-    const { token, isAuthenticated, isLoading: authLoading } = useAuth()
+    const { token, isAuthenticated, isLoading: authLoading, user } = useAuth()
     const [projects, setProjects] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
@@ -139,7 +153,7 @@ export default function ProjectsList() {
         getSortValue: (p, key) => {
             switch (key) {
                 case "date": return new Date(p.created_at).getTime()
-                case "name": return p.product?.label || p.brief_analysis?.product_type || ""
+                case "name": return projectDisplayName(p, user?.role)
                 case "price": return Number(p.pricing?.total_net) || 0
                 case "status": return STATUS_ORDER.indexOf(p.status) === -1 ? 99 : STATUS_ORDER.indexOf(p.status)
                 default: return 0
@@ -295,13 +309,13 @@ export default function ProjectsList() {
                                         lv.viewMode === "grid" ? (
                                             <div className="list-grid-3col" style={{ marginTop: 10 }}>
                                                 {items.map((project: any) => (
-                                                    <ProjectGridCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
+                                                    <ProjectGridCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} role={user?.role} />
                                                 ))}
                                             </div>
                                         ) : (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
                                                 {items.map((project: any) => (
-                                                    <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} />
+                                                    <ProjectCard key={project.project_id} project={project} onClick={() => openProject(project.project_id)} role={user?.role} />
                                                 ))}
                                             </div>
                                         )
