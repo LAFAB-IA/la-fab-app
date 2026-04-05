@@ -193,7 +193,7 @@ export default function Landing() {
                             objectFit: "cover",
                         }}
                     >
-                        <source src="https://videos.pexels.com/video-files/5377684/5377684-uhd_2560_1440_25fps.mp4" type="video/mp4" />
+                        <source src="https://videos.pexels.com/video-files/3121459/3121459-uhd_3840_2160_25fps.mp4" type="video/mp4" />
                     </video>
                     {/* Dark overlay */}
                     <div style={{
