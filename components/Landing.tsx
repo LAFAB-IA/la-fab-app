@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 import {
     FileUp, Route, BarChart3, Rocket,
     Brain, Layers, Shield, Activity, BadgeCheck, Leaf,
-    Users,
+    Users, Linkedin, Quote,
 } from "lucide-react"
 
 const C = {
@@ -13,6 +13,7 @@ const C = {
     yellow: "#F4CF15",
     white:  "#FAFFFD",
     bg:     "#f0f0ee",
+    beige:  "#faf8f4",
     muted:  "#7a8080",
     border: "#e0e0de",
 }
@@ -48,7 +49,71 @@ function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
     )
 }
 
+/* ── Animated counter ──────────────────────────────────────────────────────── */
+
+function AnimatedCounter({ target, suffix = "", prefix = "", duration = 2000 }: {
+    target: number; suffix?: string; prefix?: string; duration?: number
+}) {
+    const ref = useRef<HTMLSpanElement>(null)
+    const [value, setValue] = useState(0)
+    const [started, setStarted] = useState(false)
+
+    useEffect(() => {
+        const el = ref.current
+        if (!el) return
+        const obs = new IntersectionObserver(
+            ([e]) => { if (e.isIntersecting) { setStarted(true); obs.disconnect() } },
+            { threshold: 0.3 },
+        )
+        obs.observe(el)
+        return () => obs.disconnect()
+    }, [])
+
+    useEffect(() => {
+        if (!started) return
+        const start = performance.now()
+        const step = (now: number) => {
+            const progress = Math.min((now - start) / duration, 1)
+            const eased = 1 - Math.pow(1 - progress, 3) // easeOutCubic
+            setValue(Math.round(eased * target))
+            if (progress < 1) requestAnimationFrame(step)
+        }
+        requestAnimationFrame(step)
+    }, [started, target, duration])
+
+    return <span ref={ref}>{prefix}{value}{suffix}</span>
+}
+
 /* ── Landing ───────────────────────────────────────────────────────────────── */
+
+const LOGOS_CLIENTS = [
+    "Groupe Delvaux", "Maison Artaud", "Industrie Perrot",
+    "Atelier Morel", "Packing Rivière", "Métal Durand",
+]
+
+const TEMOIGNAGES = [
+    {
+        initials: "SD",
+        name: "Sophie Delvaux",
+        role: "Directrice Achats",
+        company: "Groupe Delvaux",
+        quote: "LA FAB a transformé notre gestion de projets d'impression. Délais divisés par 2, qualité irréprochable. On ne reviendrait pas en arrière.",
+    },
+    {
+        initials: "MA",
+        name: "Marc Artaud",
+        role: "Responsable Production",
+        company: "Maison Artaud",
+        quote: "L'IA qui analyse nos briefs nous fait gagner un temps précieux. Les devis arrivent en moins de 24h, c'est impressionnant.",
+    },
+    {
+        initials: "CP",
+        name: "Claire Perrot",
+        role: "CEO",
+        company: "Industrie Perrot",
+        quote: "En tant que fournisseur, LA FAB nous apporte des projets qualifiés. Le matching intelligent est vraiment pertinent.",
+    },
+]
 
 export default function Landing() {
     const [scrolled, setScrolled] = useState(false)
@@ -72,25 +137,25 @@ export default function Landing() {
                 {/* ── NAV ── */}
                 <nav style={{
                     position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-                    padding: "0 32px", height: 64,
+                    padding: "0 40px", height: 64,
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     backgroundColor: scrolled ? "rgba(250,255,253,0.95)" : "transparent",
                     backdropFilter: scrolled ? "blur(12px)" : "none",
                     borderBottom: scrolled ? `1px solid ${C.border}` : "none",
                     transition: "all 0.3s ease",
                 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{
-                            width: 28, height: 28, backgroundColor: C.yellow, borderRadius: 6,
+                            width: 32, height: 32, backgroundColor: C.yellow, borderRadius: 7,
                             display: "flex", alignItems: "center", justifyContent: "center",
                         }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: C.dark }}>LF</span>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: C.dark }}>LF</span>
                         </div>
-                        <span style={{ fontSize: 20, fontWeight: 700, color: scrolled ? C.dark : C.white }}>
+                        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: scrolled ? C.dark : C.white }}>
                             LA FAB
                         </span>
                     </div>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                         <a href="/login" className="nav-link" style={{
                             padding: "8px 18px", fontSize: 14, fontWeight: 600,
                             color: scrolled ? C.dark : C.white, textDecoration: "none", borderRadius: 8,
@@ -98,7 +163,7 @@ export default function Landing() {
                             Se connecter
                         </a>
                         <a href="/login" className="btn-primary" style={{
-                            padding: "8px 20px", fontSize: 14, fontWeight: 700,
+                            padding: "8px 22px", fontSize: 14, fontWeight: 700,
                             color: C.dark, textDecoration: "none",
                             backgroundColor: C.yellow, borderRadius: 8,
                         }}>
@@ -108,37 +173,39 @@ export default function Landing() {
                 </nav>
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    SECTION 1 — HERO
+                    SECTION 1 — HERO (gradient animé)
                 ══════════════════════════════════════════════════════════════════ */}
-                <section style={{
+                <section className="landing-hero-bg" style={{
                     minHeight: "100vh",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     padding: "100px 24px 80px",
-                    background: `linear-gradient(160deg, ${C.dark} 0%, ${C.darkGradEnd} 100%)`,
                     textAlign: "center",
                 }}>
                     <div style={{ maxWidth: 760, margin: "0 auto" }}>
                         <h1 style={{
-                            fontSize: "clamp(32px, 5vw, 48px)",
+                            fontSize: "clamp(34px, 5vw, 52px)",
                             fontWeight: 600,
-                            lineHeight: 1.15,
+                            lineHeight: 1.1,
                             color: C.white,
                             marginBottom: 20,
+                            letterSpacing: "-0.03em",
                         }}>
-                            LA FAB orchestre vos projets d&#39;impression
+                            Orchestrez vos projets industriels.
+                            <br />
+                            <span style={{ color: C.yellow }}>Zéro friction.</span>
                         </h1>
 
                         <p style={{
                             fontSize: 18, lineHeight: 1.6,
                             color: "rgba(250,255,253,0.7)",
-                            maxWidth: 600, margin: "0 auto 40px",
+                            maxWidth: 560, margin: "0 auto 40px",
                         }}>
-                            La plateforme B2B qui connecte vos briefs aux meilleurs fournisseurs.
-                            De l&#39;impression au packaging, en passant par la menuiserie et la métallurgie.
+                            La plateforme B2B qui connecte vos briefs aux meilleurs fournisseurs —
+                            impression, packaging, menuiserie, métallurgie — en quelques clics.
                         </p>
 
-                        {/* CTA buttons */}
-                        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
+                        {/* 2 CTA côte à côte */}
+                        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 32 }}>
                             <a href="/projet/nouveau" className="btn-primary" style={{
                                 padding: "16px 32px", backgroundColor: C.yellow, color: C.dark,
                                 borderRadius: 8, fontSize: 16, fontWeight: 700, textDecoration: "none",
@@ -146,30 +213,71 @@ export default function Landing() {
                             }}>
                                 Déposer un brief
                             </a>
-                            <a href="#comment-ca-marche" className="btn-secondary" style={{
-                                padding: "16px 32px", color: C.yellow,
+                            <a href="/supplier/register" className="btn-secondary" style={{
+                                padding: "16px 32px", color: C.white,
                                 borderRadius: 8, fontSize: 16, fontWeight: 600, textDecoration: "none",
-                                border: `1px solid ${C.yellow}`, backgroundColor: "transparent",
+                                border: `1px solid rgba(250,255,253,0.3)`, backgroundColor: "transparent",
                             }}>
-                                Découvrir la plateforme
+                                Espace fournisseur
                             </a>
                         </div>
 
-                        {/* Social proof */}
+                        {/* Badge social proof */}
                         <div style={{
-                            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                            color: C.yellow, fontSize: 14,
+                            display: "inline-flex", alignItems: "center", gap: 8,
+                            padding: "8px 18px", borderRadius: 20,
+                            backgroundColor: "rgba(244,207,21,0.1)",
+                            border: "1px solid rgba(244,207,21,0.2)",
                         }}>
-                            <Users size={16} />
-                            <span>Déjà 50+ projets gérés — Rejoignez nos clients satisfaits</span>
+                            <span className="landing-badge-pulse" style={{ display: "flex" }}>
+                                <Users size={16} color={C.yellow} />
+                            </span>
+                            <span style={{ color: C.yellow, fontSize: 14, fontWeight: 500 }}>
+                                50+ projets orchestrés
+                            </span>
                         </div>
                     </div>
                 </section>
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    SECTION 2 — COMMENT ÇA MARCHE
+                    SECTION 2 — ILS NOUS FONT CONFIANCE (logos défilement)
                 ══════════════════════════════════════════════════════════════════ */}
-                <section id="comment-ca-marche" style={{ padding: "96px 24px", backgroundColor: C.white }}>
+                <section style={{ padding: "48px 0", backgroundColor: C.white, overflow: "hidden" }}>
+                    <FadeIn>
+                        <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 24 }}>
+                            Ils nous font confiance
+                        </p>
+                    </FadeIn>
+                    <div style={{ overflow: "hidden", position: "relative" }}>
+                        {/* Fade edges */}
+                        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 80, background: `linear-gradient(to right, ${C.white}, transparent)`, zIndex: 1 }} />
+                        <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 80, background: `linear-gradient(to left, ${C.white}, transparent)`, zIndex: 1 }} />
+                        <div className="landing-marquee-track">
+                            {[...LOGOS_CLIENTS, ...LOGOS_CLIENTS].map((name, i) => (
+                                <div key={i} style={{
+                                    flex: "0 0 auto",
+                                    padding: "12px 40px",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                }}>
+                                    <div style={{
+                                        width: 140, height: 48,
+                                        backgroundColor: "#f4f4f3",
+                                        borderRadius: 8,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        opacity: 0.5,
+                                    }}>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>{name}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 3 — COMMENT ÇA MARCHE
+                ══════════════════════════════════════════════════════════════════ */}
+                <section id="comment-ca-marche" style={{ padding: "96px 24px", backgroundColor: C.bg }}>
                     <div style={{ maxWidth: 1000, margin: "0 auto" }}>
                         <FadeIn>
                             <h2 style={{ fontSize: 32, fontWeight: 600, color: C.dark, textAlign: "center", marginBottom: 64 }}>
@@ -177,8 +285,7 @@ export default function Landing() {
                             </h2>
                         </FadeIn>
 
-                        {/* Steps */}
-                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap", gap: 0 }}>
+                        <div className="landing-steps-row" style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap", gap: 0 }}>
                             {([
                                 { n: 1, icon: <FileUp size={24} />, title: "Déposez votre brief", desc: "Uploadez votre cahier des charges. Notre IA l'analyse en quelques secondes." },
                                 { n: 2, icon: <Route size={24} />, title: "Matching fournisseurs", desc: "Notre algorithme sélectionne les fournisseurs les plus pertinents selon vos critères." },
@@ -187,7 +294,10 @@ export default function Landing() {
                             ] as const).map((step, i) => (
                                 <FadeIn key={step.n} delay={i * 0.1}>
                                     <div style={{ display: "flex", alignItems: "flex-start" }}>
-                                        <div style={{ textAlign: "center", width: 200, padding: "0 12px" }}>
+                                        <div className="landing-step-card" style={{
+                                            textAlign: "center", width: 210, padding: "20px 16px",
+                                            borderRadius: 12, backgroundColor: C.white,
+                                        }}>
                                             <div style={{
                                                 width: 52, height: 52, borderRadius: "50%",
                                                 backgroundColor: C.yellow, color: C.dark,
@@ -206,14 +316,21 @@ export default function Landing() {
                                                 {step.desc}
                                             </div>
                                         </div>
-                                        {/* Connector line */}
+                                        {/* Horizontal connector */}
                                         {i < 3 && (
-                                            <div style={{
-                                                width: 48, height: 2, backgroundColor: C.border,
-                                                marginTop: 26, flexShrink: 0,
+                                            <div className="landing-step-connector-h" style={{
+                                                width: 40, height: 2, backgroundColor: C.border,
+                                                marginTop: 46, flexShrink: 0,
                                             }} />
                                         )}
                                     </div>
+                                    {/* Vertical connector (mobile) */}
+                                    {i < 3 && (
+                                        <div className="landing-step-connector-v" style={{
+                                            display: "none", width: 2, height: 24,
+                                            backgroundColor: C.border, margin: "0 auto",
+                                        }} />
+                                    )}
                                 </FadeIn>
                             ))}
                         </div>
@@ -221,9 +338,9 @@ export default function Landing() {
                 </section>
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    SECTION 3 — AVANTAGES
+                    SECTION 4 — POURQUOI LA FAB
                 ══════════════════════════════════════════════════════════════════ */}
-                <section style={{ padding: "96px 24px", backgroundColor: C.bg }}>
+                <section style={{ padding: "96px 24px", backgroundColor: C.white }}>
                     <div style={{ maxWidth: 1000, margin: "0 auto" }}>
                         <FadeIn>
                             <h2 style={{ fontSize: 32, fontWeight: 600, color: C.dark, textAlign: "center", marginBottom: 56 }}>
@@ -231,7 +348,7 @@ export default function Landing() {
                             </h2>
                         </FadeIn>
 
-                        <div style={{
+                        <div className="landing-avantages-grid" style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(3, 1fr)",
                             gap: 20,
@@ -245,8 +362,8 @@ export default function Landing() {
                                 { icon: <Leaf size={28} />, title: "CO2 optimisé", desc: "Routing intelligent qui privilégie la proximité géographique pour réduire l'empreinte carbone." },
                             ]).map((card, i) => (
                                 <FadeIn key={card.title} delay={i * 0.07}>
-                                    <div style={{
-                                        backgroundColor: C.white, borderRadius: 12,
+                                    <div className="landing-card-hover" style={{
+                                        backgroundColor: C.bg, borderRadius: 12,
                                         padding: "28px 24px",
                                         boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
                                     }}>
@@ -258,96 +375,186 @@ export default function Landing() {
                             ))}
                         </div>
                     </div>
-
-                    {/* Responsive: 2 cols tablet, 1 col mobile */}
-                    <style>{`
-                        @media (max-width: 900px) {
-                            section:nth-of-type(3) > div > div:last-child {
-                                grid-template-columns: repeat(2, 1fr) !important;
-                            }
-                        }
-                        @media (max-width: 580px) {
-                            section:nth-of-type(3) > div > div:last-child {
-                                grid-template-columns: 1fr !important;
-                            }
-                        }
-                    `}</style>
                 </section>
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    SECTION 4 — CHIFFRES CLÉS
+                    SECTION 5 — TÉMOIGNAGES
+                ══════════════════════════════════════════════════════════════════ */}
+                <section style={{ padding: "96px 24px", backgroundColor: C.beige }}>
+                    <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+                        <FadeIn>
+                            <h2 style={{ fontSize: 32, fontWeight: 600, color: C.dark, textAlign: "center", marginBottom: 56 }}>
+                                Ce que disent nos clients
+                            </h2>
+                        </FadeIn>
+
+                        <div className="landing-temoignages-grid" style={{
+                            display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24,
+                        }}>
+                            {TEMOIGNAGES.map((t, i) => (
+                                <FadeIn key={t.name} delay={i * 0.1}>
+                                    <div style={{
+                                        backgroundColor: C.white, borderRadius: 12, padding: "28px 24px",
+                                        boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
+                                        position: "relative",
+                                    }}>
+                                        <Quote size={32} style={{
+                                            position: "absolute", top: 16, right: 20,
+                                            color: C.yellow, opacity: 0.2,
+                                        }} />
+                                        <p style={{ fontSize: 14, color: C.dark, lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>
+                                            &ldquo;{t.quote}&rdquo;
+                                        </p>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                            <div style={{
+                                                width: 40, height: 40, borderRadius: "50%",
+                                                backgroundColor: C.yellow, color: C.dark,
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                fontWeight: 700, fontSize: 14,
+                                            }}>
+                                                {t.initials}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{t.name}</div>
+                                                <div style={{ fontSize: 12, color: C.muted }}>{t.role}, {t.company}</div>
+                                            </div>
+                                        </div>
+                                        {/* Placeholder badge */}
+                                        <div style={{
+                                            marginTop: 12, fontSize: 10, color: C.muted, opacity: 0.5,
+                                            textTransform: "uppercase", letterSpacing: "0.05em",
+                                        }}>
+                                            Témoignage placeholder
+                                        </div>
+                                    </div>
+                                </FadeIn>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══════════════════════════════════════════════════════════════════
+                    SECTION 6 — CHIFFRES CLÉS (compteurs animés)
                 ══════════════════════════════════════════════════════════════════ */}
                 <section style={{
                     padding: "80px 24px",
                     background: C.dark,
                 }}>
-                    <FadeIn>
-                        <div style={{
-                            maxWidth: 900, margin: "0 auto",
-                            display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 40,
-                            textAlign: "center",
-                        }}>
-                            {([
-                                { val: "50+", label: "projets gérés" },
-                                { val: "18", label: "fournisseurs vérifiés" },
-                                { val: "< 24h", label: "délai de réponse moyen" },
-                                { val: "98%", label: "taux de satisfaction" },
-                            ]).map((s) => (
-                                <div key={s.label}>
+                    <div style={{
+                        maxWidth: 900, margin: "0 auto",
+                        display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 40,
+                        textAlign: "center",
+                    }}>
+                        {([
+                            { target: 50, suffix: "+", label: "projets gérés" },
+                            { target: 18, suffix: "", label: "fournisseurs vérifiés" },
+                            { target: 24, prefix: "< ", suffix: "h", label: "délai de réponse moyen" },
+                            { target: 98, suffix: "%", label: "taux de satisfaction" },
+                        ]).map((s) => (
+                            <FadeIn key={s.label}>
+                                <div>
                                     <div style={{ fontSize: 48, fontWeight: 700, color: C.yellow, lineHeight: 1 }}>
-                                        {s.val}
+                                        <AnimatedCounter
+                                            target={s.target}
+                                            suffix={s.suffix}
+                                            prefix={s.prefix || ""}
+                                        />
                                     </div>
                                     <div style={{ fontSize: 14, color: C.white, marginTop: 8 }}>
                                         {s.label}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </FadeIn>
+                            </FadeIn>
+                        ))}
+                    </div>
                 </section>
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    SECTION 5 — CTA FINAL
+                    SECTION 7 — CTA FINAL (2 parcours)
                 ══════════════════════════════════════════════════════════════════ */}
-                <section style={{ padding: "96px 24px", backgroundColor: C.white, textAlign: "center" }}>
-                    <FadeIn>
-                        <div style={{ maxWidth: 600, margin: "0 auto" }}>
-                            <h2 style={{ fontSize: 36, fontWeight: 600, color: C.dark, lineHeight: 1.2, marginBottom: 16 }}>
-                                Prêt à lancer votre prochain projet ?
+                <section style={{
+                    padding: "96px 24px",
+                    background: `linear-gradient(160deg, #0d0d0d 0%, #1a1f2e 100%)`,
+                }}>
+                    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+                        <FadeIn>
+                            <h2 style={{ fontSize: 32, fontWeight: 600, color: C.white, textAlign: "center", marginBottom: 56 }}>
+                                Prêt à démarrer ?
                             </h2>
-                            <p style={{ fontSize: 17, color: C.muted, lineHeight: 1.6, marginBottom: 36 }}>
-                                Créez votre compte gratuitement et déposez votre premier brief en moins de 2 minutes.
-                            </p>
-                            <a href="/login" className="btn-primary" style={{
-                                display: "inline-block", padding: "16px 40px",
-                                backgroundColor: C.yellow, color: C.dark,
-                                borderRadius: 8, fontSize: 16, fontWeight: 700,
-                                textDecoration: "none",
-                                boxShadow: "0 4px 20px rgba(244,207,21,0.3)",
+                        </FadeIn>
+
+                        <div className="landing-cta-dual" style={{
+                            display: "flex", gap: 24, justifyContent: "center",
+                        }}>
+                            {/* Client */}
+                            <div style={{
+                                flex: 1, maxWidth: 400,
+                                backgroundColor: "rgba(250,255,253,0.05)",
+                                border: "1px solid rgba(250,255,253,0.1)",
+                                borderRadius: 16, padding: "40px 32px",
+                                textAlign: "center",
                             }}>
-                                Créer mon compte
-                            </a>
-                            <div style={{ marginTop: 20 }}>
-                                <a href="/supplier/register" className="nav-link" style={{
-                                    fontSize: 14, color: C.muted, textDecoration: "underline",
+                                <div style={{ fontSize: 14, color: C.yellow, fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    Vous êtes client
+                                </div>
+                                <h3 style={{ fontSize: 22, fontWeight: 600, color: C.white, marginBottom: 12 }}>
+                                    Lancez votre premier projet
+                                </h3>
+                                <p style={{ fontSize: 14, color: "rgba(250,255,253,0.6)", lineHeight: 1.6, marginBottom: 28 }}>
+                                    Créez votre compte gratuitement et déposez votre premier brief en moins de 2 minutes.
+                                </p>
+                                <a href="/login" className="btn-primary" style={{
+                                    display: "inline-block", padding: "14px 32px",
+                                    backgroundColor: C.yellow, color: C.dark,
+                                    borderRadius: 8, fontSize: 15, fontWeight: 700,
+                                    textDecoration: "none",
                                 }}>
-                                    Vous êtes fournisseur ?
+                                    Créer mon compte
+                                </a>
+                            </div>
+
+                            {/* Fournisseur */}
+                            <div style={{
+                                flex: 1, maxWidth: 400,
+                                backgroundColor: "rgba(250,255,253,0.05)",
+                                border: "1px solid rgba(250,255,253,0.1)",
+                                borderRadius: 16, padding: "40px 32px",
+                                textAlign: "center",
+                            }}>
+                                <div style={{ fontSize: 14, color: C.yellow, fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    Vous êtes fournisseur
+                                </div>
+                                <h3 style={{ fontSize: 22, fontWeight: 600, color: C.white, marginBottom: 12 }}>
+                                    Rejoignez notre réseau
+                                </h3>
+                                <p style={{ fontSize: 14, color: "rgba(250,255,253,0.6)", lineHeight: 1.6, marginBottom: 28 }}>
+                                    Accédez à des projets qualifiés et développez votre activité avec LA FAB.
+                                </p>
+                                <a href="/supplier/register" style={{
+                                    display: "inline-block", padding: "14px 32px",
+                                    color: C.white, borderRadius: 8, fontSize: 15, fontWeight: 600,
+                                    textDecoration: "none",
+                                    border: `1px solid rgba(250,255,253,0.3)`,
+                                    backgroundColor: "transparent",
+                                    transition: "all 150ms ease",
+                                }}>
+                                    Rejoindre le réseau
                                 </a>
                             </div>
                         </div>
-                    </FadeIn>
+                    </div>
                 </section>
 
                 {/* ══════════════════════════════════════════════════════════════════
                     FOOTER
                 ══════════════════════════════════════════════════════════════════ */}
                 <footer style={{ backgroundColor: C.dark, padding: "48px 24px 32px" }}>
-                    <div style={{
+                    <div className="landing-footer-grid" style={{
                         maxWidth: 960, margin: "0 auto",
                         display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32,
                         alignItems: "start",
                     }}>
-                        {/* Col 1 — Logo */}
+                        {/* Col 1 — Logo + socials */}
                         <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                                 <div style={{
@@ -358,9 +565,19 @@ export default function Landing() {
                                 </div>
                                 <span style={{ fontSize: 16, fontWeight: 700, color: C.white }}>LA FAB</span>
                             </div>
-                            <p style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", lineHeight: 1.5 }}>
-                                La plateforme qui orchestre vos projets
+                            <p style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", lineHeight: 1.5, marginBottom: 16 }}>
+                                La plateforme qui orchestre vos projets industriels.
                             </p>
+                            <a href="#" aria-label="LinkedIn" style={{
+                                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                width: 32, height: 32, borderRadius: 6,
+                                backgroundColor: "rgba(250,255,253,0.08)",
+                                color: "rgba(250,255,253,0.5)",
+                                textDecoration: "none",
+                                transition: "background-color 150ms ease",
+                            }}>
+                                <Linkedin size={16} />
+                            </a>
                         </div>
 
                         {/* Col 2 — Liens */}
@@ -370,10 +587,12 @@ export default function Landing() {
                             <a href="mailto:contact@lafab-360.fr" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Contact</a>
                         </div>
 
-                        {/* Col 3 — Contact */}
+                        {/* Col 3 — Légal */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "right" }}>
-                            <span style={{ fontSize: 13, color: "rgba(250,255,253,0.6)" }}>contact@lafab-360.fr</span>
-                            <span style={{ fontSize: 13, color: "rgba(250,255,253,0.6)" }}>lafab-360.fr</span>
+                            <a href="#" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Mentions légales</a>
+                            <a href="#" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>CGV</a>
+                            <a href="#" className="nav-link" style={{ fontSize: 13, color: "rgba(250,255,253,0.6)", textDecoration: "none" }}>Politique de confidentialité</a>
+                            <span style={{ fontSize: 13, color: "rgba(250,255,253,0.4)" }}>contact@lafab-360.fr</span>
                         </div>
                     </div>
 
@@ -384,19 +603,6 @@ export default function Landing() {
                     }}>
                         © 2026 LA FAB — Tous droits réservés
                     </div>
-
-                    {/* Responsive footer */}
-                    <style>{`
-                        @media (max-width: 640px) {
-                            footer > div:first-child {
-                                grid-template-columns: 1fr !important;
-                                text-align: center;
-                            }
-                            footer > div:first-child > div:last-child {
-                                text-align: center !important;
-                            }
-                        }
-                    `}</style>
                 </footer>
             </div>
         </>

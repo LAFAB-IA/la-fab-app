@@ -88,3 +88,93 @@ body {
 .row-hover:hover {
   background-color: #f8f8f8;
 }
+
+/* ─── Landing page animations ─── */
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.landing-hero-bg {
+  background: linear-gradient(135deg, #000000 0%, #1a1f2e 25%, #0d1117 50%, #1a2332 75%, #000000 100%);
+  background-size: 400% 400%;
+  animation: gradient-shift 12s ease infinite;
+}
+
+.landing-marquee-track {
+  display: flex;
+  animation: marquee 20s linear infinite;
+  width: max-content;
+}
+
+.landing-card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.landing-card-hover:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(58, 64, 64, 0.12);
+}
+
+.landing-step-card {
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+  border: 1px solid transparent;
+}
+.landing-step-card:hover {
+  border-color: #e0e0de;
+  box-shadow: 0 4px 16px rgba(58, 64, 64, 0.08);
+}
+
+.landing-badge-pulse {
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+/* Landing responsive overrides */
+@media (max-width: 768px) {
+  .landing-steps-row {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .landing-step-connector-h {
+    display: none !important;
+  }
+  .landing-step-connector-v {
+    display: block !important;
+  }
+  .landing-cta-dual {
+    flex-direction: column !important;
+  }
+  .landing-cta-dual > div {
+    width: 100% !important;
+  }
+  .landing-avantages-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-temoignages-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-footer-grid {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+  }
+  .landing-footer-grid > div:last-child {
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 769px) {
+  .landing-avantages-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
