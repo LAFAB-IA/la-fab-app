@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState, useCallback } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
     FileUp, Route, BarChart3, Rocket,
     Brain, Layers, Shield, Activity, BadgeCheck, Leaf,
@@ -36,13 +36,14 @@ function useFadeIn(threshold = 0.15) {
     return { ref, visible }
 }
 
-function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function FadeIn({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
     const { ref, visible } = useFadeIn()
     return (
         <div ref={ref} style={{
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(20px)",
             transition: `opacity 0.5s ease ${delay}s, transform 0.5s ease ${delay}s`,
+            ...style,
         }}>
             {children}
         </div>
@@ -175,13 +176,31 @@ export default function Landing() {
                 {/* ══════════════════════════════════════════════════════════════════
                     SECTION 1 — HERO (gradient animé)
                 ══════════════════════════════════════════════════════════════════ */}
-                <section className="landing-hero-bg" style={{
+                <section style={{
                     minHeight: "100vh",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     padding: "100px 24px 80px",
                     textAlign: "center",
+                    position: "relative", overflow: "hidden",
+                    backgroundColor: C.dark,
                 }}>
-                    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+                    {/* Background video */}
+                    <video
+                        autoPlay loop muted playsInline
+                        style={{
+                            position: "absolute", top: 0, left: 0,
+                            width: "100%", height: "100%",
+                            objectFit: "cover",
+                        }}
+                    >
+                        <source src="https://videos.pexels.com/video-files/5377684/5377684-uhd_2560_1440_25fps.mp4" type="video/mp4" />
+                    </video>
+                    {/* Dark overlay */}
+                    <div style={{
+                        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: "rgba(0,0,0,0.6)",
+                    }} />
+                    <div style={{ maxWidth: 760, margin: "0 auto", position: "relative", zIndex: 1 }}>
                         <h1 style={{
                             fontSize: "clamp(34px, 5vw, 52px)",
                             fontWeight: 600,
@@ -285,7 +304,7 @@ export default function Landing() {
                             </h2>
                         </FadeIn>
 
-                        <div className="landing-steps-row" style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap", gap: 0 }}>
+                        <div className="landing-steps-row" style={{ display: "flex", alignItems: "stretch", justifyContent: "center", flexWrap: "wrap", gap: 0 }}>
                             {([
                                 { n: 1, icon: <FileUp size={24} />, title: "Déposez votre brief", desc: "Uploadez votre cahier des charges. Notre IA l'analyse en quelques secondes." },
                                 { n: 2, icon: <Route size={24} />, title: "Matching fournisseurs", desc: "Notre algorithme sélectionne les fournisseurs les plus pertinents selon vos critères." },
@@ -293,10 +312,11 @@ export default function Landing() {
                                 { n: 4, icon: <Rocket size={24} />, title: "Lancez la production", desc: "Validez, payez, et suivez votre projet en temps réel." },
                             ] as const).map((step, i) => (
                                 <FadeIn key={step.n} delay={i * 0.1}>
-                                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                                    <div style={{ display: "flex", alignItems: "stretch", height: "100%" }}>
                                         <div className="landing-step-card" style={{
                                             textAlign: "center", width: 210, padding: "20px 16px",
                                             borderRadius: 12, backgroundColor: C.white,
+                                            display: "flex", flexDirection: "column", height: "100%",
                                         }}>
                                             <div style={{
                                                 width: 52, height: 52, borderRadius: "50%",
@@ -312,15 +332,15 @@ export default function Landing() {
                                             <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, marginBottom: 6 }}>
                                                 {step.title}
                                             </div>
-                                            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
+                                            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, flex: 1 }}>
                                                 {step.desc}
-                                            </div>
+                                            </p>
                                         </div>
                                         {/* Horizontal connector */}
                                         {i < 3 && (
                                             <div className="landing-step-connector-h" style={{
                                                 width: 40, height: 2, backgroundColor: C.border,
-                                                marginTop: 46, flexShrink: 0,
+                                                marginTop: 46, flexShrink: 0, alignSelf: "flex-start",
                                             }} />
                                         )}
                                     </div>
@@ -351,7 +371,7 @@ export default function Landing() {
                         <div className="landing-avantages-grid" style={{
                             display: "grid",
                             gridTemplateColumns: "repeat(3, 1fr)",
-                            gap: 20,
+                            gap: 20, alignItems: "stretch",
                         }}>
                             {([
                                 { icon: <Brain size={28} />, title: "IA intégrée", desc: "Notre intelligence artificielle analyse vos briefs, extrait les spécifications, et optimise le routing fournisseurs." },
@@ -361,15 +381,16 @@ export default function Landing() {
                                 { icon: <BadgeCheck size={28} />, title: "Fournisseurs vérifiés", desc: "Réseau de fournisseurs qualifiés avec scores de confiance et historique vérifié." },
                                 { icon: <Leaf size={28} />, title: "CO2 optimisé", desc: "Routing intelligent qui privilégie la proximité géographique pour réduire l'empreinte carbone." },
                             ]).map((card, i) => (
-                                <FadeIn key={card.title} delay={i * 0.07}>
+                                <FadeIn key={card.title} delay={i * 0.07} style={{ height: "100%" }}>
                                     <div className="landing-card-hover" style={{
                                         backgroundColor: C.bg, borderRadius: 12,
                                         padding: "28px 24px",
                                         boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
+                                        height: "100%", display: "flex", flexDirection: "column",
                                     }}>
                                         <div style={{ color: C.yellow, marginBottom: 14 }}>{card.icon}</div>
                                         <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 8 }}>{card.title}</div>
-                                        <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.6 }}>{card.desc}</div>
+                                        <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, flex: 1 }}>{card.desc}</p>
                                     </div>
                                 </FadeIn>
                             ))}
@@ -389,42 +410,45 @@ export default function Landing() {
                         </FadeIn>
 
                         <div className="landing-temoignages-grid" style={{
-                            display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24,
+                            display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, alignItems: "stretch",
                         }}>
                             {TEMOIGNAGES.map((t, i) => (
-                                <FadeIn key={t.name} delay={i * 0.1}>
+                                <FadeIn key={t.name} delay={i * 0.1} style={{ height: "100%" }}>
                                     <div style={{
                                         backgroundColor: C.white, borderRadius: 12, padding: "28px 24px",
                                         boxShadow: "0 1px 4px rgba(58,64,64,0.06)",
                                         position: "relative",
+                                        height: "100%", display: "flex", flexDirection: "column",
                                     }}>
                                         <Quote size={32} style={{
                                             position: "absolute", top: 16, right: 20,
                                             color: C.yellow, opacity: 0.2,
                                         }} />
-                                        <p style={{ fontSize: 14, color: C.dark, lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>
+                                        <p style={{ fontSize: 14, color: C.dark, lineHeight: 1.7, fontStyle: "italic", flex: 1 }}>
                                             &ldquo;{t.quote}&rdquo;
                                         </p>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                        <div style={{ marginTop: 20 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                                <div style={{
+                                                    width: 40, height: 40, borderRadius: "50%",
+                                                    backgroundColor: C.yellow, color: C.dark,
+                                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                                    fontWeight: 700, fontSize: 14,
+                                                }}>
+                                                    {t.initials}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{t.name}</div>
+                                                    <div style={{ fontSize: 12, color: C.muted }}>{t.role}, {t.company}</div>
+                                                </div>
+                                            </div>
+                                            {/* Placeholder badge */}
                                             <div style={{
-                                                width: 40, height: 40, borderRadius: "50%",
-                                                backgroundColor: C.yellow, color: C.dark,
-                                                display: "flex", alignItems: "center", justifyContent: "center",
-                                                fontWeight: 700, fontSize: 14,
+                                                marginTop: 12, fontSize: 10, color: C.muted, opacity: 0.5,
+                                                textTransform: "uppercase", letterSpacing: "0.05em",
                                             }}>
-                                                {t.initials}
+                                                Témoignage placeholder
                                             </div>
-                                            <div>
-                                                <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{t.name}</div>
-                                                <div style={{ fontSize: 12, color: C.muted }}>{t.role}, {t.company}</div>
-                                            </div>
-                                        </div>
-                                        {/* Placeholder badge */}
-                                        <div style={{
-                                            marginTop: 12, fontSize: 10, color: C.muted, opacity: 0.5,
-                                            textTransform: "uppercase", letterSpacing: "0.05em",
-                                        }}>
-                                            Témoignage placeholder
                                         </div>
                                     </div>
                                 </FadeIn>

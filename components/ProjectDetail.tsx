@@ -8,6 +8,7 @@ import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { FileText, Download, FileSpreadsheet, FileImage, FileType, File, Layers, AlertTriangle, Upload, Plus, CalendarDays, GripVertical, Trash2, Save, CreditCard, CheckCircle2, Clock, Eye, EyeOff, Check, MessageSquare } from "lucide-react"
+import PdfViewerModal from "@/components/ui/PdfViewerModal"
 import { formatPrice, formatDate, projectDisplayName } from "@/lib/format"
 
 interface ProjectDetailProps {
@@ -36,6 +37,18 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     const [uploading, setUploading] = useState(false)
     const [dragOver, setDragOver] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Brief PDF viewer
+    const [briefPdfUrl, setBriefPdfUrl] = useState<string | null>(null)
+    const [briefPdfOpen, setBriefPdfOpen] = useState(false)
+    const [briefPdfTitle, setBriefPdfTitle] = useState("")
+
+    // Toast
+    const [toast, setToast] = useState<{ type: "info" | "error"; message: string; visible: boolean } | null>(null)
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Pay button loading
+    const [payLoading, setPayLoading] = useState(false)
 
     // Messages
     const [messages, setMessages] = useState<any[]>([])
@@ -168,17 +181,24 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
             .catch(() => setUploading(false))
     }
 
-    async function handleOpenBrief(briefId: string) {
+    function showToast(type: "info" | "error", message: string, duration = 4000) {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+        setToast({ type, message, visible: true })
+        toastTimerRef.current = setTimeout(() => {
+            setToast(prev => prev ? { ...prev, visible: false } : null)
+            setTimeout(() => setToast(null), 400)
+        }, duration)
+    }
+
+    async function handleOpenBrief(briefId: string, title?: string) {
         try {
             const url = `${API_URL}/api/project/brief/signed-url?project_id=${id}&brief_id=${briefId}`
-            console.log('[handleOpenBrief] calling:', url)
             const res = await fetchWithAuth(url)
             const data = await res.json()
-            console.log('[handleOpenBrief] response:', data)
             if (data.ok && data.file_url) {
-                window.open(data.file_url, "_blank")
-            } else {
-                console.warn('[handleOpenBrief] no file_url in response:', data)
+                setBriefPdfUrl(data.file_url)
+                setBriefPdfTitle(title || "Brief")
+                setBriefPdfOpen(true)
             }
         } catch (e) {
             console.error("[handleOpenBrief] error:", e)
@@ -341,7 +361,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
     // Prefer brief_analysis from fetched briefs (richer data with production_plan) over project-level one
     const brief_analysis = briefs?.[0]?.brief_analysis ?? _projectBriefAnalysis
 
-    return (
+    return (<>
         <div style={{ fontFamily: "Inter, sans-serif" }}>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
@@ -440,7 +460,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                 {fileUrl && isPdf && (
                                                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                                                         <button
-                                                            onClick={() => handleOpenBrief(briefId)}
+                                                            onClick={() => handleOpenBrief(briefId, brief.file_name || `Brief ${bIdx + 1}`)}
                                                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
                                                         >
                                                             <FileText size={14} /> Ouvrir le PDF
@@ -470,7 +490,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                 {isPdf && (
                                                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                                                         <button
-                                                            onClick={() => handleOpenBrief("legacy")}
+                                                            onClick={() => handleOpenBrief("legacy", "Brief")}
                                                             style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px solid " + C.border, borderRadius: 6, background: C.white, fontSize: 12, fontWeight: 600, color: C.dark, cursor: "pointer" }}
                                                         >
                                                             <FileText size={14} /> Ouvrir le PDF
@@ -1006,23 +1026,34 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                     )}
                                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                         <button
+                                            disabled={payLoading}
                                             onClick={() => {
+                                                if (payLoading) return
                                                 if (quotedInvoice) {
+                                                    setPayLoading(true)
                                                     handlePay(quotedInvoice.id, quotedInvoice.payment_type === "split" ? "deposit" : "full")
                                                 } else {
+                                                    setPayLoading(true)
                                                     fetchWithAuth(`${API_URL}/api/invoice/list?project_id=${id}`)
                                                         .then(r => r.json())
                                                         .then(data => {
                                                             const inv = data.invoices?.find((i: any) => i.status === "pending")
                                                             if (inv) handlePay(inv.id, inv.payment_type === "split" ? "deposit" : "full")
-                                                            else alert("Facture en cours de generation, reessayez dans quelques instants.")
+                                                            else {
+                                                                showToast("info", "Votre facture est en cours de generation, veuillez patienter...")
+                                                                setPayLoading(false)
+                                                            }
                                                         })
-                                                        .catch(() => alert("Erreur lors de la recuperation de la facture."))
+                                                        .catch(() => {
+                                                            showToast("error", "Erreur lors de la recuperation de la facture.")
+                                                            setPayLoading(false)
+                                                        })
                                                 }
                                             }}
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: payLoading ? "#e0dcc0" : C.yellow, color: C.dark, border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: payLoading ? "not-allowed" : "pointer", opacity: payLoading ? 0.7 : 1, transition: "all 150ms ease" }}
                                         >
-                                            <CreditCard size={16} /> Valider et payer
+                                            {payLoading ? <Clock size={16} className="landing-badge-pulse" /> : <CreditCard size={16} />}
+                                            {payLoading ? "Chargement..." : "Valider et payer"}
                                         </button>
                                         {quote_url && (
                                             <a
@@ -1125,5 +1156,31 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                 </div>
             </div>
         </div>
-    )
+
+        {briefPdfUrl && (
+            <PdfViewerModal
+                url={briefPdfUrl}
+                isOpen={briefPdfOpen}
+                onClose={() => { setBriefPdfOpen(false); setBriefPdfUrl(null) }}
+                title={briefPdfTitle}
+            />
+        )}
+
+        {toast && (
+            <div style={{
+                position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+                zIndex: 900, display: "flex", alignItems: "center", gap: 8,
+                padding: "12px 24px", borderRadius: 12,
+                backgroundColor: toast.type === "error" ? "#c0392b" : C.dark,
+                color: "#fff", fontSize: 14, fontWeight: 600,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+                opacity: toast.visible ? 1 : 0,
+                transition: "opacity 0.35s ease",
+                pointerEvents: "none",
+            }}>
+                {toast.type === "info" && <Clock size={16} />}
+                {toast.message}
+            </div>
+        )}
+    </>)
 }
