@@ -141,10 +141,15 @@ export default function AdminProjects() {
         })
             .then((r) => r.json())
             .then((data) => {
-                if (data.ok) setProjects((prev) => prev.map((p) => p.project_id === projectId ? { ...p, status: newStatus } : p))
+                if (data.ok) {
+                    setProjects((prev) => prev.map((p) => p.project_id === projectId ? { ...p, status: newStatus } : p))
+                    showToast("success", "Statut mis à jour")
+                } else {
+                    showToast("error", "Erreur lors du changement de statut")
+                }
                 setStatusChanging(null)
             })
-            .catch(() => setStatusChanging(null))
+            .catch(() => { showToast("error", "Erreur réseau"); setStatusChanging(null) })
     }
 
     async function handleDeleteProject(projectId: string) {
@@ -156,12 +161,34 @@ export default function AdminProjects() {
             const data = await r.json()
             if (data.ok) {
                 setProjects((prev) => prev.filter((p) => p.project_id !== projectId))
+                showToast("success", "Projet supprimé")
             } else {
-                console.error("Erreur suppression projet:", data.error || "Erreur inconnue")
+                showToast("error", data.error || "Erreur lors de la suppression")
             }
-        } catch (err) { console.error("Erreur réseau suppression projet:", err) }
+        } catch { showToast("error", "Erreur réseau") }
         setDeleting(false)
         setDeleteConfirmId(null)
+    }
+
+    function showToast(type: "success" | "error", text: string) {
+        setToast({ msg: text, type: type === "success" ? "ok" : "err" })
+    }
+
+    function toggleSelectAll() {
+        if (sorted.every((p) => selectedIds.has(p.project_id))) {
+            setSelectedIds(new Set())
+        } else {
+            setSelectedIds(new Set(sorted.map((p) => p.project_id)))
+        }
+    }
+
+    function toggleSelect(id: string) {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
     }
 
     function handleSort(key: SortKey) {
@@ -459,8 +486,14 @@ export default function AdminProjects() {
                         <thead>
                             <tr>
                                 {bulkMode && (
-                                    <th style={{ ...thStyle, width: 40, textAlign: "center", cursor: "default" }}>
-                                        <input type="checkbox" checked={sorted.length > 0 && selectedIds.size === sorted.length} onChange={toggleSelectAll} style={{ cursor: "pointer", accentColor: "#F4CF15" }} />
+                                    <th style={{ ...thStyle, width: 40, cursor: "default", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            checked={sorted.length > 0 && sorted.every((p) => selectedIds.has(p.project_id))}
+                                            ref={(el) => { if (el) el.indeterminate = sorted.some((p) => selectedIds.has(p.project_id)) && !sorted.every((p) => selectedIds.has(p.project_id)) }}
+                                            onChange={toggleSelectAll}
+                                            style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#F4CF15" }}
+                                        />
                                     </th>
                                 )}
                                 {columnOrder.map((col) => {
@@ -583,7 +616,12 @@ export default function AdminProjects() {
                                         >
                                             {bulkMode && (
                                                 <td style={{ ...tdStyle, width: 40, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                                                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(project.project_id)} style={{ cursor: "pointer", accentColor: "#F4CF15" }} />
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelect(project.project_id)}
+                                                        style={{ cursor: "pointer", width: 15, height: 15, accentColor: "#F4CF15" }}
+                                                    />
                                                 </td>
                                             )}
                                             {columnOrder.map((col) => (
@@ -594,7 +632,7 @@ export default function AdminProjects() {
                                         </tr>
                                         {isExpanded && !bulkMode && (
                                             <tr>
-                                                <td colSpan={columnOrder.length} style={{ padding: "20px 24px", background: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
+                                                <td colSpan={columnOrder.length + 1} style={{ padding: "20px 24px", background: "#fafaf8", borderBottom: "2px solid " + C.yellow }}>
                                                     <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
                                                         Flux projet — {project.brief_analysis?.product_type || "Brief uploade"}
                                                     </div>
@@ -615,7 +653,7 @@ export default function AdminProjects() {
                     )}
                 </div>
 
-                {/* Delete confirmation modal */}
+                {/* Single delete confirmation modal */}
                 {deleteConfirmId && (
                     <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.4)" }} onClick={() => setDeleteConfirmId(null)}>
                         <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 400, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={(e) => e.stopPropagation()}>
@@ -634,6 +672,7 @@ export default function AdminProjects() {
                         </div>
                     </div>
                 )}
+
             </div>
 
             {/* Bulk action bar */}
@@ -872,6 +911,7 @@ export default function AdminProjects() {
                     </>
                 )}
             </Drawer>
+
         </div>
     )
 }

@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
 import {
     Inbox, Clock, CheckCircle2, TrendingUp, ArrowRight,
-    Upload, FileText, Loader2, X
+    Upload, FileText, Loader2, X, Users, Send, Star
 } from "lucide-react"
 
 const { useState, useEffect, useRef } = React
@@ -16,13 +16,17 @@ const { useState, useEffect, useRef } = React
 const ACCEPTED_EXT = ".pdf,.xlsx,.xls,.csv,.pptx,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp"
 
 export default function SupplierDashboard() {
-    const { isAuthenticated, isLoading: authLoading } = useAuth()
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [supplier, setSupplier] = useState<any>(null)
     const [consultations, setConsultations] = useState<any[]>([])
     const [products, setProducts] = useState<any[]>([])
     const [stats, setStats] = useState<any>(null)
+
+    /* admin override state */
+    const [adminStats, setAdminStats] = useState<any>(null)
+    const [adminStatsLoading, setAdminStatsLoading] = useState(false)
 
     /* upload state */
     const [uploading, setUploading] = useState(false)
@@ -48,6 +52,19 @@ export default function SupplierDashboard() {
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
     }, [isAuthenticated, authLoading])
+
+    /* admin stats fetch */
+    useEffect(() => {
+        if (authLoading || user?.role !== "admin") return
+        setAdminStatsLoading(true)
+        fetchWithAuth(`${API_URL}/api/admin/suppliers/stats`)
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok) setAdminStats(data.stats ?? data)
+                setAdminStatsLoading(false)
+            })
+            .catch(() => setAdminStatsLoading(false))
+    }, [authLoading, user])
 
     /* upload handler */
     async function handleUpload(file: File) {
@@ -117,6 +134,17 @@ export default function SupplierDashboard() {
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
+            {/* Admin override banner */}
+            {user?.role === "admin" && (
+                <div style={{
+                    background: "#F4CF15", borderRadius: 10, padding: "10px 16px",
+                    marginBottom: 20, fontSize: 13, fontWeight: 700, color: "#000000",
+                    letterSpacing: 0.3,
+                }}>
+                    Mode admin — Vue fournisseur
+                </div>
+            )}
+
             {/* Header */}
             <div style={{ marginBottom: 28 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>
@@ -126,6 +154,69 @@ export default function SupplierDashboard() {
                     {supplier?.company_name || "Mon espace"}
                 </p>
             </div>
+
+            {/* Admin KPI cards (2x2 grid) */}
+            {user?.role === "admin" && (
+                <div style={{ marginBottom: 32 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 }}>
+                        Statistiques fournisseurs — LA FAB
+                    </div>
+                    {adminStatsLoading ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.muted, fontSize: 13, padding: "12px 0" }}>
+                            <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                            Chargement...
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
+                            {[
+                                {
+                                    label: "Fournisseurs actifs",
+                                    value: adminStats?.active_suppliers ?? adminStats?.suppliers_count,
+                                    icon: Users,
+                                },
+                                {
+                                    label: "Consultations envoy\u00e9es",
+                                    value: adminStats?.consultations_sent ?? adminStats?.total_consultations,
+                                    icon: Send,
+                                },
+                                {
+                                    label: "CA g\u00e9n\u00e9r\u00e9",
+                                    value: adminStats?.total_revenue != null
+                                        ? formatPrice(Number(adminStats.total_revenue))
+                                        : null,
+                                    icon: TrendingUp,
+                                },
+                                {
+                                    label: "Score confiance moyen",
+                                    value: adminStats?.avg_trust_score != null
+                                        ? `${adminStats.avg_trust_score} / 100`
+                                        : null,
+                                    icon: Star,
+                                },
+                            ].map(({ label, value, icon: Icon }) => (
+                                <div key={label} style={{
+                                    background: "#FAFFFD", borderRadius: 12, padding: "20px 18px",
+                                    border: "1px solid #000000",
+                                }}>
+                                    <div style={{ marginBottom: 12 }}>
+                                        <Icon size={20} color="#F4CF15" />
+                                    </div>
+                                    {value != null ? (
+                                        <div style={{ fontSize: 30, fontWeight: 700, color: "#000000", lineHeight: 1 }}>
+                                            {value}
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: 13, color: C.muted, fontStyle: "italic" }}>
+                                            Donn\u00e9es non disponibles
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{label}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* KPIs */}
             <div className="supplier-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 32 }}>
