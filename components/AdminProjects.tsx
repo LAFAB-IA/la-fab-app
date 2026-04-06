@@ -357,6 +357,36 @@ export default function AdminProjects() {
         STATUS_OPTIONS.map((s) => [s, projects.filter((p) => p.status === s).length])
     )
 
+    function exportCSV() {
+        function esc(v: unknown): string {
+            const s = v == null ? "" : String(v)
+            return s.includes(",") || s.includes('"') || s.includes("\n")
+                ? `"${s.replace(/"/g, '""')}"`
+                : s
+        }
+        const headers = ["project_id", "client", "product", "status", "quantity", "total_ht", "created_at"]
+        const rows = sorted.map((p) => [
+            esc(p.project_id),
+            esc(p.client_name || p.account_name || p.email || p.account_id || ""),
+            esc(p.brief_analysis?.product_type || p.product?.label || ""),
+            esc(STATUS_CONFIG[p.status]?.label || p.status || ""),
+            esc(p.quantity ?? ""),
+            esc(p.pricing?.total_net != null ? Number(p.pricing.total_net).toFixed(2) : ""),
+            esc(p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : ""),
+        ])
+        const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        const date = new Date().toISOString().slice(0, 10)
+        a.href = url
+        a.download = `lafab-projets-${date}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    }
+
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
             <p style={{ color: C.muted }}>Chargement des projets...</p>
@@ -473,11 +503,26 @@ export default function AdminProjects() {
 
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>{sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}</span>
-                    {bulkMode && (
-                        <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#000000" : C.muted }}>
-                            {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
-                        </span>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        {bulkMode && (
+                            <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#000000" : C.muted }}>
+                                {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+                            </span>
+                        )}
+                        <button
+                            onClick={exportCSV}
+                            disabled={sorted.length === 0}
+                            style={{
+                                display: "inline-flex", alignItems: "center", gap: 6,
+                                padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                                background: "#000000", color: "#ffffff", border: "none",
+                                cursor: sorted.length === 0 ? "not-allowed" : "pointer",
+                                opacity: sorted.length === 0 ? 0.4 : 1,
+                            }}
+                        >
+                            <Download size={13} /> Exporter CSV
+                        </button>
+                    </div>
                 </div>
 
                 {/* Table */}

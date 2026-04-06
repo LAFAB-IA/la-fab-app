@@ -12,7 +12,7 @@ import {
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
 
-const { useState, useEffect } = React
+const { useState, useEffect, useMemo } = React
 
 const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
     sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
@@ -22,6 +22,55 @@ const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> =
     validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a" },
 }
 const STATUS_ORDER_C = ["sent", "pending", "replied", "responded", "validated"]
+
+const KPI_SLOTS: { label: string; statuses: string[]; borderColor: string }[] = [
+    { label: "En attente",  statuses: ["sent", "pending"],              borderColor: "#F4CF15" },
+    { label: "Devis envoyé", statuses: ["replied", "responded"],        borderColor: "#7a8080" },
+    { label: "Acceptée",    statuses: ["validated", "accepted"],        borderColor: "#000000" },
+    { label: "Refusée",     statuses: ["refused", "rejected", "declined"], borderColor: "#e0e0de" },
+]
+
+function ConsultationKPIRow({ consultations }: { consultations: any[] }) {
+    const counts = useMemo(() => {
+        const map: Record<string, number> = {}
+        for (const c of consultations) {
+            const s = c.status || "pending"
+            map[s] = (map[s] || 0) + 1
+        }
+        return map
+    }, [consultations])
+
+    return (
+        <div style={{
+            display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4,
+            marginBottom: 20, scrollbarWidth: "none",
+        }}>
+            {KPI_SLOTS.map((slot) => {
+                const count = slot.statuses.reduce((acc, s) => acc + (counts[s] || 0), 0)
+                return (
+                    <div
+                        key={slot.label}
+                        style={{
+                            flex: "0 0 auto", minWidth: 130,
+                            backgroundColor: "#FAFFFD",
+                            border: "1px solid #e0e0de",
+                            borderLeft: `4px solid ${slot.borderColor}`,
+                            borderRadius: 10,
+                            padding: "14px 18px",
+                        }}
+                    >
+                        <div style={{ fontSize: 28, fontWeight: 800, color: "#000", lineHeight: 1 }}>
+                            {count}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#7a8080", marginTop: 5, fontWeight: 500, lineHeight: 1.3 }}>
+                            {slot.label}
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
 
 export default function SupplierConsultations() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -252,6 +301,9 @@ export default function SupplierConsultations() {
                     <ArrowLeft size={14} /> Dashboard
                 </a>
             </div>
+
+            {/* KPI counters */}
+            {consultations.length > 0 && <ConsultationKPIRow consultations={consultations} />}
 
             {/* Toolbar */}
             <ListToolbar
