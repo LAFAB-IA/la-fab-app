@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
@@ -22,6 +22,56 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; 
 }
 
 const STATUS_ORDER = ["created", "quoted", "validated", "ordered", "in_production", "delivered", "archived"]
+
+const KPI_SLOTS: { label: string; statuses: string[]; borderColor: string }[] = [
+    { label: "En attente de devis", statuses: ["created"],                  borderColor: "#F4CF15" },
+    { label: "Devis envoyé",        statuses: ["quoted"],                   borderColor: "#7a8080" },
+    { label: "Commande validée",    statuses: ["validated", "ordered"],     borderColor: "#000000" },
+    { label: "En production",       statuses: ["in_production"],            borderColor: "#F4CF15" },
+    { label: "Livré",               statuses: ["delivered"],                borderColor: "#7a8080" },
+    { label: "Archivé",             statuses: ["archived"],                 borderColor: "#e0e0de" },
+]
+
+function StatusKPIRow({ projects }: { projects: any[] }) {
+    const counts = useMemo(() => {
+        const map: Record<string, number> = {}
+        for (const p of projects) {
+            map[p.status] = (map[p.status] || 0) + 1
+        }
+        return map
+    }, [projects])
+
+    return (
+        <div style={{
+            display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4,
+            marginBottom: 20, scrollbarWidth: "none",
+        }}>
+            {KPI_SLOTS.map((slot) => {
+                const count = slot.statuses.reduce((acc, s) => acc + (counts[s] || 0), 0)
+                return (
+                    <div
+                        key={slot.label}
+                        style={{
+                            flex: "0 0 auto", minWidth: 130,
+                            backgroundColor: "#FAFFFD",
+                            border: "1px solid #e0e0de",
+                            borderLeft: `4px solid ${slot.borderColor}`,
+                            borderRadius: 10,
+                            padding: "14px 18px",
+                        }}
+                    >
+                        <div style={{ fontSize: 28, fontWeight: 800, color: "#000", lineHeight: 1 }}>
+                            {count}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#7a8080", marginTop: 5, fontWeight: 500, lineHeight: 1.3 }}>
+                            {slot.label}
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
 
 function StatusBadge({ status }: { status: string }) {
     const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
@@ -217,6 +267,9 @@ export default function ProjectsList() {
                         + Nouveau projet
                     </a>
                 </div>
+
+                {/* KPI counters */}
+                {projects.length > 0 && <StatusKPIRow projects={projects} />}
 
                 {/* Toolbar */}
                 <ListToolbar
