@@ -28,26 +28,32 @@ const T = {
 
 // ─── Types matching GET /api/admin/stats ────────────────────────────────────
 
-type MonthPoint = { month: string; amount: number }
-type TopClient  = { name: string; ca: number; project_count?: number }
-type PendingProject = {
-    project_id: string
-    name?: string
-    client_name?: string
-    created_at: string
-    days_pending: number
+type FinancialKpis = {
+    ca_total: number
+    ca_current_month: number
+    ca_previous_month: number
+    growth_mom_percent: number
+    panier_moyen: number
+    nb_projets_factures: number
+    conversion_rate_percent: number
+    avg_brief_to_quote_days: number
 }
+type MonthPoint = { month: string; total_ht: number; total_ttc: number; nb_projets: number }
+type TopClient  = { name: string; ca: number; project_count: number }
+type PendingProject = { project_id: string; days_pending: number }
 type StatsResponse = {
     ok?: boolean
-    ca_total?: number
-    ca_month?: number
-    ca_last_month?: number
-    growth_mom?: number
-    avg_basket?: number
+    financial_kpis?: Partial<FinancialKpis>
     monthly_revenue?: MonthPoint[]
-    top_clients?: TopClient[]
-    pending_projects?: PendingProject[]
-    stats?: Partial<StatsResponse>
+    operational_kpis?: {
+        top_clients?: TopClient[]
+    }
+    alerts?: {
+        pending_quote_over_7_days?: {
+            count?: number
+            projects?: PendingProject[]
+        }
+    }
 }
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aout", "Sep", "Oct", "Nov", "Dec"]
@@ -148,12 +154,8 @@ function AdminDashboard() {
             .then(r => r.json())
             .then((d: StatsResponse) => {
                 if (cancelled) return
-                if (d && d.ok === false) {
-                    setError("Erreur serveur")
-                } else {
-                    // Accept either flat payload or { stats: {...} }
-                    setStats(d.stats ? { ...d, ...d.stats } : d)
-                }
+                if (d && d.ok === false) setError("Erreur serveur")
+                else setStats(d)
             })
             .catch(() => { if (!cancelled) setError("Impossible de charger les statistiques") })
             .finally(() => { if (!cancelled) setLoading(false) })
@@ -180,22 +182,23 @@ function AdminDashboard() {
         </div>
     )
 
-    const caTotal   = Number(stats?.ca_total   ?? 0)
-    const caMonth   = Number(stats?.ca_month   ?? 0)
-    const growthMoM = Number(stats?.growth_mom ?? 0)
-    const avgBasket = Number(stats?.avg_basket ?? 0)
+    const fin = stats?.financial_kpis ?? {}
+    const caTotal   = Number(fin.ca_total           ?? 0)
+    const caMonth   = Number(fin.ca_current_month   ?? 0)
+    const growthMoM = Number(fin.growth_mom_percent ?? 0)
+    const avgBasket = Number(fin.panier_moyen       ?? 0)
 
     const monthly: MonthPoint[] = Array.isArray(stats?.monthly_revenue)
         ? stats!.monthly_revenue!.slice(-6)
         : []
-    const maxAmount = Math.max(...monthly.map(m => Number(m.amount) || 0), 1)
+    const maxAmount = Math.max(...monthly.map(m => Number(m.total_ttc) || 0), 1)
 
-    const topClients: TopClient[] = Array.isArray(stats?.top_clients)
-        ? stats!.top_clients!.slice(0, 3)
+    const topClients: TopClient[] = Array.isArray(stats?.operational_kpis?.top_clients)
+        ? stats!.operational_kpis!.top_clients!.slice(0, 3)
         : []
 
-    const pending: PendingProject[] = Array.isArray(stats?.pending_projects)
-        ? stats!.pending_projects!.filter(p => Number(p.days_pending) > 7)
+    const pending: PendingProject[] = Array.isArray(stats?.alerts?.pending_quote_over_7_days?.projects)
+        ? stats!.alerts!.pending_quote_over_7_days!.projects!
         : []
 
     const growthTrend: "up" | "down" | "flat" = growthMoM > 0 ? "up" : growthMoM < 0 ? "down" : "flat"
@@ -273,7 +276,7 @@ function AdminDashboard() {
                             gap: 16, height: 220, paddingTop: 24,
                         }}>
                             {monthly.map((m, i) => {
-                                const amount = Number(m.amount) || 0
+                                const amount = Number(m.total_ttc) || 0
                                 const pct = amount > 0 ? Math.max((amount / maxAmount) * 100, 3) : 0
                                 const isLast = i === monthly.length - 1
                                 return (
@@ -418,7 +421,7 @@ function AdminDashboard() {
                                                 fontSize: 13, fontWeight: 600, color: T.text,
                                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                             }}>
-                                                {p.name || p.client_name || "Projet " + (p.project_id || "").slice(0, 8)}
+                                                Projet {(p.project_id || "").slice(0, 8)}
                                             </div>
                                             <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
                                                 En attente depuis {p.days_pending} jours
