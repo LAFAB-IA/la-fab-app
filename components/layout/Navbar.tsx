@@ -1,22 +1,13 @@
 "use client"
 
-import React, { useEffect, useState, useRef, useCallback } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
-import { io, Socket } from "socket.io-client"
-import { Bell, X, Menu, Check, Moon, Sun, User, LogOut } from "lucide-react"
+import { X, Menu, Moon, Sun, User, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
-
-interface Notification {
-    id: string
-    title: string
-    message: string
-    read: boolean
-    created_at: string
-    link?: string
-}
+import NotificationBell from "@/components/NotificationBell"
 
 export default function Navbar() {
     const { user, token, isAuthenticated, isLoading, logout } = useAuth()
@@ -27,55 +18,10 @@ export default function Navbar() {
         return () => clearTimeout(id)
     }, [])
     const isDark = themeMounted && resolvedTheme === "dark"
-    const [unreadCount, setUnreadCount] = useState(0)
-    const [notifications, setNotifications] = useState<Notification[]>([])
-    const [notifOpen, setNotifOpen] = useState(false)
     const [profileOpen, setProfileOpen] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-    const notifRef = useRef<HTMLDivElement>(null)
     const profileRef = useRef<HTMLDivElement>(null)
-
-    // ── Fetch unread count ────────────────────────────────────────────────────
-    const fetchUnread = useCallback(() => {
-        if (!token) return
-        fetchWithAuth(`${API_URL}/api/notifications/unread-count`)
-            .then((r) => r.json())
-            .then((data) => { if (typeof data.count === "number") setUnreadCount(data.count) })
-            .catch(() => {})
-    }, [token])
-
-    // ── Fetch notifications list ──────────────────────────────────────────────
-    const fetchNotifications = useCallback(() => {
-        if (!token) return
-        fetchWithAuth(`${API_URL}/api/notifications?limit=8`)
-            .then((r) => r.json())
-            .then((data) => { if (data.ok && data.notifications) setNotifications(data.notifications) })
-            .catch(() => {})
-    }, [token])
-
-    useEffect(() => {
-        fetchUnread()
-        const interval = setInterval(fetchUnread, 30000)
-        return () => clearInterval(interval)
-    }, [fetchUnread])
-
-    // ── WebSocket ─────────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!token) return
-        let socket: Socket | null = null
-        try {
-            socket = io(API_URL, {
-                auth: { token },
-                transports: ["websocket", "polling"],
-            })
-            socket.on("notification:new", () => {
-                setUnreadCount((c) => c + 1)
-                if (notifOpen) fetchNotifications()
-            })
-        } catch { /* WebSocket optional */ }
-        return () => { socket?.disconnect() }
-    }, [token, notifOpen, fetchNotifications])
 
     // ── Fetch avatar from /me ─────────────────────────────────────────────────
     useEffect(() => {
@@ -108,34 +54,14 @@ export default function Navbar() {
         }
     }, [token])
 
-    // ── Close dropdowns on outside click ─────────────────────────────────────
+    // ── Close profile dropdown on outside click ──────────────────────────────
     useEffect(() => {
         function handleClick(e: MouseEvent) {
-            if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
             if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
         }
         document.addEventListener("mousedown", handleClick)
         return () => document.removeEventListener("mousedown", handleClick)
     }, [])
-
-    // ── Mark all as read ──────────────────────────────────────────────────────
-    function markAllRead() {
-        if (!token) return
-        fetchWithAuth(`${API_URL}/api/notifications/mark-all-read`, {
-            method: "PATCH",
-        })
-            .then(() => {
-                setUnreadCount(0)
-                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-            })
-            .catch(() => {})
-    }
-
-    function handleBellClick() {
-        if (!notifOpen) fetchNotifications()
-        setNotifOpen(!notifOpen)
-        setProfileOpen(false)
-    }
 
     const initials = user
         ? `${(user.firstName || "")[0] || ""}${(user.lastName || "")[0] || ""}`.toUpperCase()
@@ -178,107 +104,12 @@ export default function Navbar() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 
                     {/* ── Cloche notifications ── */}
-                    <div ref={notifRef} style={{ position: "relative" }}>
-                        <button
-                            onClick={handleBellClick}
-                            style={{
-                                position: "relative", background: "none", border: "none",
-                                color: C.white, cursor: "pointer", padding: 6,
-                                borderRadius: 8, display: "flex", alignItems: "center",
-                            }}
-                        >
-                            <Bell size={20} />
-                            {unreadCount > 0 && (
-                                <span style={{
-                                    position: "absolute", top: 2, right: 2,
-                                    backgroundColor: "#e74c3c", color: "#fff",
-                                    fontSize: 10, fontWeight: 700, borderRadius: 10,
-                                    minWidth: 16, height: 16,
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    padding: "0 4px",
-                                }}>
-                                    {unreadCount > 99 ? "99+" : unreadCount}
-                                </span>
-                            )}
-                        </button>
-
-                        {notifOpen && (
-                            <div style={{
-                                position: "absolute", right: 0, top: 44,
-                                backgroundColor: C.white, borderRadius: 14,
-                                boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
-                                border: "1px solid " + C.border,
-                                width: 340, zIndex: 1001, overflow: "hidden",
-                            }}>
-                                <div style={{
-                                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                                    padding: "14px 16px", borderBottom: "1px solid " + C.border,
-                                }}>
-                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>
-                                        Notifications {unreadCount > 0 && `(${unreadCount})`}
-                                    </span>
-                                    {unreadCount > 0 && (
-                                        <button onClick={markAllRead} style={{
-                                            background: "none", border: "none", cursor: "pointer",
-                                            fontSize: 12, color: C.muted, fontWeight: 600,
-                                            display: "flex", alignItems: "center", gap: 4,
-                                        }}>
-                                            <Check size={12} /> Tout marquer lu
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                                    {notifications.length === 0 ? (
-                                        <div style={{ padding: "28px 16px", textAlign: "center", color: C.muted, fontSize: 13 }}>
-                                            Aucune notification
-                                        </div>
-                                    ) : (
-                                        notifications.map((n) => (
-                                            <div
-                                                key={n.id}
-                                                onClick={() => { if (n.link) window.location.href = n.link; setNotifOpen(false) }}
-                                                style={{
-                                                    padding: "12px 16px",
-                                                    borderBottom: "1px solid " + C.border,
-                                                    cursor: n.link ? "pointer" : "default",
-                                                    backgroundColor: n.read ? "transparent" : "rgba(244,207,21,0.06)",
-                                                }}
-                                            >
-                                                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                                                    {!n.read && (
-                                                        <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: C.yellow, flexShrink: 0, marginTop: 5 }} />
-                                                    )}
-                                                    <div style={{ flex: 1, paddingLeft: n.read ? 17 : 0 }}>
-                                                        <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: C.dark, marginBottom: 2 }}>
-                                                            {n.title}
-                                                        </div>
-                                                        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{n.message}</div>
-                                                        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                                                            {new Date(n.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-
-                                <div style={{ padding: "10px 16px", borderTop: "1px solid " + C.border, textAlign: "center" }}>
-                                    <Link href="/notifications" onClick={() => setNotifOpen(false)} style={{
-                                        fontSize: 13, color: C.muted, textDecoration: "none", fontWeight: 600,
-                                    }}>
-                                        Voir toutes les notifications →
-                                    </Link>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <NotificationBell />
 
                     {/* ── Avatar + dropdown profil ── */}
                     <div ref={profileRef} style={{ position: "relative" }}>
                         <button
-                            onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false) }}
+                            onClick={() => setProfileOpen(!profileOpen)}
                             style={{
                                 width: 34, height: 34, borderRadius: "50%",
                                 backgroundColor: C.yellow, color: "#000000",
