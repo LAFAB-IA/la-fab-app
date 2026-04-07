@@ -5,75 +5,112 @@ import { useAuth } from "@/components/AuthProvider"
 import AuthGuard from "@/components/AuthGuard"
 import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
-import { formatPrice, timeAgo } from "@/lib/format"
+import { formatPrice } from "@/lib/format"
 import {
-    TrendingUp, FolderOpen, Target, Clock,
-    UserCheck, FolderPlus, FileText, CreditCard, Bell,
-    AlertTriangle, XCircle, BarChart3, Users, Award,
-    Activity, ArrowRight, Loader2,
+    TrendingUp, TrendingDown, Calendar, ShoppingCart, Euro,
+    BarChart3, Users, AlertTriangle, Loader2, XCircle, ArrowRight,
 } from "lucide-react"
 
-// ─── Status config ──────────────────────────────────────────────────────────
+// ─── Theme (dark + yellow accent) ───────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; key: string }> = {
-    created:       { label: "En attente",  bg: "#fef9e0", color: "#b89a00", key: "created" },
-    quoted:        { label: "Devise",      bg: "#e8f0fe", color: "#1a3c7a", key: "quoted" },
-    validated:     { label: "Valide",      bg: "#e8f8ee", color: "#1a7a3c", key: "validated" },
-    in_production: { label: "Production",  bg: "#fff3e0", color: "#e65100", key: "in_production" },
-    delivered:     { label: "Livre",       bg: "#e0f2f1", color: "#004d40", key: "delivered" },
-    archived:      { label: "Archive",     bg: "#f5f5f5", color: "#616161", key: "archived" },
+const T = {
+    bg:       "#0a0a0a",
+    card:     "#141414",
+    cardAlt:  "#1c1c1c",
+    border:   "#262626",
+    text:     "#fafafa",
+    muted:    "#8a8a8a",
+    yellow:   C.yellow,
+    green:    "#22c55e",
+    red:      "#ef4444",
+    orange:   "#f59e0b",
+}
+
+// ─── Types matching GET /api/admin/stats ────────────────────────────────────
+
+type MonthPoint = { month: string; amount: number }
+type TopClient  = { name: string; ca: number; project_count?: number }
+type PendingProject = {
+    project_id: string
+    name?: string
+    client_name?: string
+    created_at: string
+    days_pending: number
+}
+type StatsResponse = {
+    ok?: boolean
+    ca_total?: number
+    ca_month?: number
+    ca_last_month?: number
+    growth_mom?: number
+    avg_basket?: number
+    monthly_revenue?: MonthPoint[]
+    top_clients?: TopClient[]
+    pending_projects?: PendingProject[]
+    stats?: Partial<StatsResponse>
 }
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aout", "Sep", "Oct", "Nov", "Dec"]
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+function labelMonth(raw: string): string {
+    // accepts "2026-01", "01", "Jan", or ISO date
+    if (!raw) return ""
+    const m = /^(\d{4})-(\d{2})/.exec(raw)
+    if (m) return MONTH_NAMES[parseInt(m[2], 10) - 1] || raw
+    const d = new Date(raw)
+    if (!isNaN(d.getTime())) return MONTH_NAMES[d.getMonth()]
+    return raw
+}
 
 function formatK(n: number): string {
-    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + " K"
-    return n.toFixed(0) + " EUR"
-}
-
-function getAuditIcon(action: string) {
-    if (action.includes("login") || action.includes("signup")) return UserCheck
-    if (action.includes("project") || action.includes("create")) return FolderPlus
-    if (action.includes("invoice")) return FileText
-    if (action.includes("payment") || action.includes("paid")) return CreditCard
-    return Bell
-}
-
-function getAuditLink(entityType: string, entityId: string): string | null {
-    if (entityType === "project") return "/admin/projets?search=" + entityId
-    if (entityType === "invoice") return "/admin/factures?search=" + entityId
-    if (entityType === "user") return "/admin/users"
-    return null
+    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + " K€"
+    return Math.round(n) + " €"
 }
 
 // ─── KPI Card ───────────────────────────────────────────────────────────────
 
-function KpiCard({ icon: Icon, label, value, sub, accent }: {
-    icon: React.ElementType; label: string; value: string; sub: string; accent?: boolean
+function KpiCard({
+    icon: Icon, label, value, sub, trend, accent,
+}: {
+    icon: React.ElementType
+    label: string
+    value: string
+    sub?: string
+    trend?: "up" | "down" | "flat"
+    accent?: boolean
 }) {
+    const trendColor = trend === "up" ? T.green : trend === "down" ? T.red : T.muted
+    const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : null
     return (
         <div style={{
-            background: C.white, borderRadius: 12, padding: "20px 22px",
-            boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
-            borderTop: accent ? "3px solid " + C.yellow : "3px solid transparent",
-            flex: 1, minWidth: 180,
+            background: T.card,
+            borderRadius: 14,
+            padding: "22px 24px",
+            border: "1px solid " + T.border,
+            borderTop: accent ? "3px solid " + T.yellow : "1px solid " + T.border,
+            flex: 1, minWidth: 200,
         }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <div style={{
-                    width: 34, height: 34, borderRadius: 8,
-                    backgroundColor: accent ? "#fef9e0" : C.bg,
+                    width: 36, height: 36, borderRadius: 10,
+                    background: accent ? "rgba(244,207,21,0.12)" : T.cardAlt,
                     display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                    <Icon size={16} color={accent ? "#b89a00" : C.muted} />
+                    <Icon size={17} color={accent ? T.yellow : T.muted} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 500, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.6 }}>
                     {label}
                 </span>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: C.dark, marginBottom: 4 }}>{value}</div>
-            <div style={{ fontSize: 12, color: C.muted }}>{sub}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: -0.5 }}>
+                {value}
+            </div>
+            {sub && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: trendColor }}>
+                    {TrendIcon && <TrendIcon size={13} />}
+                    <span>{sub}</span>
+                </div>
+            )}
         </div>
     )
 }
@@ -82,9 +119,11 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
 
 function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
     return (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-            <Icon size={16} color={C.dark} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+            <Icon size={16} color={T.yellow} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.text, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {label}
+            </span>
         </div>
     )
 }
@@ -95,332 +134,304 @@ function AdminDashboard() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-
-    const [projects, setProjects] = useState<any[]>([])
-    const [invoices, setInvoices] = useState<any[]>([])
-    const [auditLogs, setAuditLogs] = useState<any[]>([])
-    const [supplierStats, setSupplierStats] = useState<any[]>([])
+    const [stats, setStats] = useState<StatsResponse | null>(null)
 
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
+        if (!isAuthenticated) {
+            const id = setTimeout(() => { setError("Non authentifie"); setLoading(false) }, 0)
+            return () => clearTimeout(id)
+        }
 
-        let done = 0
-        const total = 4
-        const check = () => { done++; if (done >= total) setLoading(false) }
-
-        fetchWithAuth(API_URL + "/api/admin/projects")
+        let cancelled = false
+        fetchWithAuth(API_URL + "/api/admin/stats")
             .then(r => r.json())
-            .then(d => { if (d.ok) setProjects(d.projects || []) })
-            .catch(() => {})
-            .finally(check)
+            .then((d: StatsResponse) => {
+                if (cancelled) return
+                if (d && d.ok === false) {
+                    setError("Erreur serveur")
+                } else {
+                    // Accept either flat payload or { stats: {...} }
+                    setStats(d.stats ? { ...d, ...d.stats } : d)
+                }
+            })
+            .catch(() => { if (!cancelled) setError("Impossible de charger les statistiques") })
+            .finally(() => { if (!cancelled) setLoading(false) })
 
-        fetchWithAuth(API_URL + "/api/invoice/list")
-            .then(r => r.json())
-            .then(d => { if (d.ok) setInvoices(d.invoices || []) })
-            .catch(() => {})
-            .finally(check)
-
-        fetchWithAuth(API_URL + "/api/admin/audit-logs?limit=10")
-            .then(r => r.json())
-            .then(d => { if (d.ok) setAuditLogs(d.logs || d.data || []) })
-            .catch(() => {})
-            .finally(check)
-
-        fetchWithAuth(API_URL + "/api/admin/suppliers/stats")
-            .then(r => r.json())
-            .then(d => { if (d.ok) setSupplierStats(d.suppliers || d.data || []) })
-            .catch(() => {})
-            .finally(check)
+        return () => { cancelled = true }
     }, [isAuthenticated, authLoading])
 
-    // ── Computed KPIs ───────────────────────────────────────────────────────
-
-    const paidInvoices = invoices.filter(i => i.status === "paid")
-    const caTotalTTC = paidInvoices.reduce((s, i) => s + Number(i.total || 0), 0)
-
-    const now = new Date()
-    const thisMonth = now.getMonth()
-    const thisYear = now.getFullYear()
-    const caThisMonth = paidInvoices
-        .filter(i => { const d = new Date(i.paid_at || i.created_at); return d.getMonth() === thisMonth && d.getFullYear() === thisYear })
-        .reduce((s, i) => s + Number(i.total || 0), 0)
-    const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1
-    const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear
-    const caLastMonth = paidInvoices
-        .filter(i => { const d = new Date(i.paid_at || i.created_at); return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear })
-        .reduce((s, i) => s + Number(i.total || 0), 0)
-    const caGrowth = caLastMonth > 0 ? Math.round(((caThisMonth - caLastMonth) / caLastMonth) * 100) : 0
-
-    const activeProjects = projects.filter(p => p.status !== "archived" && p.status !== "delivered")
-    const oneWeekAgo = Date.now() - 7 * 24 * 3600 * 1000
-    const newThisWeek = projects.filter(p => new Date(p.created_at).getTime() > oneWeekAgo).length
-
-    const totalProjects = projects.length
-    const convertedProjects = projects.filter(p => p.status === "validated" || p.status === "delivered" || p.status === "in_production").length
-    const conversionRate = totalProjects > 0 ? Math.round((convertedProjects / totalProjects) * 100) : 0
-    const pendingQuotes = projects.filter(p => p.status === "quoted").length
-
-    const deliveredProjects = projects.filter(p => p.status === "delivered" && p.updated_at && p.created_at)
-    const avgDeliveryDays = deliveredProjects.length > 0
-        ? Math.round(deliveredProjects.reduce((s, p) => s + (new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) / 86400000, 0) / deliveredProjects.length)
-        : 0
-    const inProductionCount = projects.filter(p => p.status === "in_production").length
-
-    // ── Monthly revenue (last 6 months) ─────────────────────────────────────
-
-    const monthlyRevenue: { month: string; amount: number; isCurrent: boolean }[] = []
-    for (let i = 5; i >= 0; i--) {
-        const m = new Date(thisYear, thisMonth - i, 1)
-        const mo = m.getMonth()
-        const yr = m.getFullYear()
-        const amount = paidInvoices
-            .filter(inv => { const d = new Date(inv.paid_at || inv.created_at); return d.getMonth() === mo && d.getFullYear() === yr })
-            .reduce((s, inv) => s + Number(inv.total || 0), 0)
-        monthlyRevenue.push({ month: MONTH_NAMES[mo], amount, isCurrent: i === 0 })
-    }
-    const maxRevenue = Math.max(...monthlyRevenue.map(m => m.amount), 1)
-
-    // ── Project distribution by status ──────────────────────────────────────
-
-    const statusCounts = Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({
-        key, label: cfg.label, color: cfg.color, bg: cfg.bg,
-        count: projects.filter(p => p.status === key).length,
-    }))
-    const maxStatusCount = Math.max(...statusCounts.map(s => s.count), 1)
-
-    // ── Alerts ──────────────────────────────────────────────────────────────
-
-    type Alert = { label: string; count: number; color: string; bg: string; link: string }
-    const alerts: Alert[] = []
-
-    const noQuote48h = projects.filter(p => p.status === "created" && Date.now() - new Date(p.created_at).getTime() > 48 * 3600 * 1000).length
-    if (noQuote48h > 0) alerts.push({ label: "Projets sans devis depuis +48h", count: noQuote48h, color: "#c0392b", bg: "#fee", link: "/admin/projets?status=created" })
-
-    const overdueInvoices = invoices.filter(i => i.status === "overdue").length
-    if (overdueInvoices > 0) alerts.push({ label: "Factures impayees echues", count: overdueInvoices, color: "#e65100", bg: "#fff3e0", link: "/admin/factures?status=overdue" })
-
-    const noResponse72h = projects.filter(p => {
-        if (p.status !== "quoted") return false
-        return Date.now() - new Date(p.updated_at || p.created_at).getTime() > 72 * 3600 * 1000
-    }).length
-    if (noResponse72h > 0) alerts.push({ label: "Consultations sans reponse +72h", count: noResponse72h, color: "#b89a00", bg: "#fef9e0", link: "/admin/projets?status=quoted" })
-
-    // ── Top 5 clients ───────────────────────────────────────────────────────
-
-    const clientMap: Record<string, { name: string; projectCount: number; ca: number }> = {}
-    for (const p of projects) {
-        const id = p.account_id
-        if (!clientMap[id]) clientMap[id] = { name: id.slice(0, 12), projectCount: 0, ca: 0 }
-        clientMap[id].projectCount++
-    }
-    for (const inv of paidInvoices) {
-        const proj = projects.find(p => p.project_id === inv.project_id)
-        if (proj && clientMap[proj.account_id]) {
-            clientMap[proj.account_id].ca += Number(inv.total || 0)
-            if (inv.client_name) clientMap[proj.account_id].name = inv.client_name
-        }
-    }
-    const topClients = Object.values(clientMap).sort((a, b) => b.ca - a.ca).slice(0, 5)
-
-    // ── Top 5 suppliers ─────────────────────────────────────────────────────
-
-    const topSuppliers = [...supplierStats]
-        .sort((a: any, b: any) => (b.response_rate || 0) - (a.response_rate || 0))
-        .slice(0, 5)
-
-    // ── Render ──────────────────────────────────────────────────────────────
-
     if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "Inter, sans-serif" }}>
-            <Loader2 size={20} color={C.muted} style={{ animation: "spin 1s linear infinite" }} />
+        <div style={{
+            background: T.bg, minHeight: "100vh",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: "Inter, sans-serif",
+        }}>
+            <Loader2 size={22} color={T.yellow} style={{ animation: "spin 1s linear infinite" }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
     )
 
     if (error) return (
-        <div style={{ fontFamily: "Inter, sans-serif", padding: 40 }}>
-            <p style={{ color: "#c0392b", display: "flex", alignItems: "center", gap: 6 }}><XCircle size={14} /> {error}</p>
+        <div style={{ background: T.bg, minHeight: "100vh", padding: 40, fontFamily: "Inter, sans-serif" }}>
+            <p style={{ color: T.red, display: "flex", alignItems: "center", gap: 8 }}>
+                <XCircle size={16} /> {error}
+            </p>
         </div>
     )
 
-    return (
-        <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    const caTotal   = Number(stats?.ca_total   ?? 0)
+    const caMonth   = Number(stats?.ca_month   ?? 0)
+    const growthMoM = Number(stats?.growth_mom ?? 0)
+    const avgBasket = Number(stats?.avg_basket ?? 0)
 
-                {/* ══════════════════════════════════════════════════════════════
-                    SECTION 1 -- KPIs
-                ══════════════════════════════════════════════════════════════ */}
-                <div className="dash-kpis" style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
+    const monthly: MonthPoint[] = Array.isArray(stats?.monthly_revenue)
+        ? stats!.monthly_revenue!.slice(-6)
+        : []
+    const maxAmount = Math.max(...monthly.map(m => Number(m.amount) || 0), 1)
+
+    const topClients: TopClient[] = Array.isArray(stats?.top_clients)
+        ? stats!.top_clients!.slice(0, 3)
+        : []
+
+    const pending: PendingProject[] = Array.isArray(stats?.pending_projects)
+        ? stats!.pending_projects!.filter(p => Number(p.days_pending) > 7)
+        : []
+
+    const growthTrend: "up" | "down" | "flat" = growthMoM > 0 ? "up" : growthMoM < 0 ? "down" : "flat"
+    const growthLabel = (growthMoM > 0 ? "+" : "") + growthMoM.toFixed(1) + "% vs mois precedent"
+
+    return (
+        <div style={{
+            background: T.bg,
+            minHeight: "100vh",
+            fontFamily: "Inter, sans-serif",
+            padding: "32px 24px",
+            boxSizing: "border-box",
+        }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+
+                <h1 style={{
+                    fontSize: 24, fontWeight: 700, color: T.text,
+                    margin: "0 0 6px 0", letterSpacing: -0.5,
+                }}>
+                    Tableau de bord
+                </h1>
+                <p style={{ fontSize: 13, color: T.muted, margin: "0 0 28px 0" }}>
+                    Vue d&apos;ensemble de l&apos;activite
+                </p>
+
+                {/* ── SECTION 1 — KPIs ─────────────────────────────────────── */}
+                <div className="dash-kpis" style={{
+                    display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap",
+                }}>
                     <KpiCard
-                        icon={TrendingUp}
-                        label="CA Total TTC"
-                        value={formatPrice(caTotalTTC)}
-                        sub={caGrowth !== 0
-                            ? (caGrowth > 0 ? "+" : "") + caGrowth + "% vs mois precedent"
-                            : "Pas de comparaison disponible"}
+                        icon={Euro}
+                        label="CA Total"
+                        value={formatPrice(caTotal)}
+                        sub="Depuis le debut"
                         accent
                     />
                     <KpiCard
-                        icon={FolderOpen}
-                        label="Projets actifs"
-                        value={String(activeProjects.length)}
-                        sub={newThisWeek + " nouveau" + (newThisWeek > 1 ? "x" : "") + " cette semaine"}
+                        icon={Calendar}
+                        label="CA du mois"
+                        value={formatPrice(caMonth)}
+                        sub={growthLabel}
+                        trend={growthTrend}
                     />
                     <KpiCard
-                        icon={Target}
-                        label="Taux de conversion"
-                        value={conversionRate + "%"}
-                        sub={pendingQuotes + " devis en attente de validation"}
+                        icon={growthTrend === "down" ? TrendingDown : TrendingUp}
+                        label="Croissance MoM"
+                        value={(growthMoM > 0 ? "+" : "") + growthMoM.toFixed(1) + "%"}
+                        sub={growthTrend === "up" ? "En progression" : growthTrend === "down" ? "En baisse" : "Stable"}
+                        trend={growthTrend}
                     />
                     <KpiCard
-                        icon={Clock}
-                        label="Delai moyen"
-                        value={avgDeliveryDays > 0 ? avgDeliveryDays + "j" : "N/A"}
-                        sub={inProductionCount + " projet" + (inProductionCount > 1 ? "s" : "") + " en production"}
+                        icon={ShoppingCart}
+                        label="Panier moyen"
+                        value={formatPrice(avgBasket)}
+                        sub="Par projet facture"
                     />
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════════
-                    SECTION 2 -- Graphiques CSS purs
-                ══════════════════════════════════════════════════════════════ */}
-                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+                {/* ── SECTION 2 — CA 6 derniers mois ───────────────────────── */}
+                <div style={{
+                    background: T.card,
+                    borderRadius: 14,
+                    padding: 28,
+                    border: "1px solid " + T.border,
+                    marginBottom: 24,
+                }}>
+                    <SectionTitle icon={BarChart3} label="CA — 6 derniers mois" />
+                    {monthly.length === 0 ? (
+                        <div style={{ fontSize: 13, color: T.muted, padding: "24px 0" }}>
+                            Aucune donnee disponible
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: "flex", alignItems: "flex-end",
+                            gap: 16, height: 220, paddingTop: 24,
+                        }}>
+                            {monthly.map((m, i) => {
+                                const amount = Number(m.amount) || 0
+                                const pct = amount > 0 ? Math.max((amount / maxAmount) * 100, 3) : 0
+                                const isLast = i === monthly.length - 1
+                                return (
+                                    <div key={i} style={{
+                                        flex: 1, display: "flex", flexDirection: "column",
+                                        alignItems: "center", height: "100%",
+                                    }}>
+                                        <div style={{
+                                            flex: 1, width: "100%",
+                                            display: "flex", alignItems: "flex-end", justifyContent: "center",
+                                            position: "relative",
+                                        }}>
+                                            <div
+                                                title={formatPrice(amount)}
+                                                style={{
+                                                    width: "72%",
+                                                    height: pct + "%",
+                                                    minHeight: amount > 0 ? 4 : 0,
+                                                    background: isLast
+                                                        ? T.yellow
+                                                        : "linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)",
+                                                    borderRadius: "6px 6px 0 0",
+                                                    position: "relative",
+                                                    transition: "height 0.4s ease",
+                                                }}
+                                            >
+                                                {amount > 0 && (
+                                                    <div style={{
+                                                        position: "absolute",
+                                                        top: -22, left: "50%", transform: "translateX(-50%)",
+                                                        fontSize: 10, fontWeight: 600,
+                                                        color: isLast ? T.yellow : T.muted,
+                                                        whiteSpace: "nowrap",
+                                                    }}>
+                                                        {formatK(amount)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={{
+                                            fontSize: 11, color: T.muted, marginTop: 10,
+                                            fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.5,
+                                        }}>
+                                            {labelMonth(m.month)}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
 
-                    {/* -- CA mensuel (barres verticales) -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={BarChart3} label="CA mensuel" />
-                        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 180, paddingTop: 16 }}>
-                            {monthlyRevenue.map((m, i) => (
-                                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-                                    <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-                                        <div
-                                            style={{
-                                                width: "70%",
-                                                height: m.amount > 0 ? Math.max((m.amount / maxRevenue) * 100, 4) + "%" : "2px",
-                                                backgroundColor: m.isCurrent ? "#F4CF15" : "#000000",
-                                                borderRadius: "4px 4px 0 0",
-                                                position: "relative",
-                                                minHeight: 4,
-                                            }}
-                                            title={formatPrice(m.amount)}
-                                        >
-                                            {m.amount > 0 && (
-                                                <div style={{
-                                                    position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)",
-                                                    fontSize: 10, fontWeight: 600, color: C.muted, whiteSpace: "nowrap",
-                                                }}>
-                                                    {formatK(m.amount)}
+                {/* ── SECTION 3 — Top clients + Alertes ────────────────────── */}
+                <div className="dash-grid" style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr",
+                    gap: 20, marginBottom: 32,
+                }}>
+                    {/* Top 3 clients */}
+                    <div style={{
+                        background: T.card, borderRadius: 14, padding: 28,
+                        border: "1px solid " + T.border,
+                    }}>
+                        <SectionTitle icon={Users} label="Top 3 clients" />
+                        {topClients.length === 0 ? (
+                            <div style={{ fontSize: 13, color: T.muted, padding: "20px 0" }}>
+                                Aucun client
+                            </div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {topClients.map((c, i) => (
+                                    <div key={i} style={{
+                                        display: "flex", alignItems: "center", gap: 14,
+                                        padding: "14px 16px",
+                                        background: T.cardAlt,
+                                        borderRadius: 10,
+                                        border: "1px solid " + T.border,
+                                    }}>
+                                        <div style={{
+                                            width: 34, height: 34, borderRadius: 8,
+                                            background: i === 0 ? T.yellow : T.border,
+                                            color: i === 0 ? "#000" : T.text,
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            fontSize: 14, fontWeight: 700, flexShrink: 0,
+                                        }}>
+                                            {i + 1}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                fontSize: 14, fontWeight: 600, color: T.text,
+                                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                            }}>
+                                                {c.name || "Client"}
+                                            </div>
+                                            {c.project_count != null && (
+                                                <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                                                    {c.project_count} projet{c.project_count > 1 ? "s" : ""}
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
-                                    <div style={{ fontSize: 11, color: C.muted, marginTop: 8, fontWeight: 500 }}>{m.month}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* -- Repartition des projets (barres horizontales) -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={FolderOpen} label="Repartition des projets" />
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-                            {statusCounts.map(s => (
-                                <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div style={{ width: 80, fontSize: 12, color: C.muted, fontWeight: 500, textAlign: "right", flexShrink: 0 }}>
-                                        {s.label}
-                                    </div>
-                                    <div style={{ flex: 1, height: 22, backgroundColor: C.bg, borderRadius: 4, overflow: "hidden" }}>
                                         <div style={{
-                                            width: s.count > 0 ? Math.max((s.count / maxStatusCount) * 100, 6) + "%" : "0%",
-                                            height: "100%",
-                                            backgroundColor: s.color,
-                                            borderRadius: 4,
-                                            opacity: 0.8,
-                                            transition: "width 0.3s ease",
-                                        }} />
-                                    </div>
-                                    <div style={{ width: 28, fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "right", flexShrink: 0 }}>
-                                        {s.count}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ══════════════════════════════════════════════════════════════
-                    SECTION 3 -- Dernieres actions + Alertes
-                ══════════════════════════════════════════════════════════════ */}
-                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
-
-                    {/* -- Dernieres actions -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={Activity} label="Dernieres actions" />
-                        {auditLogs.length === 0 ? (
-                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune activite recente</div>
-                        ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                                {auditLogs.slice(0, 10).map((log, i) => {
-                                    const Icon = getAuditIcon(log.action)
-                                    const link = getAuditLink(log.entity_type, log.entity_id)
-                                    const content = (
-                                        <div style={{
-                                            display: "flex", alignItems: "center", gap: 10, padding: "10px 8px",
-                                            borderBottom: i < auditLogs.length - 1 ? "1px solid " + C.bg : "none",
-                                            cursor: link ? "pointer" : "default",
+                                            fontSize: 15, fontWeight: 700, color: T.yellow, whiteSpace: "nowrap",
                                         }}>
-                                            <div style={{
-                                                width: 30, height: 30, borderRadius: 8, backgroundColor: C.bg,
-                                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                                            }}>
-                                                <Icon size={14} color={C.muted} />
-                                            </div>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: 13, color: C.dark, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                    {log.action}
-                                                </div>
-                                                <div style={{ fontSize: 11, color: C.muted }}>
-                                                    {log.user_email ? log.user_email.split("@")[0] : "Systeme"} · {timeAgo(log.created_at)}
-                                                </div>
-                                            </div>
-                                            {link && <ArrowRight size={14} color={C.muted} />}
+                                            {formatPrice(Number(c.ca) || 0)}
                                         </div>
-                                    )
-                                    return link
-                                        ? <a key={log.id || i} href={link} style={{ textDecoration: "none", color: "inherit" }}>{content}</a>
-                                        : <div key={log.id || i}>{content}</div>
-                                })}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
 
-                    {/* -- Alertes -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={AlertTriangle} label="Alertes" />
-                        {alerts.length === 0 ? (
-                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0", display: "flex", alignItems: "center", gap: 8 }}>
-                                <Target size={14} /> Aucune alerte en cours
+                    {/* Alertes — projets en attente > 7j */}
+                    <div style={{
+                        background: T.card, borderRadius: 14, padding: 28,
+                        border: "1px solid " + T.border,
+                    }}>
+                        <SectionTitle icon={AlertTriangle} label="Projets en attente > 7 jours" />
+                        {pending.length === 0 ? (
+                            <div style={{
+                                fontSize: 13, color: T.muted, padding: "20px 0",
+                                display: "flex", alignItems: "center", gap: 8,
+                            }}>
+                                Aucune alerte en cours
                             </div>
                         ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {alerts.map((a, i) => (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {pending.map((p, i) => (
                                     <a
-                                        key={i}
-                                        href={a.link}
+                                        key={p.project_id || i}
+                                        href={"/admin/projets?search=" + (p.project_id || "")}
                                         style={{
-                                            display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                                            backgroundColor: a.bg, borderRadius: 8, textDecoration: "none",
-                                            border: "1px solid " + a.color + "33",
+                                            display: "flex", alignItems: "center", gap: 12,
+                                            padding: "14px 16px",
+                                            background: "rgba(239,68,68,0.08)",
+                                            borderRadius: 10,
+                                            border: "1px solid rgba(239,68,68,0.25)",
+                                            textDecoration: "none",
                                         }}
                                     >
-                                        <AlertTriangle size={14} color={a.color} style={{ flexShrink: 0 }} />
-                                        <span style={{ flex: 1, fontSize: 13, color: a.color, fontWeight: 500 }}>{a.label}</span>
+                                        <AlertTriangle size={16} color={T.red} style={{ flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                fontSize: 13, fontWeight: 600, color: T.text,
+                                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                            }}>
+                                                {p.name || p.client_name || "Projet " + (p.project_id || "").slice(0, 8)}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                                                En attente depuis {p.days_pending} jours
+                                            </div>
+                                        </div>
                                         <span style={{
-                                            padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-                                            backgroundColor: a.color, color: C.white,
+                                            padding: "4px 10px", borderRadius: 20,
+                                            fontSize: 11, fontWeight: 700,
+                                            background: T.red, color: "#fff",
                                         }}>
-                                            {a.count}
+                                            {p.days_pending}j
                                         </span>
+                                        <ArrowRight size={14} color={T.muted} />
                                     </a>
                                 ))}
                             </div>
@@ -428,77 +439,8 @@ function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════════
-                    SECTION 4 -- Mini-tableaux
-                ══════════════════════════════════════════════════════════════ */}
-                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
-
-                    {/* -- Top 5 clients -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={Users} label="Top 5 clients" />
-                        {topClients.length === 0 ? (
-                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune donnee</div>
-                        ) : (
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                                <thead>
-                                    <tr style={{ borderBottom: "1px solid " + C.border }}>
-                                        <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Client</th>
-                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Projets</th>
-                                        <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>CA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {topClients.map((c, i) => (
-                                        <tr key={i} style={{ borderBottom: "1px solid " + C.bg }}>
-                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 500, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</td>
-                                            <td style={{ padding: "10px 4px", color: C.muted, textAlign: "center" }}>{c.projectCount}</td>
-                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{formatPrice(c.ca)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-
-                    {/* -- Top 5 fournisseurs -- */}
-                    <div style={{ background: C.white, borderRadius: 12, padding: 24, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                        <SectionTitle icon={Award} label="Top 5 fournisseurs" />
-                        {topSuppliers.length === 0 ? (
-                            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Aucune donnee</div>
-                        ) : (
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                                <thead>
-                                    <tr style={{ borderBottom: "1px solid " + C.border }}>
-                                        <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Fournisseur</th>
-                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Reponse</th>
-                                        <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Score</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {topSuppliers.map((s: any, i: number) => (
-                                        <tr key={i} style={{ borderBottom: "1px solid " + C.bg }}>
-                                            <td style={{ padding: "10px 4px", color: C.dark, fontWeight: 500, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name || s.company_name || "Fournisseur"}</td>
-                                            <td style={{ padding: "10px 4px", color: C.muted, textAlign: "center" }}>{s.response_rate != null ? Math.round(s.response_rate) + "%" : "N/A"}</td>
-                                            <td style={{ padding: "10px 4px", textAlign: "center" }}>
-                                                <span style={{
-                                                    padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-                                                    backgroundColor: (s.trust_score || 0) >= 70 ? "#e8f8ee" : (s.trust_score || 0) >= 40 ? "#fef9e0" : "#fee",
-                                                    color: (s.trust_score || 0) >= 70 ? "#1a7a3c" : (s.trust_score || 0) >= 40 ? "#b89a00" : "#c0392b",
-                                                }}>
-                                                    {s.trust_score != null ? s.trust_score : "N/A"}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-
             </div>
 
-            {/* -- Responsive -- */}
             <style>{`
                 @media (max-width: 768px) {
                     .dash-grid { grid-template-columns: 1fr !important; }
