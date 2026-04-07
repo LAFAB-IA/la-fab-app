@@ -25,8 +25,8 @@ export default function Sidebar() {
                     left: 0;
                     bottom: 0;
                     width: 64px;
-                    background-color: #FAFFFD;
-                    border-right: 1px solid #e0e0de;
+                    background-color: var(--c-white);
+                    border-right: 1px solid var(--c-border);
                     display: flex;
                     flex-direction: column;
                     align-items: flex-start;
@@ -50,7 +50,7 @@ export default function Sidebar() {
                     text-decoration: none;
                     font-size: 14px;
                     font-weight: 500;
-                    color: #555;
+                    color: var(--c-muted);
                     white-space: nowrap;
                     border-radius: 0;
                     transition: background-color 0.15s, color 0.15s;
@@ -58,11 +58,11 @@ export default function Sidebar() {
                 }
                 .sidebar-link:hover {
                     background-color: rgba(244, 207, 21, 0.12);
-                    color: #000000;
+                    color: var(--c-dark);
                 }
                 .sidebar-link.active {
                     background-color: rgba(244, 207, 21, 0.2);
-                    color: #000000;
+                    color: var(--c-dark);
                     font-weight: 600;
                 }
                 .sidebar-label {

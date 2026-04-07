@@ -402,43 +402,55 @@ function AdminDashboard() {
                             </div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                {pending.map((p, i) => (
-                                    <a
-                                        key={p.project_id || i}
-                                        href={"/admin/projets?search=" + (p.project_id || "")}
-                                        className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30"
-                                        style={{
-                                            display: "flex", alignItems: "center", gap: 12,
-                                            padding: "14px 16px", borderRadius: 10, textDecoration: "none",
-                                        }}
-                                    >
-                                        <AlertTriangle size={16} className="text-red-600 dark:text-red-400" style={{ flexShrink: 0 }} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div
-                                                className={cls.text}
-                                                style={{
-                                                    fontSize: 13, fontWeight: 600,
-                                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                                }}
-                                            >
-                                                Projet {(p.project_id || "").slice(0, 8)}
-                                            </div>
-                                            <div className={cls.muted} style={{ fontSize: 11, marginTop: 2 }}>
-                                                En attente depuis {p.days_pending} jours
-                                            </div>
-                                        </div>
-                                        <span
-                                            className="bg-red-600 text-white"
+                                {pending.map((p, i) => {
+                                    const pid = p.project_id || ""
+                                    const days = Number(p.days_pending)
+                                    const hasDays = Number.isFinite(days) && days > 0
+                                    const href = pid
+                                        ? "/admin/projets?search=" + encodeURIComponent(pid)
+                                        : "/admin/projets"
+                                    return (
+                                        <a
+                                            key={pid || i}
+                                            href={href}
+                                            className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30"
                                             style={{
-                                                padding: "4px 10px", borderRadius: 20,
-                                                fontSize: 11, fontWeight: 700,
+                                                display: "flex", alignItems: "center", gap: 12,
+                                                padding: "14px 16px", borderRadius: 10, textDecoration: "none",
                                             }}
                                         >
-                                            {p.days_pending}j
-                                        </span>
-                                        <ArrowRight size={14} className={cls.muted} />
-                                    </a>
-                                ))}
+                                            <AlertTriangle size={16} className="text-red-600 dark:text-red-400" style={{ flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div
+                                                    className={cls.text}
+                                                    style={{
+                                                        fontSize: 13, fontWeight: 600,
+                                                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    Projet {pid ? pid.slice(0, 8) : "inconnu"}
+                                                </div>
+                                                <div className={cls.muted} style={{ fontSize: 11, marginTop: 2 }}>
+                                                    {hasDays
+                                                        ? `En attente depuis ${days} jour${days > 1 ? "s" : ""}`
+                                                        : "En attente"}
+                                                </div>
+                                            </div>
+                                            {hasDays && (
+                                                <span
+                                                    className="bg-red-600 text-white"
+                                                    style={{
+                                                        padding: "4px 10px", borderRadius: 20,
+                                                        fontSize: 11, fontWeight: 700,
+                                                    }}
+                                                >
+                                                    {days}j
+                                                </span>
+                                            )}
+                                            <ArrowRight size={14} className={cls.muted} />
+                                        </a>
+                                    )
+                                })}
                             </div>
                         )}
                     </div>
