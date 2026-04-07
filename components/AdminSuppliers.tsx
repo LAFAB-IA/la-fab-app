@@ -4,22 +4,25 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
-import { XCircle, Mail, Copy, MapPin, ChevronDown } from "lucide-react"
+import { XCircle, Mail, Copy, MapPin, ChevronDown, Eye } from "lucide-react"
 import { formatPrice } from "@/lib/format"
+import SupplierDetailDrawer from "@/components/admin/SupplierDetailDrawer"
 
 const { useEffect, useState, useMemo } = React
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const TIER_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    preferred:  { label: "Préféré",     bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    standard:   { label: "Standard",    bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
-    occasional: { label: "Occasionnel", bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+    standard: { label: "Standard", bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" },
+    premium:  { label: "Premium",  bg: "var(--status-info-bg)",    color: "var(--status-info-fg)",    border: "var(--status-info-bd)" },
+    gold:     { label: "Gold",     bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)",    border: "var(--status-warn-bd)" },
 }
 
+const TIER_OPTIONS: Array<"standard" | "premium" | "gold"> = ["standard", "premium", "gold"]
+
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    active: { label: "Actif",   bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    off:    { label: "Inactif", bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" },
+    active: { label: "Actif",   bg: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "var(--status-success-bd)" },
+    off:    { label: "Inactif", bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" },
 }
 
 interface Supplier {
@@ -81,14 +84,34 @@ type SortKey = "name" | "city" | "partner_tier" | "trust_score" | "consultations
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
-function TierBadge({ tier }: { tier: string }) {
-    const tc = TIER_CONFIG[tier] || { label: tier || "—", bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
-    return <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: tc.bg, color: tc.color, border: "1px solid " + tc.border, whiteSpace: "nowrap" }}>{tc.label}</span>
-}
+// ─── Inline switch ───────────────────────────────────────────────────────────
 
-function SupplierStatusBadge({ status }: { status: string }) {
-    const sc = STATUS_CONFIG[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
-    return <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>{sc.label}</span>
+function ActiveSwitch({ active, disabled, onChange }: { active: boolean; disabled?: boolean; onChange: (next: boolean) => void }) {
+    return (
+        <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); if (!disabled) onChange(!active) }}
+            disabled={disabled}
+            aria-pressed={active}
+            title={active ? "Désactiver" : "Activer"}
+            style={{
+                width: 36, height: 20, borderRadius: 10,
+                backgroundColor: active ? "var(--status-success-fg)" : C.border,
+                border: "none", padding: 0, position: "relative",
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.5 : 1,
+                transition: "background-color 0.15s ease",
+                flexShrink: 0,
+            }}
+        >
+            <span style={{
+                position: "absolute", top: 2, left: active ? 18 : 2,
+                width: 16, height: 16, borderRadius: "50%",
+                backgroundColor: "#ffffff", boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                transition: "left 0.15s ease",
+            }} />
+        </button>
+    )
 }
 
 // ─── Bar chart helper ────────────────────────────────────────────────────────
@@ -137,6 +160,9 @@ export default function AdminSuppliers() {
     // Sort
     const [sortKey, setSortKey] = useState<SortKey>("name")
     const [sortAsc, setSortAsc] = useState(true)
+
+    // Detail drawer
+    const [detailId, setDetailId] = useState<string | null>(null)
 
     // Expand
     const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -281,31 +307,32 @@ export default function AdminSuppliers() {
 
     function handleTierChange(supplierId: string, newTier: string) {
         setChangingId(supplierId)
-        fetchWithAuth(`${API_URL}/api/supplier/${supplierId}`, {
+        fetchWithAuth(`${API_URL}/api/admin/suppliers/${supplierId}/tier`, {
             method: "PATCH",
-            body: JSON.stringify({ partner_tier: newTier }),
+            body: JSON.stringify({ tier: newTier }),
         })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, partner_tier: newTier } : s))
-                setChangingId(null)
+            .then(async (r) => {
+                const data = await r.json().catch(() => ({}))
+                if (r.ok && data?.ok !== false) {
+                    setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, partner_tier: newTier } : s))
+                }
             })
-            .catch(() => setChangingId(null))
+            .finally(() => setChangingId(null))
     }
 
-    function handleStatusToggle(supplierId: string, currentStatus: string) {
-        const newStatus = currentStatus === "active" ? "off" : "active"
+    function handleStatusToggle(supplierId: string, nextActive: boolean) {
         setChangingId(supplierId)
-        fetchWithAuth(`${API_URL}/api/supplier/${supplierId}`, {
+        fetchWithAuth(`${API_URL}/api/admin/suppliers/${supplierId}/status`, {
             method: "PATCH",
-            body: JSON.stringify({ status: newStatus }),
+            body: JSON.stringify({ active: nextActive }),
         })
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, status: newStatus } : s))
-                setChangingId(null)
+            .then(async (r) => {
+                const data = await r.json().catch(() => ({}))
+                if (r.ok && data?.ok !== false) {
+                    setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, status: nextActive ? "active" : "off" } : s))
+                }
             })
-            .catch(() => setChangingId(null))
+            .finally(() => setChangingId(null))
     }
 
     function loadConsultations(supplierId: string) {
@@ -476,16 +503,17 @@ export default function AdminSuppliers() {
                 </div>
 
                 {/* ── Table header ── */}
-                <div style={{ display: "flex", gap: 8, padding: "10px 20px", backgroundColor: "#F8F8F6", borderRadius: "10px 10px 0 0", border: "1px solid " + C.border, borderBottom: "1px solid #e8e8e6" }}>
-                    <ColHeader label="Nom" colKey="name" width={160} />
-                    <ColHeader label="Ville" colKey="city" width={90} />
-                    <ColHeader label="Tier" colKey="partner_tier" width={90} />
-                    <ColHeader label="Confiance" colKey="trust_score" width={80} />
-                    <ColHeader label="Reçues" colKey="consultations_received" width={60} />
-                    <ColHeader label="Réponses" colKey="consultations_replied" width={70} />
-                    <ColHeader label="Taux" colKey="response_rate" width={60} />
-                    <ColHeader label="CA est." colKey="estimated_revenue" width={80} />
-                    <ColHeader label="Statut" colKey="status" width={70} />
+                <div style={{ display: "flex", gap: 8, padding: "10px 20px", backgroundColor: C.bg, borderRadius: "10px 10px 0 0", border: "1px solid " + C.border, borderBottom: "1px solid " + C.border }}>
+                    <ColHeader label="Nom" colKey="name" width={150} />
+                    <ColHeader label="Ville" colKey="city" width={80} />
+                    <ColHeader label="Tier" colKey="partner_tier" width={120} />
+                    <ColHeader label="Confiance" colKey="trust_score" width={70} />
+                    <ColHeader label="Reçues" colKey="consultations_received" width={55} />
+                    <ColHeader label="Réponses" colKey="consultations_replied" width={65} />
+                    <ColHeader label="Taux" colKey="response_rate" width={55} />
+                    <ColHeader label="CA est." colKey="estimated_revenue" width={75} />
+                    <div style={{ width: 50, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Actif</div>
+                    <div style={{ width: 80, fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: 0.8 }}>Détail</div>
                 </div>
 
                 {/* ── Table rows ── */}
@@ -499,23 +527,61 @@ export default function AdminSuppliers() {
                                 {/* Row */}
                                 <div
                                     onClick={() => { setExpandedId(isExpanded ? null : s.id); if (!isExpanded) { loadConsultations(s.supplier_id); loadProducts(s.supplier_id) } }}
-                                    style={{ display: "flex", gap: 8, padding: "12px 20px", alignItems: "center", cursor: "pointer", backgroundColor: isExpanded ? "#fef9e0" : C.white, borderBottom: "1px solid " + C.border, transition: "background-color 0.15s" }}
+                                    style={{ display: "flex", gap: 8, padding: "12px 20px", alignItems: "center", cursor: "pointer", backgroundColor: isExpanded ? "var(--status-warn-bg)" : C.white, borderBottom: "1px solid " + C.border, transition: "background-color 0.15s" }}
                                 >
-                                    <div style={{ width: 160, fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                                    <div style={{ width: 90, fontSize: 12, color: C.muted }}>{s.city || "—"}</div>
-                                    <div style={{ width: 90 }}><TierBadge tier={s.partner_tier} /></div>
-                                    <div style={{ width: 80, fontSize: 13, fontWeight: 600, color: (s.trust_score || 0) >= 0.7 ? "#1a7a3c" : (s.trust_score || 0) >= 0.4 ? "#b89a00" : "#c0392b" }}>
+                                    <div style={{ width: 150, fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                                    <div style={{ width: 80, fontSize: 12, color: C.muted }}>{s.city || "—"}</div>
+                                    <div style={{ width: 120 }}>
+                                        <select
+                                            value={TIER_OPTIONS.includes(s.partner_tier as any) ? s.partner_tier : "standard"}
+                                            disabled={isChanging}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => handleTierChange(s.id, e.target.value)}
+                                            style={{
+                                                width: "100%", padding: "5px 8px", borderRadius: 6,
+                                                border: "1px solid " + C.border, backgroundColor: C.white,
+                                                color: C.dark, fontSize: 12, fontWeight: 600,
+                                                cursor: isChanging ? "not-allowed" : "pointer", outline: "none",
+                                            }}
+                                        >
+                                            {TIER_OPTIONS.map((k) => (
+                                                <option key={k} value={k}>{TIER_CONFIG[k].label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div style={{ width: 70, fontSize: 13, fontWeight: 600, color: (s.trust_score || 0) >= 0.7 ? "var(--status-success-fg)" : (s.trust_score || 0) >= 0.4 ? "var(--status-warn-fg)" : "var(--status-danger-fg)" }}>
                                         {s.trust_score != null ? Math.round(s.trust_score * 100) + "%" : "—"}
                                     </div>
-                                    <div style={{ width: 60, fontSize: 13, color: C.dark, textAlign: "center" }}>{s.consultations_received || 0}</div>
-                                    <div style={{ width: 70, fontSize: 13, color: C.dark, textAlign: "center" }}>{s.consultations_replied || 0}</div>
-                                    <div style={{ width: 60, fontSize: 12, fontWeight: 600, color: (s.response_rate || 0) >= 75 ? "#1a7a3c" : (s.response_rate || 0) >= 40 ? "#b89a00" : "#c0392b", textAlign: "center" }}>
+                                    <div style={{ width: 55, fontSize: 13, color: C.dark, textAlign: "center" }}>{s.consultations_received || 0}</div>
+                                    <div style={{ width: 65, fontSize: 13, color: C.dark, textAlign: "center" }}>{s.consultations_replied || 0}</div>
+                                    <div style={{ width: 55, fontSize: 12, fontWeight: 600, color: (s.response_rate || 0) >= 75 ? "var(--status-success-fg)" : (s.response_rate || 0) >= 40 ? "var(--status-warn-fg)" : "var(--status-danger-fg)", textAlign: "center" }}>
                                         {s.consultations_received ? s.response_rate + "%" : "—"}
                                     </div>
-                                    <div style={{ width: 80, fontSize: 12, color: C.dark, fontWeight: 500, textAlign: "right" }}>
+                                    <div style={{ width: 75, fontSize: 12, color: C.dark, fontWeight: 500, textAlign: "right" }}>
                                         {s.estimated_revenue ? formatPrice(s.estimated_revenue) : "—"}
                                     </div>
-                                    <div style={{ width: 70 }}><SupplierStatusBadge status={s.status} /></div>
+                                    <div style={{ width: 50, display: "flex", justifyContent: "flex-start" }}>
+                                        <ActiveSwitch
+                                            active={s.status === "active"}
+                                            disabled={isChanging}
+                                            onChange={(next) => handleStatusToggle(s.id, next)}
+                                        />
+                                    </div>
+                                    <div style={{ width: 80 }}>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setDetailId(s.supplier_id) }}
+                                            className="btn-secondary"
+                                            style={{
+                                                padding: "5px 10px", borderRadius: 6,
+                                                border: "1px solid " + C.border,
+                                                backgroundColor: C.white, color: C.dark,
+                                                fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                                display: "inline-flex", alignItems: "center", gap: 4,
+                                            }}
+                                        >
+                                            <Eye size={12} /> Détail
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Expanded panel */}
@@ -547,24 +613,6 @@ export default function AdminSuppliers() {
                                                 <MapPin size={14} style={{display:"inline-block",verticalAlign:"middle",marginRight:4}} /> Coordonnées : {s.latitude?.toFixed(4)}, {s.longitude?.toFixed(4)}
                                             </div>
                                         )}
-
-                                        {/* Tier change */}
-                                        <div style={{ marginBottom: 16 }}>
-                                            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
-                                                Modifier le tier
-                                            </div>
-                                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                                {Object.entries(TIER_CONFIG).map(([key, tc]) => {
-                                                    const isCurrent = s.partner_tier === key
-                                                    return (
-                                                        <button key={key} onClick={() => !isCurrent && handleTierChange(s.id, key)} disabled={isCurrent || isChanging}
-                                                            style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, border: isCurrent ? "2px solid " + tc.color : "1px solid " + C.border, backgroundColor: isCurrent ? tc.bg : C.white, color: isCurrent ? tc.color : C.muted, cursor: isCurrent ? "default" : "pointer", opacity: isChanging ? 0.5 : 1 }}>
-                                                            {tc.label}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
 
                                         {/* Produits & Tarifs */}
                                         <div style={{ marginBottom: 16 }}>
@@ -621,11 +669,11 @@ export default function AdminSuppliers() {
                                         {/* Actions */}
                                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                             <button
-                                                onClick={() => handleStatusToggle(s.id, s.status)}
-                                                disabled={isChanging}
-                                                style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: isChanging ? "not-allowed" : "pointer", opacity: isChanging ? 0.5 : 1, border: "1px solid " + C.border, backgroundColor: s.status === "active" ? "#fde8e8" : "#e8f8ee", color: s.status === "active" ? "#c0392b" : "#1a7a3c" }}
+                                                onClick={() => setDetailId(s.supplier_id)}
+                                                className="btn-secondary"
+                                                style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, display: "inline-flex", alignItems: "center", gap: 6 }}
                                             >
-                                                {s.status === "active" ? "Désactiver" : "Activer"}
+                                                <Eye size={14} /> Voir détail complet
                                             </button>
                                             {s.email && (
                                                 <a href={"mailto:" + s.email} style={{ padding: "9px 18px", background: C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
@@ -649,6 +697,12 @@ export default function AdminSuppliers() {
                     )}
                 </div>
             </div>
+
+            {/* ── Detail drawer ── */}
+            <SupplierDetailDrawer
+                supplierId={detailId}
+                onClose={() => setDetailId(null)}
+            />
         </div>
     )
 }

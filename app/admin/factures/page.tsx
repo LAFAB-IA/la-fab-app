@@ -72,7 +72,29 @@ function AdminInvoices() {
     const [page, setPage] = useState(0)
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
     const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
+    const [downloadingId, setDownloadingId] = useState<string | null>(null)
     const PAGE_SIZE = 20
+
+    async function handleDownloadPdf(invoiceId: string, invoiceNumber?: string) {
+        setDownloadingId(invoiceId)
+        try {
+            const res = await fetchWithAuth(`${API_URL}/api/invoice/${invoiceId}/pdf`)
+            if (!res.ok) throw new Error("Erreur téléchargement")
+            const blob = await res.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `facture-${invoiceNumber || invoiceId}.pdf`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+        } catch {
+            // silently ignore — could surface a toast
+        } finally {
+            setDownloadingId(null)
+        }
+    }
 
     useEffect(() => {
         if (authLoading) return
@@ -462,6 +484,15 @@ function AdminInvoices() {
                                             <FileText size={12} color={C.white} />
                                         </button>
                                     )}
+                                    <button
+                                        onClick={() => handleDownloadPdf(inv.id, inv.invoice_number)}
+                                        disabled={downloadingId === inv.id}
+                                        title="Télécharger PDF"
+                                        className="btn-icon"
+                                        style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid " + C.border, backgroundColor: C.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: downloadingId === inv.id ? "wait" : "pointer", padding: 0, opacity: downloadingId === inv.id ? 0.5 : 1 }}
+                                    >
+                                        <Download size={12} color={C.dark} />
+                                    </button>
                                     {inv.status !== "paid" && inv.status !== "draft" && inv.status !== "cancelled" && (
                                         <button title="Relancer" className="btn-danger" style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #f5c6c6", backgroundColor: "#fde8e8", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
                                             <Send size={12} color="#c0392b" />
@@ -588,17 +619,33 @@ function AdminInvoices() {
                                 )}
                             </div>
 
-                            {/* PDF button */}
-                            {inv.pdf_url && (
-                                <button onClick={() => { setSelectedInvoice(null); setPdfModal({ url: inv.pdf_url, title: `Facture ${inv.invoice_number || ""}` }); }} style={{
-                                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                                    width: "100%", padding: "12px 0", borderRadius: 8,
-                                    backgroundColor: C.dark, color: C.white, fontSize: 14, fontWeight: 600,
-                                    textDecoration: "none", border: "none", cursor: "pointer",
-                                }}>
-                                    <Eye size={16} /> Voir le PDF
+                            {/* PDF buttons */}
+                            <div style={{ display: "flex", gap: 8 }}>
+                                {inv.pdf_url && (
+                                    <button onClick={() => { setSelectedInvoice(null); setPdfModal({ url: inv.pdf_url, title: `Facture ${inv.invoice_number || ""}` }); }} style={{
+                                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                                        flex: 1, padding: "12px 0", borderRadius: 8,
+                                        backgroundColor: C.dark, color: C.white, fontSize: 14, fontWeight: 600,
+                                        textDecoration: "none", border: "none", cursor: "pointer",
+                                    }}>
+                                        <Eye size={16} /> Voir le PDF
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleDownloadPdf(inv.id, inv.invoice_number)}
+                                    disabled={downloadingId === inv.id}
+                                    style={{
+                                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                                        flex: 1, padding: "12px 0", borderRadius: 8,
+                                        backgroundColor: C.yellow, color: "#000000", fontSize: 14, fontWeight: 700,
+                                        border: "none", cursor: downloadingId === inv.id ? "wait" : "pointer",
+                                        opacity: downloadingId === inv.id ? 0.6 : 1,
+                                    }}
+                                >
+                                    <Download size={16} />
+                                    {downloadingId === inv.id ? "Téléchargement…" : "Télécharger PDF"}
                                 </button>
-                            )}
+                            </div>
                         </div>
                     </div>
                 )
