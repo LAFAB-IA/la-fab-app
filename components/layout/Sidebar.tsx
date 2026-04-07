@@ -2,7 +2,6 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { C } from "@/lib/constants"
 import { LayoutDashboard, FolderKanban, Factory, FileText, ClipboardList, Webhook } from "lucide-react"
 
 const LINKS: { href: string; label: string; icon: React.ReactNode }[] = [
@@ -84,7 +83,7 @@ export default function Sidebar() {
                             href={link.href}
                             className={`sidebar-link${active ? " active" : ""}`}
                         >
-                            <span style={{ flexShrink: 0 }}>{link.icon}</span>
+                            <span className="shrink-0">{link.icon}</span>
                             <span className="sidebar-label">{link.label}</span>
                         </a>
                     )
