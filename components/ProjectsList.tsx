@@ -42,7 +42,7 @@ function StatusKPIRow({ projects }: { projects: any[] }) {
     }, [projects])
 
     return (
-        <div style={{
+        <div className="projects-kpi-row" style={{
             display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4,
             marginBottom: 20, scrollbarWidth: "none",
         }}>
@@ -251,17 +251,43 @@ export default function ProjectsList() {
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
+            <style>{`
+                .projects-header {
+                    margin-bottom: 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                }
+                .projects-kpi-row {
+                    -webkit-overflow-scrolling: touch;
+                }
+                .projects-kpi-row::-webkit-scrollbar { display: none; }
+                .list-grid-3col {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 12px;
+                }
+                @media (max-width: 768px) {
+                    .projects-header { flex-direction: column; align-items: stretch; gap: 12px; }
+                    .projects-header h1 { font-size: 20px !important; }
+                    .projects-header-cta { width: 100%; text-align: center; display: block !important; }
+                    .list-grid-3col { grid-template-columns: 1fr !important; }
+                }
+                @media (max-width: 375px) {
+                    .projects-header h1 { font-size: 18px !important; }
+                }
+            `}</style>
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
                 {/* Header */}
-                <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div className="projects-header">
                     <div>
                         <h1 style={{ fontSize: 24, fontWeight: 700, color: C.dark, margin: 0 }}>Mes projets</h1>
                         <p style={{ color: C.muted, fontSize: 14, margin: "4px 0 0" }}>{projects.length} projet{projects.length > 1 ? "s" : ""}</p>
                     </div>
                     <a
                         href="/projet/nouveau"
-                        className="btn-primary"
+                        className="btn-primary projects-header-cta"
                         style={{ padding: "10px 20px", backgroundColor: C.yellow, color: C.dark, borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}
                     >
                         + Nouveau projet

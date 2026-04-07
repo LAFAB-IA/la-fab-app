@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { API_URL } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
@@ -8,6 +8,7 @@ import { fetchWithAuth } from "@/lib/api"
 import ProjectTimeline from "@/components/shared/ProjectTimeline"
 import { Clock, XCircle, FileText, CheckCircle, ClipboardList, Link2, FolderOpen, MessageSquare, Eye, Loader2 } from "lucide-react"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
+import useFocusTrap from "@/hooks/useFocusTrap"
 import { formatPrice, formatDate, formatDateShort } from "@/lib/format"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -26,8 +27,8 @@ interface Quote {
 const lbl = "text-xs text-[#7a8080] font-semibold uppercase tracking-[1px] mb-1"
 const val = "text-base text-black font-medium"
 const sec = "text-[11px] font-bold text-[#7a8080] uppercase tracking-[1px] mb-4 mt-8 pb-2 border-b border-[#e0e0de]"
-const grid = "grid grid-cols-2 gap-x-8 gap-y-5"
-const card = "max-w-[720px] mx-auto bg-[#FAFFFD] rounded-xl p-8 shadow-[0_1px_3px_rgba(58,64,64,0.08)]"
+const grid = "dash-grid grid grid-cols-2 gap-x-8 gap-y-5"
+const card = "dash-card max-w-[720px] mx-auto bg-[#FAFFFD] rounded-xl p-8 shadow-[0_1px_3px_rgba(58,64,64,0.08)]"
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ export default function Dashboard() {
     const [clientValidateError, setClientValidateError] = useState<string | null>(null)
     const [confirmQuote, setConfirmQuote] = useState<Quote | null>(null)
     const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
+    const confirmModalRef = useRef<HTMLDivElement>(null)
+    useFocusTrap(!!confirmQuote, confirmModalRef, () => setConfirmQuote(null))
 
     const searchParams = useSearchParams()
     const projectId = searchParams.get("project_id")
@@ -144,7 +147,7 @@ export default function Dashboard() {
                 {/* ── En-tête ── */}
                 <div className="flex justify-between items-start mb-2">
                     <div>
-                        <div className="text-[22px] font-bold text-black">
+                        <div className="dash-heading text-[22px] font-bold text-black">
                             {brief_analysis?.product_type || product?.label || "Projet"}
                         </div>
                         <div className="text-[13px] text-[#7a8080] mt-1">{projectId}</div>
@@ -348,8 +351,8 @@ export default function Dashboard() {
             {confirmQuote && (
                 <>
                     <div onClick={() => setConfirmQuote(null)} className="fixed inset-0 z-[1500] bg-black/50" />
-                    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1501] bg-[#FAFFFD] rounded-xl p-7 shadow-[0_16px_48px_rgba(0,0,0,0.25)] max-w-[440px] w-[90vw] font-[Inter,_sans-serif]">
-                        <div className="text-[17px] font-bold text-black mb-3">
+                    <div ref={confirmModalRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1501] bg-[#FAFFFD] rounded-xl p-7 shadow-[0_16px_48px_rgba(0,0,0,0.25)] max-w-[440px] w-[90vw] font-[Inter,_sans-serif]">
+                        <div id="confirm-modal-title" className="text-[17px] font-bold text-black mb-3">
                             Confirmer la validation
                         </div>
                         <div className="text-sm text-[#7a8080] leading-relaxed mb-2">
@@ -358,7 +361,7 @@ export default function Dashboard() {
                         <div className="px-3.5 py-2.5 rounded-lg bg-[#fef9e0] border border-[#fde68a] text-[13px] text-[#b89a00] mb-5 leading-normal">
                             Un acompte de 30% sera demandé.
                         </div>
-                        <div className="flex gap-2.5 justify-end">
+                        <div className="dash-confirm-btns flex gap-2.5 justify-end">
                             <button
                                 onClick={() => setConfirmQuote(null)}
                                 className="btn-secondary px-5 py-2.5 rounded-lg text-sm font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black cursor-pointer"
@@ -389,6 +392,20 @@ export default function Dashboard() {
                     title={pdfModal.title}
                 />
             )}
+
+            <style>{`
+                @media (max-width: 768px) {
+                    .dash-grid { grid-template-columns: 1fr !important; gap: 12px 0 !important; }
+                    .dash-card { padding: 20px 16px !important; }
+                    .dash-heading { font-size: 18px !important; }
+                    .dash-confirm-btns { flex-direction: column !important; }
+                    .dash-confirm-btns button { width: 100% !important; justify-content: center; }
+                }
+                @media (max-width: 375px) {
+                    .dash-card { padding: 16px 12px !important; }
+                    .dash-heading { font-size: 16px !important; }
+                }
+            `}</style>
         </div>
     )
 }

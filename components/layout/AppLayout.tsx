@@ -31,19 +31,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column" }}>
+            <style>{`
+                .app-main {
+                    flex: 1;
+                    padding: 24px;
+                    overflow-y: auto;
+                    margin-left: ${hasSidebar ? 64 : 0}px;
+                    transition: margin-left 0.22s cubic-bezier(0.4,0,0.2,1);
+                }
+                @media (max-width: 768px) {
+                    .app-main { margin-left: 0 !important; padding: 16px !important; }
+                }
+                @media (max-width: 375px) {
+                    .app-main { padding: 12px !important; }
+                }
+            `}</style>
             <Navbar />
             <RoleSwitcher />
             <div style={{ marginTop: 60, flex: 1, display: "flex" }}>
                 {showAdmin    && <Sidebar />}
                 {showSupplier && <SupplierSidebar />}
                 {showClient   && <ClientSidebar />}
-                <main style={{
-                    flex: 1,
-                    padding: 24,
-                    overflowY: "auto",
-                    marginLeft: hasSidebar ? 64 : 0,
-                    transition: "margin-left 0.22s cubic-bezier(0.4,0,0.2,1)",
-                }}>
+                <main className="app-main">
                     {children}
                 </main>
             </div>

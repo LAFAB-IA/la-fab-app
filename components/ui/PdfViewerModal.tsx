@@ -3,6 +3,7 @@
 import * as React from "react"
 import { X, Download, ExternalLink, Pencil, Type } from "lucide-react"
 import { C } from "@/lib/constants"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
 const { useState, useEffect, useCallback, useRef } = React
 
@@ -29,8 +30,12 @@ export default function PdfViewerModal({ url, isOpen, onClose, title }: PdfViewe
     const [editPos, setEditPos] = useState<{ x: number; y: number } | null>(null)
     const [editText, setEditText] = useState("")
     const [dragging, setDragging] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null)
+    const modalRef = useRef<HTMLDivElement>(null)
     const overlayRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    // Focus trap — no onClose passed: Escape is handled by the multi-step handleKeyDown below
+    useFocusTrap(isOpen, modalRef)
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === "Escape") {
@@ -202,6 +207,10 @@ export default function PdfViewerModal({ url, isOpen, onClose, title }: PdfViewe
 
             {/* Modal */}
             <div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pdf-modal-title"
                 className="pdf-modal"
                 style={{
                     position: "fixed",
@@ -226,7 +235,7 @@ export default function PdfViewerModal({ url, isOpen, onClose, title }: PdfViewe
                     borderBottom: "2px solid " + C.yellow,
                     flexShrink: 0,
                 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: C.white }}>
+                    <span id="pdf-modal-title" style={{ fontSize: 14, fontWeight: 600, color: C.white }}>
                         {title || "Document PDF"}
                     </span>
 

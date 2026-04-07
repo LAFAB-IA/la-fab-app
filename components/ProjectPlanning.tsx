@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import {
     Plus, Calendar, ChevronDown, ChevronUp, Send, Check, X,
@@ -12,6 +12,7 @@ import { fetchWithAuth } from "@/lib/api"
 import { formatDate, timeAgo } from "@/lib/format"
 import { io, Socket } from "socket.io-client"
 import type { Milestone, MilestoneStatus, MilestoneMessage } from "@/lib/sdk/types"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
 // ── Status config ────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<MilestoneStatus, { label: string; color: string; bg: string }> = {
@@ -444,13 +445,14 @@ function MilestoneFormModal({ title, initialTitle, initialDate, onClose, onSubmi
     const [t, setT] = useState(initialTitle || "")
     const [d, setD] = useState(initialDate ? initialDate.slice(0, 10) : "")
     const [submitting, setSubmitting] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useFocusTrap(true, containerRef, onClose)
 
     useEffect(() => {
-        const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
-        document.addEventListener("keydown", h)
         document.body.style.overflow = "hidden"
-        return () => { document.removeEventListener("keydown", h); document.body.style.overflow = "" }
-    }, [onClose])
+        return () => { document.body.style.overflow = "" }
+    }, [])
 
     const handleSubmit = async () => {
         if (!t.trim() || !d) return
@@ -464,12 +466,12 @@ function MilestoneFormModal({ title, initialTitle, initialDate, onClose, onSubmi
             position: "fixed", inset: 0, backgroundColor: "rgba(58,64,64,0.4)",
             display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000,
         }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
+            <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="milestone-modal-title" onClick={e => e.stopPropagation()} style={{
                 backgroundColor: "#FAFFFD", borderRadius: 12, padding: 24,
                 width: 420, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(58,64,64,0.18)",
             }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>{title}</h2>
+                    <h2 id="milestone-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>{title}</h2>
                     <button onClick={onClose} style={{
                         border: `1px solid ${C.border}`, borderRadius: 8, background: "#FAFFFD",
                         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
@@ -528,13 +530,14 @@ function CounterProposeModal({ milestoneTitle, onClose, onSubmit }: {
 }) {
     const [d, setD] = useState("")
     const [submitting, setSubmitting] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useFocusTrap(true, containerRef, onClose)
 
     useEffect(() => {
-        const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
-        document.addEventListener("keydown", h)
         document.body.style.overflow = "hidden"
-        return () => { document.removeEventListener("keydown", h); document.body.style.overflow = "" }
-    }, [onClose])
+        return () => { document.body.style.overflow = "" }
+    }, [])
 
     const handleSubmit = async () => {
         if (!d) return
@@ -548,12 +551,12 @@ function CounterProposeModal({ milestoneTitle, onClose, onSubmit }: {
             position: "fixed", inset: 0, backgroundColor: "rgba(58,64,64,0.4)",
             display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000,
         }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
+            <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="counter-modal-title" onClick={e => e.stopPropagation()} style={{
                 backgroundColor: "#FAFFFD", borderRadius: 12, padding: 24,
                 width: 400, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(58,64,64,0.18)",
             }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>Proposer une date</h2>
+                    <h2 id="counter-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#000000" }}>Proposer une date</h2>
                     <button onClick={onClose} style={{
                         border: `1px solid ${C.border}`, borderRadius: 8, background: "#FAFFFD",
                         width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",

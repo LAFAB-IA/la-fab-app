@@ -14,8 +14,9 @@ import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
 import Toast from "@/components/shared/Toast"
 import useToast from "@/hooks/useToast"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
-const { useEffect, useState } = React
+const { useEffect, useState, useRef } = React
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     created:       { label: "En attente de devis", bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -55,6 +56,10 @@ export default function AdminProjects() {
     const [bulkStatusDropdown, setBulkStatusDropdown] = useState(false)
     const [bulkActioning, setBulkActioning] = useState(false)
     const { toast, showToast, hideToast } = useToast()
+    const deleteModalRef = useRef<HTMLDivElement>(null)
+    const bulkDeleteModalRef = useRef<HTMLDivElement>(null)
+    useFocusTrap(!!deleteConfirmId, deleteModalRef, () => setDeleteConfirmId(null))
+    useFocusTrap(bulkDeleteConfirm, bulkDeleteModalRef, () => setBulkDeleteConfirm(false))
 
     // AI Assistant panel
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -692,8 +697,8 @@ export default function AdminProjects() {
                 {/* Single delete confirmation modal */}
                 {deleteConfirmId && (
                     <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.4)" }} onClick={() => setDeleteConfirmId(null)}>
-                        <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 400, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={(e) => e.stopPropagation()}>
-                            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer ce projet ?</h3>
+                        <div ref={deleteModalRef} role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 400, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={(e) => e.stopPropagation()}>
+                            <h3 id="delete-modal-title" style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer ce projet ?</h3>
                             <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", lineHeight: 1.5 }}>
                                 Confirmer la suppression du projet <strong style={{ color: C.dark }}>{deleteConfirmId.slice(0, 12)}</strong> ? Cette action est irréversible.
                             </p>
@@ -791,8 +796,8 @@ export default function AdminProjects() {
             {/* Bulk delete confirmation modal */}
             {bulkDeleteConfirm && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.4)" }} onClick={() => setBulkDeleteConfirm(false)}>
-                    <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 420, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} ?</h3>
+                    <div ref={bulkDeleteModalRef} role="dialog" aria-modal="true" aria-labelledby="bulk-delete-modal-title" style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, maxWidth: 420, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+                        <h3 id="bulk-delete-modal-title" style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: "0 0 8px" }}>Supprimer {selectedIds.size} projet{selectedIds.size > 1 ? "s" : ""} ?</h3>
                         <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", lineHeight: 1.5 }}>
                             Cette action est irreversible. Les projets selectionnes seront supprimes.
                         </p>

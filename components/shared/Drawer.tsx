@@ -3,6 +3,7 @@
 import * as React from "react"
 import { X, GripHorizontal } from "lucide-react"
 import { C } from "@/lib/constants"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
 const { useEffect, useLayoutEffect, useCallback, useState, useRef } = React
 
@@ -23,21 +24,15 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", header
     const panelRef = useRef<HTMLDivElement>(null)
     const bodyRef = useRef<HTMLDivElement>(null)
 
-    const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose()
-    }, [onClose])
+    useFocusTrap(isOpen, panelRef, onClose)
 
     useEffect(() => {
         if (isOpen) {
-            document.addEventListener("keydown", handleKeyDown)
             document.body.style.overflow = "hidden"
             setDrawerWidth(null)
         }
-        return () => {
-            document.removeEventListener("keydown", handleKeyDown)
-            document.body.style.overflow = ""
-        }
-    }, [isOpen, handleKeyDown])
+        return () => { document.body.style.overflow = "" }
+    }, [isOpen])
 
     // Force scroll to top when drawer opens — useLayoutEffect runs before paint
     useLayoutEffect(() => {
@@ -108,6 +103,9 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", header
             {/* Panel */}
             <div
                 ref={panelRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="drawer-title"
                 className="drawer-panel"
                 style={{
                     position: "fixed", top: 0, right: 0, bottom: 0,
@@ -146,7 +144,7 @@ export default function Drawer({ isOpen, onClose, title, width = "720px", header
                     flexShrink: 0,
                 }}>
                     {title ? (
-                        <h2 style={{ fontSize: 16, fontWeight: 600, color: C.dark, margin: 0 }}>{title}</h2>
+                        <h2 id="drawer-title" style={{ fontSize: 16, fontWeight: 600, color: C.dark, margin: 0 }}>{title}</h2>
                     ) : (
                         <div />
                     )}

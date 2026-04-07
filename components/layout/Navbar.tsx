@@ -141,7 +141,7 @@ export default function Navbar() {
         : []
 
     return (
-        <nav style={{
+        <nav className="navbar-root" style={{
             position: "fixed", top: 0, left: 0, right: 0, height: 60, zIndex: 1000,
             backgroundColor: "#000000", display: "flex", alignItems: "center",
             padding: "0 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
@@ -159,7 +159,7 @@ export default function Navbar() {
                 }}>
                     LF
                 </div>
-                <span style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
+                <span className="navbar-brand-name" style={{ color: C.white, fontWeight: 700, fontSize: 16 }}>LA FAB</span>
             </Link>
 
             {/* ── Spacer centre ── */}
@@ -371,6 +371,10 @@ export default function Navbar() {
                 @media (max-width: 768px) {
                     .navbar-desktop-links { display: none !important; }
                     .navbar-burger { display: flex !important; }
+                    .navbar-root { padding: 0 12px !important; }
+                }
+                @media (max-width: 375px) {
+                    .navbar-brand-name { display: none; }
                 }
             `}</style>
         </nav>

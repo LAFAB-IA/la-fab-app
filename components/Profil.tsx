@@ -356,7 +356,7 @@ export default function Profil() {
 
                 {/* ── Avatar ── */}
                 <Section title="Photo de profil" icon={<Camera size={18} />}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                    <div className="profil-avatar-row" style={{ display: "flex", alignItems: "center", gap: 24 }}>
                         <div style={{ position: "relative" }}>
                             <div style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: C.yellow, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "3px solid " + C.border }}>
                                 {avatarPreview
@@ -395,7 +395,7 @@ export default function Profil() {
 
                 {/* ── Infos personnelles ── */}
                 <Section title="Informations personnelles" icon={<User size={18} />}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                    <div className="profil-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
                         <Field label="Prénom">
                             <input style={inputStyle} value={profile.first_name} onChange={e => updateProfile(p => ({ ...p, first_name: e.target.value }))} placeholder="Prénom" />
                         </Field>
@@ -422,7 +422,7 @@ export default function Profil() {
                     <Field label="Adresse">
                         <input style={inputStyle} value={profile.address} onChange={e => updateProfile(p => ({ ...p, address: e.target.value }))} placeholder="Rue, numéro..." />
                     </Field>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                    <div className="profil-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
                         <Field label="Ville">
                             <input style={inputStyle} value={profile.city} onChange={e => updateProfile(p => ({ ...p, city: e.target.value }))} placeholder="Paris" />
                         </Field>
@@ -537,7 +537,7 @@ export default function Profil() {
 
             {/* ── Toast autosave ── */}
             {toast && (
-                <div style={{
+                <div className="profil-toast" style={{
                     position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
                     zIndex: 900, display: "flex", alignItems: "center", gap: 8,
                     padding: "12px 24px", borderRadius: 12,
@@ -552,6 +552,24 @@ export default function Profil() {
                     {toast.message}
                 </div>
             )}
+
+            <style>{`
+                @media (max-width: 768px) {
+                    .profil-grid-2col { grid-template-columns: 1fr !important; }
+                    .profil-avatar-row { flex-direction: column; align-items: flex-start !important; }
+                    .profil-toast {
+                        left: 12px !important;
+                        right: 12px !important;
+                        bottom: 16px !important;
+                        transform: none !important;
+                        border-radius: 8px !important;
+                        justify-content: center;
+                    }
+                }
+                @media (max-width: 375px) {
+                    .profil-toast { left: 0 !important; right: 0 !important; bottom: 0 !important; border-radius: 0 !important; }
+                }
+            `}</style>
         </div>
     )
 }

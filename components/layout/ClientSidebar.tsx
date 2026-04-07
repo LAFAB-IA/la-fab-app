@@ -71,6 +71,9 @@ export default function ClientSidebar() {
                 .client-sidebar:hover .client-sidebar-label {
                     opacity: 1;
                 }
+                @media (max-width: 768px) {
+                    .client-sidebar { display: none !important; }
+                }
             `}</style>
 
             <aside className="client-sidebar">

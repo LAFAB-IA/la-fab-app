@@ -10,8 +10,9 @@ import {
     Check, X, Clock, Loader2, Plus, Trash2, Layers, AlertTriangle, Brain, Eye, CheckCircle
 } from "lucide-react"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
-const { useState, useEffect, useCallback } = React
+const { useState, useEffect, useCallback, useRef } = React
 
 /* ─────── types ─────── */
 interface Props {
@@ -99,6 +100,13 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
     const [expandedConsultation, setExpandedConsultation] = useState<string | null>(null)
     const [confirmSendConsultation, setConfirmSendConsultation] = useState<Consultation | null>(null)
     const [confirmSendAll, setConfirmSendAll] = useState(false)
+
+    const confirmValidateRef = useRef<HTMLDivElement>(null)
+    const confirmSendRef = useRef<HTMLDivElement>(null)
+    const confirmSendAllRef = useRef<HTMLDivElement>(null)
+    useFocusTrap(!!confirmValidateQuote, confirmValidateRef, () => setConfirmValidateQuote(null))
+    useFocusTrap(!!confirmSendConsultation, confirmSendRef, () => setConfirmSendConsultation(null))
+    useFocusTrap(confirmSendAll, confirmSendAllRef, () => setConfirmSendAll(false))
     const [aiReplyDraft, setAiReplyDraft] = useState<string>("")
     const [aiReplyGenerating, setAiReplyGenerating] = useState(false)
     const [aiReplySending, setAiReplySending] = useState(false)
@@ -1009,8 +1017,8 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                 {confirmValidateQuote && (
                     <>
                         <div onClick={() => setConfirmValidateQuote(null)} className="fixed inset-0 z-[1500] bg-black/40" />
-                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1501] bg-[#FAFFFD] rounded-xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.2)] max-w-[420px] w-[90vw] font-[Inter,sans-serif]">
-                            <div className="text-[15px] font-semibold text-black mb-3">
+                        <div ref={confirmValidateRef} role="dialog" aria-modal="true" aria-labelledby="confirm-validate-title" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1501] bg-[#FAFFFD] rounded-xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.2)] max-w-[420px] w-[90vw] font-[Inter,sans-serif]">
+                            <div id="confirm-validate-title" className="text-[15px] font-semibold text-black mb-3">
                                 Confirmer la validation
                             </div>
                             <div className="text-[13px] text-[#7a8080] mb-5">
@@ -1291,10 +1299,14 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                     className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45"
                 >
                     <div
+                        ref={confirmSendRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="confirm-send-title"
                         onClick={(e) => e.stopPropagation()}
                         className="bg-[#FAFFFD] rounded-[14px] pt-7 px-7 pb-6 max-w-[560px] w-[92%] max-h-[85vh] overflow-y-auto shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
                     >
-                        <h3 className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
+                        <h3 id="confirm-send-title" className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
                             <Send size={16} /> Confirmer l&apos;envoi
                         </h3>
                         <p className="text-[13px] text-[#7a8080] m-0 mb-5">
@@ -1381,10 +1393,14 @@ export default function AdminProjectFlow({ projectId, projectStatus, token, brie
                         className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45"
                     >
                         <div
+                            ref={confirmSendAllRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="confirm-send-all-title"
                             onClick={(e) => e.stopPropagation()}
                             className="bg-[#FAFFFD] rounded-[14px] pt-7 px-7 pb-6 max-w-[640px] w-[92%] max-h-[85vh] overflow-y-auto shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
                         >
-                            <h3 className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
+                            <h3 id="confirm-send-all-title" className="text-base font-bold text-black m-0 mb-1.5 flex items-center gap-2">
                                 <Send size={16} /> Envoyer {drafts.length} consultation{drafts.length > 1 ? "s" : ""}
                             </h3>
                             <p className="text-[13px] text-[#7a8080] m-0 mb-5">
