@@ -34,10 +34,10 @@ function formatPrice(n: number) {
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
     return (
-        <div style={{ backgroundColor: "#FAFFFD", borderRadius: 16, padding: "28px 28px", border: "1px solid " + C.border, marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-                <div style={{ color: C.dark }}>{icon}</div>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.dark, margin: 0 }}>{title}</h2>
+        <div className="bg-[#FAFFFD] rounded-2xl p-7 border border-[#e0e0de] mb-4">
+            <div className="flex items-center gap-[10px] mb-6">
+                <div className="text-black">{icon}</div>
+                <h2 className="text-[15px] font-bold text-black m-0">{title}</h2>
             </div>
             {children}
         </div>
@@ -46,8 +46,8 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-        <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+        <div className="mb-5">
+            <label className="block text-[11px] font-bold text-[#7a8080] uppercase tracking-[1px] mb-2">
                 {label}
             </label>
             {children}
@@ -55,18 +55,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     )
 }
 
-const inputStyle = {
-    width: "100%",
-    padding: "11px 14px",
-    borderRadius: 10,
-    border: "1px solid " + C.border,
-    fontSize: 14,
-    color: C.dark,
-    backgroundColor: C.bg,
-    outline: "none",
-    fontFamily: "inherit",
-    boxSizing: "border-box" as const,
-}
+// Base input class — apply padding variant per use site
+const inputBase = "w-full py-[11px] rounded-[10px] border border-[#e0e0de] text-sm text-black bg-[#f0f0ee] outline-none font-[inherit] box-border"
 
 // ─── Profil ───────────────────────────────────────────────────────────────────
 
@@ -336,58 +326,58 @@ export default function Profil() {
     const maxTotal = Math.max(...stats.map(s => s.total), 1)
 
     if (loading) return (
-        <div style={{ width: "100%", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.bg, fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: C.muted }}>Chargement...</p>
+        <div className="w-full min-h-screen flex items-center justify-center bg-[#f0f0ee] font-[Inter,_sans-serif]">
+            <p className="text-[#7a8080]">Chargement...</p>
         </div>
     )
 
     return (
-        <div style={{ width: "100%", minHeight: "100vh", backgroundColor: C.bg, fontFamily: "Inter, sans-serif", padding: "40px 20px", boxSizing: "border-box" }}>
-            <div style={{ maxWidth: 680, margin: "0 auto" }}>
+        <div className="w-full min-h-screen bg-[#f0f0ee] font-[Inter,_sans-serif] px-5 py-10 box-border">
+            <div className="max-w-[680px] mx-auto">
 
                 {/* Header */}
-                <div style={{ marginBottom: 28 }}>
-                    <a href="/projets" style={{ color: C.muted, fontSize: 13, textDecoration: "none", fontWeight: 500, display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}>
-                        <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} /> Mes projets
+                <div className="mb-7">
+                    <a href="/projets" className="text-[#7a8080] text-[13px] no-underline font-medium flex items-center gap-1 mb-4">
+                        <ChevronRight size={14} className="-rotate-180" /> Mes projets
                     </a>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: C.dark, margin: 0 }}>Mon profil</h1>
-                    <p style={{ color: C.muted, fontSize: 14, margin: "4px 0 0" }}>Gérez vos informations personnelles</p>
+                    <h1 className="text-[24px] font-bold text-black m-0">Mon profil</h1>
+                    <p className="text-[#7a8080] text-sm mt-1 m-0">Gérez vos informations personnelles</p>
                 </div>
 
                 {/* ── Avatar ── */}
                 <Section title="Photo de profil" icon={<Camera size={18} />}>
-                    <div className="profil-avatar-row" style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                        <div style={{ position: "relative" }}>
-                            <div style={{ width: 80, height: 80, borderRadius: "50%", backgroundColor: C.yellow, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "3px solid " + C.border }}>
+                    <div className="profil-avatar-row flex items-center gap-6">
+                        <div className="relative">
+                            <div className="w-20 h-20 rounded-full bg-[#F4CF15] flex items-center justify-center overflow-hidden border-[3px] border-[#e0e0de]">
                                 {avatarPreview
-                                    ? <img src={avatarPreview} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="avatar" />
-                                    : <span style={{ fontSize: 28, fontWeight: 700, color: C.dark }}>
+                                    ? <img src={avatarPreview} className="w-full h-full object-cover" alt="avatar" />
+                                    : <span className="text-[28px] font-bold text-black">
                                         {profile.first_name?.[0]?.toUpperCase() || "?"}
                                     </span>
                                 }
                             </div>
                             {avatarLoading && (
-                                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <span style={{ fontSize: 12, color: "#fff" }}>...</span>
+                                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                                    <span className="text-xs text-white">...</span>
                                 </div>
                             )}
                         </div>
                         <div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 4 }}>
+                            <div className="text-base font-bold text-black mb-1">
                                 {profile.first_name} {profile.last_name}
                             </div>
-                            <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>{profile.email}</div>
+                            <div className="text-[13px] text-[#7a8080] mb-3">{profile.email}</div>
                             <button
                                 onClick={() => fileRef.current?.click()}
-                                style={{ padding: "8px 16px", backgroundColor: C.bg, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                                className="px-4 py-2 bg-[#f0f0ee] text-black border border-[#e0e0de] rounded-lg text-[13px] font-semibold cursor-pointer flex items-center gap-1.5"
                             >
                                 <Camera size={14} /> Changer la photo
                             </button>
-                            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
+                            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                         </div>
                     </div>
                     {avatarError && (
-                        <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 13, color: "#991b1b" }}>
+                        <div className="mt-3 px-3 py-2 rounded-lg bg-[#fef2f2] border border-[#fecaca] text-[13px] text-[#991b1b]">
                             {avatarError}
                         </div>
                     )}
@@ -395,24 +385,24 @@ export default function Profil() {
 
                 {/* ── Infos personnelles ── */}
                 <Section title="Informations personnelles" icon={<User size={18} />}>
-                    <div className="profil-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                    <div className="profil-grid-2col grid grid-cols-2 gap-x-5">
                         <Field label="Prénom">
-                            <input style={inputStyle} value={profile.first_name} onChange={e => updateProfile(p => ({ ...p, first_name: e.target.value }))} placeholder="Prénom" />
+                            <input className={`${inputBase} px-[14px]`} value={profile.first_name} onChange={e => updateProfile(p => ({ ...p, first_name: e.target.value }))} placeholder="Prénom" />
                         </Field>
                         <Field label="Nom">
-                            <input style={inputStyle} value={profile.last_name} onChange={e => updateProfile(p => ({ ...p, last_name: e.target.value }))} placeholder="Nom" />
+                            <input className={`${inputBase} px-[14px]`} value={profile.last_name} onChange={e => updateProfile(p => ({ ...p, last_name: e.target.value }))} placeholder="Nom" />
                         </Field>
                     </div>
                     <Field label="Email">
-                        <div style={{ position: "relative" }}>
-                            <Mail size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
-                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.email} onChange={e => updateProfile(p => ({ ...p, email: e.target.value }))} placeholder="email@exemple.fr" />
+                        <div className="relative">
+                            <Mail size={15} className="absolute left-3 top-3 text-[#7a8080]" />
+                            <input className={`${inputBase} pl-9 pr-[14px]`} value={profile.email} onChange={e => updateProfile(p => ({ ...p, email: e.target.value }))} placeholder="email@exemple.fr" />
                         </div>
                     </Field>
                     <Field label="Téléphone">
-                        <div style={{ position: "relative" }}>
-                            <Phone size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
-                            <input style={{ ...inputStyle, paddingLeft: 36 }} value={profile.phone} onChange={e => updateProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" autoComplete="tel" />
+                        <div className="relative">
+                            <Phone size={15} className="absolute left-3 top-3 text-[#7a8080]" />
+                            <input className={`${inputBase} pl-9 pr-[14px]`} value={profile.phone} onChange={e => updateProfile(p => ({ ...p, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" autoComplete="tel" />
                         </div>
                     </Field>
                 </Section>
@@ -420,56 +410,56 @@ export default function Profil() {
                 {/* ── Adresse ── */}
                 <Section title="Adresse" icon={<MapPin size={18} />}>
                     <Field label="Adresse">
-                        <input style={inputStyle} value={profile.address} onChange={e => updateProfile(p => ({ ...p, address: e.target.value }))} placeholder="Rue, numéro..." />
+                        <input className={`${inputBase} px-[14px]`} value={profile.address} onChange={e => updateProfile(p => ({ ...p, address: e.target.value }))} placeholder="Rue, numéro..." />
                     </Field>
-                    <div className="profil-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+                    <div className="profil-grid-2col grid grid-cols-2 gap-x-5">
                         <Field label="Ville">
-                            <input style={inputStyle} value={profile.city} onChange={e => updateProfile(p => ({ ...p, city: e.target.value }))} placeholder="Paris" />
+                            <input className={`${inputBase} px-[14px]`} value={profile.city} onChange={e => updateProfile(p => ({ ...p, city: e.target.value }))} placeholder="Paris" />
                         </Field>
                         <Field label="Code postal">
-                            <input style={inputStyle} value={profile.postal_code} onChange={e => updateProfile(p => ({ ...p, postal_code: e.target.value }))} placeholder="75001" />
+                            <input className={`${inputBase} px-[14px]`} value={profile.postal_code} onChange={e => updateProfile(p => ({ ...p, postal_code: e.target.value }))} placeholder="75001" />
                         </Field>
                     </div>
                 </Section>
 
-                {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>✗ {error}</div>}
+                {error && <div className="mb-3 px-4 py-[10px] bg-[#fee] border border-[#f5c6c6] rounded-[10px] text-[13px] text-[#c0392b]">✗ {error}</div>}
 
                 {/* ── Mot de passe ── */}
                 {isGoogleUser ? (
                     <Section title="Mot de passe" icon={<Lock size={18} />}>
-                        <p style={{ color: "#7a8080", fontSize: 13, margin: 0, fontWeight: 500 }}>
+                        <p className="text-[#7a8080] text-[13px] m-0 font-medium">
                             Vous êtes connecté via Google — la modification du mot de passe n'est pas disponible.
                         </p>
                     </Section>
                 ) : (
                     <Section title="Mot de passe" icon={<Lock size={18} />}>
                         <Field label="Mot de passe actuel">
-                            <div style={{ position: "relative" }}>
-                                <input type={showCurrentPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
-                                <button onClick={() => setShowCurrentPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                            <div className="relative">
+                                <input type={showCurrentPwd ? "text" : "password"} className={`${inputBase} px-[14px] pr-10`} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+                                <button onClick={() => setShowCurrentPwd(s => !s)} className="absolute right-3 top-[11px] bg-transparent border-none cursor-pointer text-[#7a8080]">
                                     {showCurrentPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </Field>
                         <Field label="Nouveau mot de passe">
-                            <div style={{ position: "relative" }}>
-                                <input type={showNewPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caracteres" autoComplete="new-password" />
-                                <button onClick={() => setShowNewPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                            <div className="relative">
+                                <input type={showNewPwd ? "text" : "password"} className={`${inputBase} px-[14px] pr-10`} value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 8 caracteres" autoComplete="new-password" />
+                                <button onClick={() => setShowNewPwd(s => !s)} className="absolute right-3 top-[11px] bg-transparent border-none cursor-pointer text-[#7a8080]">
                                     {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </Field>
                         {/* Password rules */}
                         {newPwd.length > 0 && (
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ display: "flex", gap: 4, marginBottom: 10, height: 4, borderRadius: 2, overflow: "hidden" }}>
+                            <div className="mb-4">
+                                <div className="flex gap-1 mb-[10px] h-1 rounded-sm overflow-hidden">
                                     {[0, 1, 2, 3].map(i => (
-                                        <div key={i} style={{ flex: 1, borderRadius: 2, backgroundColor: i < pwdValidCount ? pwdStrengthColor : C.border, transition: "background-color 0.2s" }} />
+                                        <div key={i} className="flex-1 rounded-sm transition-colors duration-200" style={{ backgroundColor: i < pwdValidCount ? pwdStrengthColor : C.border }} />
                                     ))}
                                 </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <div className="flex flex-col gap-1">
                                     {pwdRules.map(r => (
-                                        <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: r.valid ? "#1a7a3c" : "#c0392b" }}>
+                                        <div key={r.label} className="flex items-center gap-1.5 text-xs" style={{ color: r.valid ? "#1a7a3c" : "#c0392b" }}>
                                             {r.valid ? <Check size={12} /> : <XCircle size={12} />}
                                             {r.label}
                                         </div>
@@ -478,24 +468,25 @@ export default function Profil() {
                             </div>
                         )}
                         <Field label="Confirmer">
-                            <div style={{ position: "relative" }}>
-                                <input type={showConfirmPwd ? "text" : "password"} style={{ ...inputStyle, paddingRight: 40 }} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeter" autoComplete="new-password" />
-                                <button onClick={() => setShowConfirmPwd(s => !s)} style={{ position: "absolute", right: 12, top: 11, background: "none", border: "none", cursor: "pointer", color: C.muted }}>
+                            <div className="relative">
+                                <input type={showConfirmPwd ? "text" : "password"} className={`${inputBase} px-[14px] pr-10`} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeter" autoComplete="new-password" />
+                                <button onClick={() => setShowConfirmPwd(s => !s)} className="absolute right-3 top-[11px] bg-transparent border-none cursor-pointer text-[#7a8080]">
                                     {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </Field>
                         {confirmPwd.length > 0 && newPwd !== confirmPwd && (
-                            <div style={{ marginBottom: 12, fontSize: 12, color: "#c0392b", display: "flex", alignItems: "center", gap: 4 }}>
+                            <div className="mb-3 text-xs text-[#c0392b] flex items-center gap-1">
                                 <XCircle size={12} /> Les mots de passe ne correspondent pas
                             </div>
                         )}
-                        {pwdError && <div style={{ marginBottom: 12, fontSize: 13, color: "#c0392b" }}>{pwdError}</div>}
-                        {pwdSaved && <div style={{ marginBottom: 12, fontSize: 13, color: "#1a7a3c", fontWeight: 600 }}>Mot de passe modifie</div>}
+                        {pwdError && <div className="mb-3 text-[13px] text-[#c0392b]">{pwdError}</div>}
+                        {pwdSaved && <div className="mb-3 text-[13px] text-[#1a7a3c] font-semibold">Mot de passe modifie</div>}
                         <button
                             onClick={handleChangePassword}
                             disabled={pwdLoading || !currentPwd || !pwdAllValid || !confirmPwd || newPwd !== confirmPwd}
-                            style={{ padding: "10px 20px", backgroundColor: (pwdLoading || !pwdAllValid) ? C.muted : C.dark, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (pwdLoading || !pwdAllValid) ? "not-allowed" : "pointer" }}
+                            className="px-5 py-[10px] text-[#FAFFFD] border-none rounded-lg text-[13px] font-bold"
+                            style={{ backgroundColor: (pwdLoading || !pwdAllValid) ? C.muted : C.dark, cursor: (pwdLoading || !pwdAllValid) ? "not-allowed" : "pointer" }}
                         >
                             {pwdLoading ? "Modification..." : "Modifier le mot de passe"}
                         </button>
@@ -505,29 +496,32 @@ export default function Profil() {
                 {/* ── Volume commandes ── */}
                 <Section title="Volume de commandes — 3 derniers mois" icon={<TrendingUp size={18} />}>
                     {stats.every(s => s.count === 0) ? (
-                        <div style={{ textAlign: "center", padding: "24px 0", color: C.muted, fontSize: 14 }}>
-                            <Package size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
-                            <p style={{ margin: 0 }}>Aucune commande sur cette période</p>
+                        <div className="text-center py-6 text-[#7a8080] text-sm">
+                            <Package size={32} className="mb-2 opacity-40" />
+                            <p className="m-0">Aucune commande sur cette période</p>
                         </div>
                     ) : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div className="flex flex-col gap-4">
                             {stats.map((s) => (
                                 <div key={s.month}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                    <div className="flex justify-between items-center mb-2">
                                         <div>
-                                            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, textTransform: "capitalize" }}>{s.month}</div>
-                                            <div style={{ fontSize: 12, color: C.muted }}>{s.count} commande{s.count > 1 ? "s" : ""}</div>
+                                            <div className="text-[13px] font-semibold text-black capitalize">{s.month}</div>
+                                            <div className="text-xs text-[#7a8080]">{s.count} commande{s.count > 1 ? "s" : ""}</div>
                                         </div>
-                                        <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>{formatPrice(s.total)}</div>
+                                        <div className="text-[15px] font-bold text-black">{formatPrice(s.total)}</div>
                                     </div>
-                                    <div style={{ height: 8, backgroundColor: C.border, borderRadius: 4, overflow: "hidden" }}>
-                                        <div style={{ height: "100%", width: `${(s.total / maxTotal) * 100}%`, backgroundColor: s.total > 0 ? C.yellow : C.border, borderRadius: 4, transition: "width 0.6s ease" }} />
+                                    <div className="h-2 bg-[#e0e0de] rounded overflow-hidden">
+                                        <div
+                                            className="h-full rounded transition-[width] duration-[600ms] ease-in-out"
+                                            style={{ width: `${(s.total / maxTotal) * 100}%`, backgroundColor: s.total > 0 ? C.yellow : C.border }}
+                                        />
                                     </div>
                                 </div>
                             ))}
-                            <div style={{ borderTop: "1px solid " + C.border, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Total 3 mois</div>
-                                <div style={{ fontSize: 18, fontWeight: 700, color: C.dark }}>{formatPrice(stats.reduce((a, s) => a + s.total, 0))}</div>
+                            <div className="border-t border-[#e0e0de] pt-3.5 flex justify-between items-center">
+                                <div className="text-[13px] text-[#7a8080] font-semibold">Total 3 mois</div>
+                                <div className="text-lg font-bold text-black">{formatPrice(stats.reduce((a, s) => a + s.total, 0))}</div>
                             </div>
                         </div>
                     )}
@@ -537,17 +531,14 @@ export default function Profil() {
 
             {/* ── Toast autosave ── */}
             {toast && (
-                <div className="profil-toast" style={{
-                    position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
-                    zIndex: 900, display: "flex", alignItems: "center", gap: 8,
-                    padding: "12px 24px", borderRadius: 12,
-                    backgroundColor: toast.type === "success" ? "#000" : "#c0392b",
-                    color: "#fff", fontSize: 14, fontWeight: 600,
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-                    opacity: toast.visible ? 1 : 0,
-                    transition: "opacity 0.35s ease",
-                    pointerEvents: "none",
-                }}>
+                <div
+                    className="profil-toast fixed bottom-8 left-1/2 -translate-x-1/2 z-[900] flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-semibold shadow-[0_4px_20px_rgba(0,0,0,0.25)] pointer-events-none"
+                    style={{
+                        backgroundColor: toast.type === "success" ? "#000" : "#c0392b",
+                        opacity: toast.visible ? 1 : 0,
+                        transition: "opacity 0.35s ease",
+                    }}
+                >
                     {toast.type === "success" && <Check size={16} />}
                     {toast.message}
                 </div>
