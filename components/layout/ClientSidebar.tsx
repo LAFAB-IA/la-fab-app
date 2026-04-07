@@ -2,7 +2,6 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { C } from "@/lib/constants"
 import { LayoutDashboard, FolderKanban, FileText, CalendarDays, User } from "lucide-react"
 
 const LINKS = [
@@ -85,7 +84,7 @@ export default function ClientSidebar() {
                             href={link.href}
                             className={`client-sidebar-link${active ? " active" : ""}`}
                         >
-                            <span style={{ flexShrink: 0 }}>{link.icon}</span>
+                            <span className="shrink-0">{link.icon}</span>
                             <span className="client-sidebar-label">{link.label}</span>
                         </a>
                     )
