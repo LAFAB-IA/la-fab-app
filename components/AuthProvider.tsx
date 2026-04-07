@@ -127,9 +127,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      if (res.status === 429) throw new Error("Trop de tentatives, veuillez patienter quelques minutes");
+      if (res.status === 429) {
+        const e429 = new Error("Trop de tentatives, veuillez patienter quelques minutes") as Error & { status?: number };
+        e429.status = 429;
+        throw e429;
+      }
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Échec de la connexion");
+      const e = new Error(err.message || "Échec de la connexion") as Error & { status?: number };
+      e.status = res.status;
+      throw e;
     }
 
     const data = await res.json();

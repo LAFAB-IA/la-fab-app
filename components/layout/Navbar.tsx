@@ -6,7 +6,8 @@ import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
 import { io, Socket } from "socket.io-client"
-import { Bell, X, Menu, Check } from "lucide-react"
+import { Bell, X, Menu, Check, Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface Notification {
     id: string
@@ -19,6 +20,13 @@ interface Notification {
 
 export default function Navbar() {
     const { user, token, isAuthenticated, isLoading, logout } = useAuth()
+    const { resolvedTheme, setTheme } = useTheme()
+    const [themeMounted, setThemeMounted] = useState(false)
+    useEffect(() => {
+        const id = setTimeout(() => setThemeMounted(true), 0)
+        return () => clearTimeout(id)
+    }, [])
+    const isDark = themeMounted && resolvedTheme === "dark"
     const [unreadCount, setUnreadCount] = useState(0)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [notifOpen, setNotifOpen] = useState(false)
@@ -306,6 +314,19 @@ export default function Navbar() {
                                 }}>
                                     Mon profil
                                 </Link>
+                                <button
+                                    onClick={() => setTheme(isDark ? "light" : "dark")}
+                                    style={{
+                                        display: "flex", width: "100%", textAlign: "left",
+                                        alignItems: "center", gap: 10,
+                                        padding: "11px 16px", fontSize: 14, color: "#000000",
+                                        fontWeight: 500, border: "none", background: "none",
+                                        cursor: "pointer", borderTop: "1px solid " + C.border,
+                                    }}
+                                >
+                                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                                    {isDark ? "Thème clair" : "Thème sombre"}
+                                </button>
                                 <button onClick={() => { setProfileOpen(false); logout() }} style={{
                                     display: "block", width: "100%", textAlign: "left",
                                     padding: "11px 16px", fontSize: 14, color: "#c0392b",

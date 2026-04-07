@@ -3,7 +3,7 @@
 import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
-import { Printer, Clock } from "lucide-react"
+import { Printer, Clock, Eye, EyeOff } from "lucide-react"
 
 const { useState } = React
 
@@ -12,6 +12,7 @@ export default function Login() {
     const [mode, setMode] = useState<"login" | "signup">("login")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
     const [firstName, setFirstName] = useState("")
     const [lastName, setLastName] = useState("")
     const [loading, setLoading] = useState(false)
@@ -31,7 +32,18 @@ export default function Login() {
                 await signup(email, password, firstName, lastName)
             }
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Erreur inattendue")
+            const status = (err as { status?: number } | null)?.status
+            if (mode === "login") {
+                if (status === 401 || status === 400) {
+                    setError("Email ou mot de passe incorrect")
+                } else if (status === 429) {
+                    setError(err instanceof Error ? err.message : "Trop de tentatives, réessayez plus tard")
+                } else {
+                    setError("Une erreur est survenue, réessayez.")
+                }
+            } else {
+                setError(err instanceof Error ? err.message : "Une erreur est survenue, réessayez.")
+            }
             setLoading(false)
         }
     }
@@ -161,14 +173,38 @@ export default function Login() {
                         placeholder="Email"
                         style={inputStyle}
                     />
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Mot de passe"
-                        style={inputStyle}
-                    />
+                    <div style={{ position: "relative" }}>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Mot de passe"
+                            style={{ ...inputStyle, paddingRight: 44 }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword((s) => !s)}
+                            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                            tabIndex={-1}
+                            style={{
+                                position: "absolute",
+                                right: 12,
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                background: "none",
+                                border: "none",
+                                padding: 4,
+                                cursor: "pointer",
+                                color: C.muted,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Erreur */}
