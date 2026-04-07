@@ -12,6 +12,8 @@ import Drawer from "@/components/shared/Drawer"
 import ProjectDetail from "@/components/ProjectDetail"
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
+import Toast from "@/components/shared/Toast"
+import useToast from "@/hooks/useToast"
 
 const { useEffect, useState } = React
 
@@ -52,7 +54,7 @@ export default function AdminProjects() {
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
     const [bulkStatusDropdown, setBulkStatusDropdown] = useState(false)
     const [bulkActioning, setBulkActioning] = useState(false)
-    const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null)
+    const { toast, showToast, hideToast } = useToast()
 
     // AI Assistant panel
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -143,13 +145,13 @@ export default function AdminProjects() {
             .then((data) => {
                 if (data.ok) {
                     setProjects((prev) => prev.map((p) => p.project_id === projectId ? { ...p, status: newStatus } : p))
-                    showToast("success", "Statut mis à jour")
+                    showToast("Statut mis à jour", "success")
                 } else {
-                    showToast("error", "Erreur lors du changement de statut")
+                    showToast("Erreur lors du changement de statut", "error")
                 }
                 setStatusChanging(null)
             })
-            .catch(() => { showToast("error", "Erreur réseau"); setStatusChanging(null) })
+            .catch(() => { showToast("Erreur réseau", "error"); setStatusChanging(null) })
     }
 
     async function handleDeleteProject(projectId: string) {
@@ -161,17 +163,13 @@ export default function AdminProjects() {
             const data = await r.json()
             if (data.ok) {
                 setProjects((prev) => prev.filter((p) => p.project_id !== projectId))
-                showToast("success", "Projet supprimé")
+                showToast("Projet supprimé", "success")
             } else {
-                showToast("error", data.error || "Erreur lors de la suppression")
+                showToast(data.error || "Erreur lors de la suppression", "error")
             }
-        } catch { showToast("error", "Erreur réseau") }
+        } catch { showToast("Erreur réseau", "error") }
         setDeleting(false)
         setDeleteConfirmId(null)
-    }
-
-    function showToast(type: "success" | "error", text: string) {
-        setToast({ msg: text, type: type === "success" ? "ok" : "err" })
     }
 
     function toggleSelectAll() {
@@ -238,13 +236,6 @@ export default function AdminProjects() {
         setTimeout(() => aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100)
     }
 
-    // Toast auto-dismiss
-    useEffect(() => {
-        if (!toast) return
-        const t = setTimeout(() => setToast(null), 3500)
-        return () => clearTimeout(t)
-    }, [toast])
-
     // Bulk helpers
     function toggleSelect(id: string) {
         setSelectedIds(prev => {
@@ -281,9 +272,9 @@ export default function AdminProjects() {
                     a.download = "projets_export.csv"
                     a.click()
                     URL.revokeObjectURL(url)
-                    setToast({ msg: `${selectedIds.size} projet(s) exporte(s)`, type: "ok" })
+                    showToast(`${selectedIds.size} projet(s) exporte(s)`, "success")
                 } else {
-                    setToast({ msg: "Erreur lors de l'export", type: "err" })
+                    showToast("Erreur lors de l'export", "error")
                 }
             } else if (action === "delete") {
                 const r = await fetchWithAuth(`${API_URL}/api/admin/projects/bulk-action`, {
@@ -293,10 +284,10 @@ export default function AdminProjects() {
                 const data = await r.json()
                 if (data.success) {
                     setProjects(prev => prev.filter(p => !selectedIds.has(p.project_id)))
-                    setToast({ msg: `${data.affected || selectedIds.size} projet(s) supprime(s)`, type: "ok" })
+                    showToast(`${data.affected || selectedIds.size} projet(s) supprime(s)`, "success")
                     exitBulkMode()
                 } else {
-                    setToast({ msg: data.error || "Erreur lors de la suppression", type: "err" })
+                    showToast(data.error || "Erreur lors de la suppression", "error")
                 }
             } else {
                 const body: Record<string, unknown> = { action, ids: Array.from(selectedIds) }
@@ -309,18 +300,18 @@ export default function AdminProjects() {
                 if (data.success) {
                     if (action === "archive") {
                         setProjects(prev => prev.map(p => selectedIds.has(p.project_id) ? { ...p, status: "archived" } : p))
-                        setToast({ msg: `${data.affected || selectedIds.size} projet(s) archive(s)`, type: "ok" })
+                        showToast(`${data.affected || selectedIds.size} projet(s) archive(s)`, "success")
                     } else if (action === "status" && extra?.status) {
                         setProjects(prev => prev.map(p => selectedIds.has(p.project_id) ? { ...p, status: extra.status } : p))
-                        setToast({ msg: `Statut mis a jour pour ${data.affected || selectedIds.size} projet(s)`, type: "ok" })
+                        showToast(`Statut mis a jour pour ${data.affected || selectedIds.size} projet(s)`, "success")
                     }
                     exitBulkMode()
                 } else {
-                    setToast({ msg: data.error || "Erreur", type: "err" })
+                    showToast(data.error || "Erreur", "error")
                 }
             }
         } catch {
-            setToast({ msg: "Erreur reseau", type: "err" })
+            showToast("Erreur reseau", "error")
         }
         setBulkActioning(false)
         setBulkDeleteConfirm(false)
@@ -817,23 +808,9 @@ export default function AdminProjects() {
                 </div>
             )}
 
-            {/* Toast notification */}
             {toast && (
-                <div style={{
-                    position: "fixed", top: 24, right: 24, zIndex: 300,
-                    padding: "12px 20px", borderRadius: 10,
-                    backgroundColor: toast.type === "ok" ? "#e8f8ee" : "#fef2f2",
-                    color: toast.type === "ok" ? "#1a7a3c" : "#991b1b",
-                    border: "1px solid " + (toast.type === "ok" ? "#a8dbb8" : "#fecaca"),
-                    fontSize: 13, fontWeight: 600, fontFamily: "Inter, sans-serif",
-                    boxShadow: "0 4px 16px rgba(58,64,64,0.12)",
-                    animation: "toastIn 300ms ease",
-                }}>
-                    {toast.msg}
-                </div>
+                <Toast message={toast.message} type={toast.type} onDismiss={hideToast} />
             )}
-
-            <style>{`@keyframes toastIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }`}</style>
 
             {/* Project detail drawer */}
             <Drawer
