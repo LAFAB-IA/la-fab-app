@@ -721,7 +721,7 @@ function DetailTab({ project, brief }: { project: ProjectDetail; brief: any }) {
                             Devis n° <strong>{project.quote_number}</strong>
                         </div>
                     )}
-                    <a href={project.quote_url} target="_blank" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.dark, color: C.white, borderRadius: 8, padding: "12px 20px", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+                    <a href={project.quote_url} download style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.dark, color: C.white, borderRadius: 8, padding: "12px 20px", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
                         <FileText size={15} /> Télécharger le devis
                     </a>
                 </div>

@@ -5,6 +5,7 @@ import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRi
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 import { fetchWithAuth } from "@/lib/api"
+import { useAuth } from "@/components/AuthProvider"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,8 +104,12 @@ export default function Profil() {
     const pwdStrengthColor = pwdValidCount < 2 ? "#c0392b" : pwdValidCount < 4 ? "#e67e22" : "#1a7a3c"
 
     // Provider (Google OAuth etc.)
+    const { user: authUser } = useAuth()
     const [provider, setProvider] = useState<string>("email")
-    const isOAuthUser = provider !== "email"
+    const isGoogleUser =
+        authUser?.provider === "google" ||
+        (authUser as any)?.app_metadata?.provider === "google" ||
+        provider === "google"
 
     // Autosave
     const [toast, setToast] = useState<{ type: "success" | "error"; message: string; visible: boolean } | null>(null)
@@ -430,10 +435,10 @@ export default function Profil() {
                 {error && <div style={{ marginBottom: 12, padding: "10px 16px", backgroundColor: "#fee", border: "1px solid #f5c6c6", borderRadius: 10, fontSize: 13, color: "#c0392b" }}>✗ {error}</div>}
 
                 {/* ── Mot de passe ── */}
-                {isOAuthUser ? (
+                {isGoogleUser ? (
                     <Section title="Mot de passe" icon={<Lock size={18} />}>
-                        <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>
-                            Compte connecté via {provider.charAt(0).toUpperCase() + provider.slice(1)} — gestion du mot de passe sur votre compte {provider.charAt(0).toUpperCase() + provider.slice(1)}.
+                        <p style={{ color: "#7a8080", fontSize: 13, margin: 0, fontWeight: 500 }}>
+                            Vous êtes connecté via Google — la modification du mot de passe n'est pas disponible.
                         </p>
                     </Section>
                 ) : (

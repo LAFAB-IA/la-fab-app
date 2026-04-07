@@ -366,7 +366,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
             <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
                 {!onClose && (
-                    <a href="/projets" style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
+                    <a href={user?.role === "admin" ? "/admin/projets" : "/projets"} style={{ color: C.muted, fontSize: 14, textDecoration: "none", fontWeight: 500 }}>← Mes projets</a>
                 )}
 
                 <div style={{ backgroundColor: C.white, borderRadius: 12, padding: 32, boxShadow: "0 1px 3px rgba(58,64,64,0.08)", marginTop: 16 }}>
@@ -855,7 +855,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                             )}
                             <a
                                 href={quote_url}
-                                target="_blank"
+                                download
                                 style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", backgroundColor: C.dark, color: C.white, borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
                             >
                                 <FileText size={16} /> Télécharger le devis (PDF)
@@ -1058,7 +1058,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         {quote_url && (
                                             <a
                                                 href={quote_url}
-                                                target="_blank"
+                                                download
                                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 20px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.dark, textDecoration: "none", background: C.white }}
                                             >
                                                 <FileText size={14} /> Telecharger le devis PDF

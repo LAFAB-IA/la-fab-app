@@ -18,7 +18,7 @@ interface Notification {
 }
 
 export default function Navbar() {
-    const { user, token, isAuthenticated, logout } = useAuth()
+    const { user, token, isAuthenticated, isLoading, logout } = useAuth()
     const [unreadCount, setUnreadCount] = useState(0)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [notifOpen, setNotifOpen] = useState(false)
@@ -166,7 +166,7 @@ export default function Navbar() {
             <div style={{ flex: 1 }} />
 
             {/* ── Right side ── */}
-            {isAuthenticated ? (
+            {isLoading ? null : isAuthenticated ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 
                     {/* ── Cloche notifications ── */}
