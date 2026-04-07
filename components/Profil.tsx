@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState, useRef } from "react"
-import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff, Check, XCircle } from "lucide-react"
+import { User, Mail, Phone, Lock, MapPin, Camera, TrendingUp, Package, ChevronRight, Eye, EyeOff, Check, XCircle, ShieldCheck, ShieldOff, QrCode, KeyRound, Loader2 } from "lucide-react"
 import { API_URL, C } from "@/lib/constants"
 import { getToken } from "@/lib/utils"
 import { fetchWithAuth } from "@/lib/api"
@@ -58,6 +58,51 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // Base input class — apply padding variant per use site
 const inputBase = "w-full py-[11px] rounded-[10px] border border-[#e0e0de] text-sm text-black bg-[#f0f0ee] outline-none font-[inherit] box-border"
 
+// ─── MFA stub functions (replace bodies with fetchWithAuth calls once backend is live) ──
+
+// GET /api/auth/mfa/status
+// Response: { ok: true, enabled: boolean, factorId: string | null }
+async function getMFAStatus(): Promise<{ ok: boolean; enabled: boolean; factorId: string | null }> {
+    console.log("[MFA] getMFAStatus")
+    await new Promise(r => setTimeout(r, 400))
+    return { ok: true, enabled: false, factorId: null }
+}
+
+// POST /api/auth/mfa/enroll  (no body)
+// Response: { ok: true, factorId: string, totp: { qr_code: string, secret: string, uri: string } }
+async function enrollMFA(): Promise<{ ok: boolean; factorId: string; totp: { qr_code: string; secret: string; uri: string } }> {
+    console.log("[MFA] enrollMFA")
+    await new Promise(r => setTimeout(r, 600))
+    // Mock: a tiny SVG as a stand-in for the real QR code data URI
+    const mockQr = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='%23f0f0ee'/><text x='100' y='108' text-anchor='middle' font-size='13' fill='%237a8080' font-family='monospace'>QR placeholder</text></svg>"
+    return { ok: true, factorId: "mock-factor-id-001", totp: { qr_code: mockQr, secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/LeFab:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=LeFab" } }
+}
+
+// POST /api/auth/mfa/challenge  body: { factorId }
+// Response: { ok: true, challengeId: string }
+async function challengeMFA(factorId: string): Promise<{ ok: boolean; challengeId: string }> {
+    console.log("[MFA] challengeMFA", factorId)
+    await new Promise(r => setTimeout(r, 300))
+    return { ok: true, challengeId: "mock-challenge-id-001" }
+}
+
+// POST /api/auth/mfa/verify  body: { factorId, challengeId, code }
+// Response: { ok: true } | { ok: false, error: string }
+async function verifyMFA(factorId: string, challengeId: string, code: string): Promise<{ ok: boolean; error?: string }> {
+    console.log("[MFA] verifyMFA", factorId, challengeId, code)
+    await new Promise(r => setTimeout(r, 500))
+    if (code === "000000") return { ok: false, error: "Code invalide. Verifiez votre application et reessayez." }
+    return { ok: true }
+}
+
+// DELETE /api/auth/mfa/unenroll  body: { factorId }
+// Response: { ok: true }
+async function unenrollMFA(factorId: string): Promise<{ ok: boolean; error?: string }> {
+    console.log("[MFA] unenrollMFA", factorId)
+    await new Promise(r => setTimeout(r, 500))
+    return { ok: true }
+}
+
 // ─── Profil ───────────────────────────────────────────────────────────────────
 
 export default function Profil() {
@@ -113,6 +158,18 @@ export default function Profil() {
     const [avatarError, setAvatarError] = useState<string | null>(null)
     const fileRef = useRef<HTMLInputElement>(null)
 
+    // 2FA / MFA
+    type MFAPhase = "loading" | "disabled" | "enrolling" | "enabled"
+    const [mfaPhase, setMfaPhase] = useState<MFAPhase>("loading")
+    const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
+    const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null)
+    const [mfaQrCode, setMfaQrCode] = useState<string | null>(null)
+    const [mfaSecret, setMfaSecret] = useState<string | null>(null)
+    const [mfaCode, setMfaCode] = useState("")
+    const [mfaLoading, setMfaLoading] = useState(false)
+    const [mfaError, setMfaError] = useState("")
+    const [mfaShowSecret, setMfaShowSecret] = useState(false)
+
     const updateProfile = useCallback((updater: (prev: ProfileData) => ProfileData) => {
         setProfile(prev => {
             const next = updater(prev)
@@ -164,6 +221,16 @@ export default function Profil() {
                 setLoading(false)
             })
             .catch(() => setLoading(false))
+
+        // MFA status
+        getMFAStatus().then(data => {
+            if (data.ok) {
+                setMfaPhase(data.enabled ? "enabled" : "disabled")
+                setMfaFactorId(data.factorId)
+            } else {
+                setMfaPhase("disabled")
+            }
+        }).catch(() => setMfaPhase("disabled"))
 
         // Stats 3 derniers mois
         fetchWithAuth(`${API_URL}/api/project?account_id=${localStorage.getItem("account_id") || ""}`)
@@ -321,6 +388,69 @@ export default function Profil() {
                 setAvatarError("Erreur réseau")
                 setAvatarLoading(false)
             })
+    }
+
+    async function handleMFAEnroll() {
+        setMfaLoading(true)
+        setMfaError("")
+        try {
+            const data = await enrollMFA()
+            if (!data.ok) { setMfaError("Echec de l'activation. Reessayez."); return }
+            setMfaFactorId(data.factorId)
+            setMfaQrCode(data.totp.qr_code)
+            setMfaSecret(data.totp.secret)
+            const challenge = await challengeMFA(data.factorId)
+            if (!challenge.ok) { setMfaError("Echec de la creation du challenge."); return }
+            setMfaChallengeId(challenge.challengeId)
+            setMfaCode("")
+            setMfaPhase("enrolling")
+        } catch {
+            setMfaError("Erreur reseau.")
+        } finally {
+            setMfaLoading(false)
+        }
+    }
+
+    async function handleMFAVerify() {
+        if (mfaCode.length !== 6) { setMfaError("Saisissez les 6 chiffres."); return }
+        if (!mfaFactorId || !mfaChallengeId) return
+        setMfaLoading(true)
+        setMfaError("")
+        try {
+            const data = await verifyMFA(mfaFactorId, mfaChallengeId, mfaCode)
+            if (!data.ok) { setMfaError(data.error || "Code invalide."); return }
+            setMfaPhase("enabled")
+            setMfaCode("")
+        } catch {
+            setMfaError("Erreur reseau.")
+        } finally {
+            setMfaLoading(false)
+        }
+    }
+
+    async function handleMFAUnenroll() {
+        if (!mfaFactorId) return
+        setMfaLoading(true)
+        setMfaError("")
+        try {
+            const data = await unenrollMFA(mfaFactorId)
+            if (!data.ok) { setMfaError(data.error || "Echec de la desactivation."); return }
+            setMfaPhase("disabled")
+            setMfaFactorId(null)
+            setMfaQrCode(null)
+            setMfaSecret(null)
+            setMfaChallengeId(null)
+        } catch {
+            setMfaError("Erreur reseau.")
+        } finally {
+            setMfaLoading(false)
+        }
+    }
+
+    function handleMFACodeInput(val: string) {
+        const digits = val.replace(/\D/g, "").slice(0, 6)
+        setMfaCode(digits)
+        setMfaError("")
     }
 
     const maxTotal = Math.max(...stats.map(s => s.total), 1)
@@ -492,6 +622,123 @@ export default function Profil() {
                         </button>
                     </Section>
                 )}
+
+                {/* ── Double authentification ── */}
+                <Section title="Double authentification" icon={<ShieldCheck size={18} />}>
+                    {mfaPhase === "loading" && (
+                        <div className="flex items-center gap-2 text-[#7a8080] text-sm">
+                            <Loader2 size={15} className="animate-spin" /> Chargement...
+                        </div>
+                    )}
+
+                    {mfaPhase === "disabled" && (
+                        <div>
+                            <p className="text-[13px] text-[#7a8080] m-0 mb-5 leading-relaxed">
+                                La double authentification ajoute une couche de securite supplementaire. A chaque connexion, vous devrez saisir un code genere par votre application d'authentification.
+                            </p>
+                            <button
+                                onClick={handleMFAEnroll}
+                                disabled={mfaLoading}
+                                className="flex items-center gap-2 px-5 py-[10px] bg-[#F4CF15] text-black border-none rounded-lg text-[13px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                            >
+                                {mfaLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                                Activer la 2FA
+                            </button>
+                            {mfaError && <p className="mt-3 text-[13px] text-[#c0392b] m-0">{mfaError}</p>}
+                        </div>
+                    )}
+
+                    {mfaPhase === "enrolling" && mfaQrCode && (
+                        <div>
+                            {/* Step 1 — scan */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-black text-white text-[11px] font-bold shrink-0">1</div>
+                                <span className="text-[13px] text-black font-semibold">Scannez ce QR code avec Google Authenticator ou Authy</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-3 mb-5">
+                                <div className="p-3 bg-white border border-[#e0e0de] rounded-xl inline-block">
+                                    <img src={mfaQrCode} alt="QR code 2FA" width={180} height={180} className="block" />
+                                </div>
+                                <button
+                                    onClick={() => setMfaShowSecret(s => !s)}
+                                    className="flex items-center gap-1.5 text-[12px] text-[#7a8080] bg-transparent border-none cursor-pointer underline p-0"
+                                >
+                                    <KeyRound size={12} />
+                                    {mfaShowSecret ? "Masquer" : "Afficher"} la cle secrete
+                                </button>
+                                {mfaShowSecret && mfaSecret && (
+                                    <div className="px-3 py-2 bg-[#f0f0ee] border border-[#e0e0de] rounded-lg text-[13px] font-mono text-black tracking-widest text-center select-all">
+                                        {mfaSecret}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Step 2 — enter code */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-black text-white text-[11px] font-bold shrink-0">2</div>
+                                <span className="text-[13px] text-black font-semibold">Saisissez le code a 6 chiffres genere par l'application</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-3 mb-5">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
+                                    value={mfaCode}
+                                    onChange={e => handleMFACodeInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === "Enter" && mfaCode.length === 6) handleMFAVerify() }}
+                                    placeholder="000000"
+                                    maxLength={6}
+                                    className="w-[160px] text-center text-[28px] font-mono font-bold tracking-[0.25em] py-3 px-4 rounded-xl border-2 border-[#e0e0de] bg-[#FAFFFD] text-black outline-none focus:border-black transition-colors"
+                                />
+                                {mfaError && (
+                                    <div className="flex items-center gap-1.5 text-[13px] text-[#c0392b]">
+                                        <XCircle size={13} /> {mfaError}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-2.5">
+                                <button
+                                    onClick={() => { setMfaPhase("disabled"); setMfaError(""); setMfaCode("") }}
+                                    className="px-4 py-[9px] bg-[#f0f0ee] text-black border border-[#e0e0de] rounded-lg text-[13px] font-semibold cursor-pointer"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={handleMFAVerify}
+                                    disabled={mfaLoading || mfaCode.length !== 6}
+                                    className="flex items-center gap-2 px-5 py-[9px] bg-black text-white border-none rounded-lg text-[13px] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                                >
+                                    {mfaLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                    Confirmer
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {mfaPhase === "enabled" && (
+                        <div>
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-[#e8f8ee] border border-[#a8dbb8] rounded-full">
+                                    <ShieldCheck size={14} className="text-[#1a7a3c]" />
+                                    <span className="text-[12px] font-bold text-[#1a7a3c]">Activee</span>
+                                </div>
+                                <span className="text-[13px] text-[#7a8080]">Votre compte est protege par la 2FA.</span>
+                            </div>
+                            <button
+                                onClick={handleMFAUnenroll}
+                                disabled={mfaLoading}
+                                className="flex items-center gap-2 px-4 py-[9px] bg-[#f0f0ee] text-black border border-[#e0e0de] rounded-lg text-[13px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                            >
+                                {mfaLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />}
+                                Desactiver la 2FA
+                            </button>
+                            {mfaError && <p className="mt-3 text-[13px] text-[#c0392b] m-0">{mfaError}</p>}
+                        </div>
+                    )}
+                </Section>
 
                 {/* ── Volume commandes ── */}
                 <Section title="Volume de commandes — 3 derniers mois" icon={<TrendingUp size={18} />}>
