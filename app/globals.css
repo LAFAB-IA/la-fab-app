@@ -10,6 +10,13 @@
   --card-alt: #f7f7f7;
   --border: #e5e5e5;
   --muted: #737373;
+
+  /* C constants from lib/constants.ts (consumed via inline styles) */
+  --c-dark:   #000000;
+  --c-white:  #FAFFFD;
+  --c-bg:     #f0f0ee;
+  --c-border: #e0e0de;
+  --c-muted:  #7a8080;
 }
 
 html.dark {
@@ -20,6 +27,12 @@ html.dark {
   --border: #262626;
   --muted: #8a8a8a;
   color-scheme: dark;
+
+  --c-dark:   #fafafa;
+  --c-white:  #141414;
+  --c-bg:     #0a0a0a;
+  --c-border: #262626;
+  --c-muted:  #8a8a8a;
 }
 
 html.light {
@@ -30,6 +43,12 @@ html.light {
   --border: #e5e5e5;
   --muted: #737373;
   color-scheme: light;
+
+  --c-dark:   #000000;
+  --c-white:  #FAFFFD;
+  --c-bg:     #f0f0ee;
+  --c-border: #e0e0de;
+  --c-muted:  #7a8080;
 }
 
 @theme inline {
@@ -39,12 +58,7 @@ html.light {
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* prefers-color-scheme is handled by next-themes via enableSystem -> html.dark */
 
 
 body {

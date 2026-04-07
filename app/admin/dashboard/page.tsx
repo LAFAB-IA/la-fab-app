@@ -14,9 +14,10 @@ import {
 // ─── Theme tokens (Tailwind classes — react to .dark on <html>) ─────────────
 
 const cls = {
-    page:         "bg-white dark:bg-neutral-950",
+    // page = transparent → inherits AppLayout bg (uniform with the rest of the app)
+    page:         "",
     card:         "bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800",
-    cardAlt:      "bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800",
+    cardAlt:      "bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800",
     text:         "text-neutral-900 dark:text-neutral-50",
     muted:        "text-neutral-500 dark:text-neutral-400",
     border:       "border-neutral-200 dark:border-neutral-800",
@@ -177,9 +178,8 @@ function AdminDashboard() {
 
     if (loading) return (
         <div
-            className={cls.page}
             style={{
-                minHeight: "100vh",
+                minHeight: 300,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: "Inter, sans-serif",
             }}
@@ -190,7 +190,7 @@ function AdminDashboard() {
     )
 
     if (error) return (
-        <div className={cls.page} style={{ minHeight: "100vh", padding: 40, fontFamily: "Inter, sans-serif" }}>
+        <div style={{ padding: 40, fontFamily: "Inter, sans-serif" }}>
             <p className="text-red-600 dark:text-red-400" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <XCircle size={16} /> {error}
             </p>
@@ -220,15 +220,7 @@ function AdminDashboard() {
     const growthLabel = (growthMoM > 0 ? "+" : "") + growthMoM.toFixed(1) + "% vs mois precedent"
 
     return (
-        <div
-            className={cls.page}
-            style={{
-                minHeight: "100vh",
-                fontFamily: "Inter, sans-serif",
-                padding: "32px 24px",
-                boxSizing: "border-box",
-            }}
-        >
+        <div style={{ fontFamily: "Inter, sans-serif" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
                 <h1 className={cls.text} style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px 0", letterSpacing: -0.5 }}>
