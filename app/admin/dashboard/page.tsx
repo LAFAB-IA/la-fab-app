@@ -11,19 +11,18 @@ import {
     BarChart3, Users, AlertTriangle, Loader2, XCircle, ArrowRight,
 } from "lucide-react"
 
-// ─── Theme (dark + yellow accent) ───────────────────────────────────────────
+// ─── Theme tokens (Tailwind classes — react to .dark on <html>) ─────────────
 
-const T = {
-    bg:       "#0a0a0a",
-    card:     "#141414",
-    cardAlt:  "#1c1c1c",
-    border:   "#262626",
-    text:     "#fafafa",
-    muted:    "#8a8a8a",
-    yellow:   C.yellow,
-    green:    "#22c55e",
-    red:      "#ef4444",
-    orange:   "#f59e0b",
+const cls = {
+    page:         "bg-white dark:bg-neutral-950",
+    card:         "bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800",
+    cardAlt:      "bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800",
+    text:         "text-neutral-900 dark:text-neutral-50",
+    muted:        "text-neutral-500 dark:text-neutral-400",
+    border:       "border-neutral-200 dark:border-neutral-800",
+    iconBg:       "bg-neutral-100 dark:bg-neutral-800",
+    iconBgAccent: "bg-yellow-50 dark:bg-yellow-500/10",
+    barBg:        "bg-neutral-200 dark:bg-neutral-800",
 }
 
 // ─── Types matching GET /api/admin/stats ────────────────────────────────────
@@ -59,7 +58,6 @@ type StatsResponse = {
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aout", "Sep", "Oct", "Nov", "Dec"]
 
 function labelMonth(raw: string): string {
-    // accepts "2026-01", "01", "Jan", or ISO date
     if (!raw) return ""
     const m = /^(\d{4})-(\d{2})/.exec(raw)
     if (m) return MONTH_NAMES[parseInt(m[2], 10) - 1] || raw
@@ -85,34 +83,45 @@ function KpiCard({
     trend?: "up" | "down" | "flat"
     accent?: boolean
 }) {
-    const trendColor = trend === "up" ? T.green : trend === "down" ? T.red : T.muted
+    const trendCls = trend === "up"
+        ? "text-green-600 dark:text-green-400"
+        : trend === "down"
+            ? "text-red-600 dark:text-red-400"
+            : cls.muted
     const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : null
     return (
-        <div style={{
-            background: T.card,
-            borderRadius: 14,
-            padding: "22px 24px",
-            border: "1px solid " + T.border,
-            borderTop: accent ? "3px solid " + T.yellow : "1px solid " + T.border,
-            flex: 1, minWidth: 200,
-        }}>
+        <div
+            className={cls.card}
+            style={{
+                borderRadius: 14,
+                padding: "22px 24px",
+                borderTopWidth: accent ? 3 : 1,
+                borderTopColor: accent ? C.yellow : undefined,
+                flex: 1, minWidth: 200,
+            }}
+        >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: accent ? "rgba(244,207,21,0.12)" : T.cardAlt,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                    <Icon size={17} color={accent ? T.yellow : T.muted} />
+                <div
+                    className={accent ? cls.iconBgAccent : cls.iconBg}
+                    style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                >
+                    <Icon size={17} className={accent ? "text-yellow-600 dark:text-yellow-400" : cls.muted} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: T.muted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                <span
+                    className={cls.muted}
+                    style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}
+                >
                     {label}
                 </span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: -0.5 }}>
+            <div className={cls.text} style={{ fontSize: 28, fontWeight: 700, marginBottom: 6, letterSpacing: -0.5 }}>
                 {value}
             </div>
             {sub && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: trendColor }}>
+                <div className={trendCls} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                     {TrendIcon && <TrendIcon size={13} />}
                     <span>{sub}</span>
                 </div>
@@ -126,8 +135,11 @@ function KpiCard({
 function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
     return (
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-            <Icon size={16} color={T.yellow} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.text, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <Icon size={16} className="text-yellow-600 dark:text-yellow-400" />
+            <span
+                className={cls.text}
+                style={{ fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}
+            >
                 {label}
             </span>
         </div>
@@ -164,19 +176,22 @@ function AdminDashboard() {
     }, [isAuthenticated, authLoading])
 
     if (loading) return (
-        <div style={{
-            background: T.bg, minHeight: "100vh",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontFamily: "Inter, sans-serif",
-        }}>
-            <Loader2 size={22} color={T.yellow} style={{ animation: "spin 1s linear infinite" }} />
+        <div
+            className={cls.page}
+            style={{
+                minHeight: "100vh",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "Inter, sans-serif",
+            }}
+        >
+            <Loader2 size={22} className="text-yellow-600 dark:text-yellow-400" style={{ animation: "spin 1s linear infinite" }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
     )
 
     if (error) return (
-        <div style={{ background: T.bg, minHeight: "100vh", padding: 40, fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: T.red, display: "flex", alignItems: "center", gap: 8 }}>
+        <div className={cls.page} style={{ minHeight: "100vh", padding: 40, fontFamily: "Inter, sans-serif" }}>
+            <p className="text-red-600 dark:text-red-400" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <XCircle size={16} /> {error}
             </p>
         </div>
@@ -205,29 +220,26 @@ function AdminDashboard() {
     const growthLabel = (growthMoM > 0 ? "+" : "") + growthMoM.toFixed(1) + "% vs mois precedent"
 
     return (
-        <div style={{
-            background: T.bg,
-            minHeight: "100vh",
-            fontFamily: "Inter, sans-serif",
-            padding: "32px 24px",
-            boxSizing: "border-box",
-        }}>
+        <div
+            className={cls.page}
+            style={{
+                minHeight: "100vh",
+                fontFamily: "Inter, sans-serif",
+                padding: "32px 24px",
+                boxSizing: "border-box",
+            }}
+        >
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-                <h1 style={{
-                    fontSize: 24, fontWeight: 700, color: T.text,
-                    margin: "0 0 6px 0", letterSpacing: -0.5,
-                }}>
+                <h1 className={cls.text} style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px 0", letterSpacing: -0.5 }}>
                     Tableau de bord
                 </h1>
-                <p style={{ fontSize: 13, color: T.muted, margin: "0 0 28px 0" }}>
+                <p className={cls.muted} style={{ fontSize: 13, margin: "0 0 28px 0" }}>
                     Vue d&apos;ensemble de l&apos;activite
                 </p>
 
                 {/* ── SECTION 1 — KPIs ─────────────────────────────────────── */}
-                <div className="dash-kpis" style={{
-                    display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap",
-                }}>
+                <div className="dash-kpis" style={{ display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap" }}>
                     <KpiCard
                         icon={Euro}
                         label="CA Total"
@@ -258,23 +270,14 @@ function AdminDashboard() {
                 </div>
 
                 {/* ── SECTION 2 — CA 6 derniers mois ───────────────────────── */}
-                <div style={{
-                    background: T.card,
-                    borderRadius: 14,
-                    padding: 28,
-                    border: "1px solid " + T.border,
-                    marginBottom: 24,
-                }}>
+                <div className={cls.card} style={{ borderRadius: 14, padding: 28, marginBottom: 24 }}>
                     <SectionTitle icon={BarChart3} label="CA — 6 derniers mois" />
                     {monthly.length === 0 ? (
-                        <div style={{ fontSize: 13, color: T.muted, padding: "24px 0" }}>
+                        <div className={cls.muted} style={{ fontSize: 13, padding: "24px 0" }}>
                             Aucune donnee disponible
                         </div>
                     ) : (
-                        <div style={{
-                            display: "flex", alignItems: "flex-end",
-                            gap: 16, height: 220, paddingTop: 24,
-                        }}>
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 16, height: 220, paddingTop: 24 }}>
                             {monthly.map((m, i) => {
                                 const amount = Number(m.total_ttc) || 0
                                 const pct = amount > 0 ? Math.max((amount / maxAmount) * 100, 3) : 0
@@ -291,35 +294,38 @@ function AdminDashboard() {
                                         }}>
                                             <div
                                                 title={formatPrice(amount)}
+                                                className={isLast ? "" : "bg-neutral-300 dark:bg-neutral-700"}
                                                 style={{
                                                     width: "72%",
                                                     height: pct + "%",
                                                     minHeight: amount > 0 ? 4 : 0,
-                                                    background: isLast
-                                                        ? T.yellow
-                                                        : "linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%)",
+                                                    background: isLast ? C.yellow : undefined,
                                                     borderRadius: "6px 6px 0 0",
                                                     position: "relative",
                                                     transition: "height 0.4s ease",
                                                 }}
                                             >
                                                 {amount > 0 && (
-                                                    <div style={{
-                                                        position: "absolute",
-                                                        top: -22, left: "50%", transform: "translateX(-50%)",
-                                                        fontSize: 10, fontWeight: 600,
-                                                        color: isLast ? T.yellow : T.muted,
-                                                        whiteSpace: "nowrap",
-                                                    }}>
+                                                    <div
+                                                        className={isLast ? "text-yellow-600 dark:text-yellow-400" : cls.muted}
+                                                        style={{
+                                                            position: "absolute",
+                                                            top: -22, left: "50%", transform: "translateX(-50%)",
+                                                            fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+                                                        }}
+                                                    >
                                                         {formatK(amount)}
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
-                                        <div style={{
-                                            fontSize: 11, color: T.muted, marginTop: 10,
-                                            fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.5,
-                                        }}>
+                                        <div
+                                            className={cls.muted}
+                                            style={{
+                                                fontSize: 11, marginTop: 10,
+                                                fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.5,
+                                            }}
+                                        >
                                             {labelMonth(m.month)}
                                         </div>
                                     </div>
@@ -335,50 +341,55 @@ function AdminDashboard() {
                     gap: 20, marginBottom: 32,
                 }}>
                     {/* Top 3 clients */}
-                    <div style={{
-                        background: T.card, borderRadius: 14, padding: 28,
-                        border: "1px solid " + T.border,
-                    }}>
+                    <div className={cls.card} style={{ borderRadius: 14, padding: 28 }}>
                         <SectionTitle icon={Users} label="Top 3 clients" />
                         {topClients.length === 0 ? (
-                            <div style={{ fontSize: 13, color: T.muted, padding: "20px 0" }}>
+                            <div className={cls.muted} style={{ fontSize: 13, padding: "20px 0" }}>
                                 Aucun client
                             </div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                                 {topClients.map((c, i) => (
-                                    <div key={i} style={{
-                                        display: "flex", alignItems: "center", gap: 14,
-                                        padding: "14px 16px",
-                                        background: T.cardAlt,
-                                        borderRadius: 10,
-                                        border: "1px solid " + T.border,
-                                    }}>
-                                        <div style={{
-                                            width: 34, height: 34, borderRadius: 8,
-                                            background: i === 0 ? T.yellow : T.border,
-                                            color: i === 0 ? "#000" : T.text,
-                                            display: "flex", alignItems: "center", justifyContent: "center",
-                                            fontSize: 14, fontWeight: 700, flexShrink: 0,
-                                        }}>
+                                    <div
+                                        key={i}
+                                        className={cls.cardAlt}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 14,
+                                            padding: "14px 16px", borderRadius: 10,
+                                        }}
+                                    >
+                                        <div
+                                            className={i === 0 ? "" : "bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100"}
+                                            style={{
+                                                width: 34, height: 34, borderRadius: 8,
+                                                background: i === 0 ? C.yellow : undefined,
+                                                color: i === 0 ? "#000" : undefined,
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                fontSize: 14, fontWeight: 700, flexShrink: 0,
+                                            }}
+                                        >
                                             {i + 1}
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{
-                                                fontSize: 14, fontWeight: 600, color: T.text,
-                                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                            }}>
+                                            <div
+                                                className={cls.text}
+                                                style={{
+                                                    fontSize: 14, fontWeight: 600,
+                                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                                }}
+                                            >
                                                 {c.name || "Client"}
                                             </div>
                                             {c.project_count != null && (
-                                                <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                                                <div className={cls.muted} style={{ fontSize: 11, marginTop: 2 }}>
                                                     {c.project_count} projet{c.project_count > 1 ? "s" : ""}
                                                 </div>
                                             )}
                                         </div>
-                                        <div style={{
-                                            fontSize: 15, fontWeight: 700, color: T.yellow, whiteSpace: "nowrap",
-                                        }}>
+                                        <div
+                                            className="text-yellow-600 dark:text-yellow-400"
+                                            style={{ fontSize: 15, fontWeight: 700, whiteSpace: "nowrap" }}
+                                        >
                                             {formatPrice(Number(c.ca) || 0)}
                                         </div>
                                     </div>
@@ -388,16 +399,13 @@ function AdminDashboard() {
                     </div>
 
                     {/* Alertes — projets en attente > 7j */}
-                    <div style={{
-                        background: T.card, borderRadius: 14, padding: 28,
-                        border: "1px solid " + T.border,
-                    }}>
+                    <div className={cls.card} style={{ borderRadius: 14, padding: 28 }}>
                         <SectionTitle icon={AlertTriangle} label="Projets en attente > 7 jours" />
                         {pending.length === 0 ? (
-                            <div style={{
-                                fontSize: 13, color: T.muted, padding: "20px 0",
-                                display: "flex", alignItems: "center", gap: 8,
-                            }}>
+                            <div
+                                className={cls.muted}
+                                style={{ fontSize: 13, padding: "20px 0", display: "flex", alignItems: "center", gap: 8 }}
+                            >
                                 Aucune alerte en cours
                             </div>
                         ) : (
@@ -406,35 +414,37 @@ function AdminDashboard() {
                                     <a
                                         key={p.project_id || i}
                                         href={"/admin/projets?search=" + (p.project_id || "")}
+                                        className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30"
                                         style={{
                                             display: "flex", alignItems: "center", gap: 12,
-                                            padding: "14px 16px",
-                                            background: "rgba(239,68,68,0.08)",
-                                            borderRadius: 10,
-                                            border: "1px solid rgba(239,68,68,0.25)",
-                                            textDecoration: "none",
+                                            padding: "14px 16px", borderRadius: 10, textDecoration: "none",
                                         }}
                                     >
-                                        <AlertTriangle size={16} color={T.red} style={{ flexShrink: 0 }} />
+                                        <AlertTriangle size={16} className="text-red-600 dark:text-red-400" style={{ flexShrink: 0 }} />
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{
-                                                fontSize: 13, fontWeight: 600, color: T.text,
-                                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                            }}>
+                                            <div
+                                                className={cls.text}
+                                                style={{
+                                                    fontSize: 13, fontWeight: 600,
+                                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                                }}
+                                            >
                                                 Projet {(p.project_id || "").slice(0, 8)}
                                             </div>
-                                            <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                                            <div className={cls.muted} style={{ fontSize: 11, marginTop: 2 }}>
                                                 En attente depuis {p.days_pending} jours
                                             </div>
                                         </div>
-                                        <span style={{
-                                            padding: "4px 10px", borderRadius: 20,
-                                            fontSize: 11, fontWeight: 700,
-                                            background: T.red, color: "#fff",
-                                        }}>
+                                        <span
+                                            className="bg-red-600 text-white"
+                                            style={{
+                                                padding: "4px 10px", borderRadius: 20,
+                                                fontSize: 11, fontWeight: 700,
+                                            }}
+                                        >
                                             {p.days_pending}j
                                         </span>
-                                        <ArrowRight size={14} color={T.muted} />
+                                        <ArrowRight size={14} className={cls.muted} />
                                     </a>
                                 ))}
                             </div>

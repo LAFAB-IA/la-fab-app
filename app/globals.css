@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
+/* Tailwind v4 — dark mode via class strategy (next-themes) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card: #ffffff;
+  --card-alt: #f7f7f7;
+  --border: #e5e5e5;
+  --muted: #737373;
+}
+
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #141414;
+  --card-alt: #1c1c1c;
+  --border: #262626;
+  --muted: #8a8a8a;
+  color-scheme: dark;
+}
+
+html.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-alt: #f7f7f7;
+  --border: #e5e5e5;
+  --muted: #737373;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -19,17 +46,6 @@
   }
 }
 
-/* next-themes (attribute="class") — explicit user choice overrides system */
-html.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  color-scheme: dark;
-}
-html.light {
-  --background: #ffffff;
-  --foreground: #171717;
-  color-scheme: light;
-}
 
 body {
   background: var(--background);

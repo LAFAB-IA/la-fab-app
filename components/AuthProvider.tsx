@@ -132,9 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         e429.status = 429;
         throw e429;
       }
-      const err = await res.json().catch(() => ({}));
-      const e = new Error(err.message || "Échec de la connexion") as Error & { status?: number };
+      const err = await res.json().catch(() => ({} as Record<string, unknown>));
+      const e = new Error((err as { message?: string }).message || "Échec de la connexion") as Error & {
+        status?: number; code?: string; provider?: string;
+      };
       e.status = res.status;
+      e.code = (err as { code?: string }).code;
+      e.provider = (err as { provider?: string }).provider;
       throw e;
     }
 

@@ -18,9 +18,10 @@ export default function Login() {
     const [loading, setLoading] = useState(false)
     const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null)
     const [error, setError] = useState("")
+    const [info, setInfo] = useState("")
 
     async function handleSubmit() {
-        setError("")
+        setError(""); setInfo("")
         if (!email || !password) { setError("Email et mot de passe obligatoires"); return }
         if (mode === "signup" && (!firstName || !lastName)) { setError("Prenom et nom obligatoires"); return }
 
@@ -32,12 +33,44 @@ export default function Login() {
                 await signup(email, password, firstName, lastName)
             }
         } catch (err: unknown) {
-            const status = (err as { status?: number } | null)?.status
+            const e = err as { status?: number; code?: string; provider?: string; message?: string } | null
+            const status = e?.status
+            const code = (e?.code || "").toUpperCase()
+            const provider = (e?.provider || "").toLowerCase()
+            const msg = (e?.message || "").toLowerCase()
+
             if (mode === "login") {
+                // Compte existant via OAuth (ex: Google)
+                const isOAuthConflict =
+                    provider === "google"
+                    || code === "OAUTH_ACCOUNT"
+                    || code === "PROVIDER_MISMATCH"
+                    || msg.includes("google")
+                if (isOAuthConflict) {
+                    setError("Ce compte utilise la connexion Google. Cliquez sur \"Continuer avec Google\".")
+                    setLoading(false)
+                    return
+                }
+
+                // Compte introuvable -> redirection vers inscription avec prefill
+                const isUserNotFound =
+                    status === 404
+                    || code === "USER_NOT_FOUND"
+                    || code === "EMAIL_NOT_FOUND"
+                    || msg.includes("user not found")
+                    || msg.includes("no user")
+                if (isUserNotFound) {
+                    setMode("signup")
+                    setError("")
+                    setInfo("Aucun compte trouve avec cet email. Nous vous avons redirige vers l'inscription.")
+                    setLoading(false)
+                    return
+                }
+
                 if (status === 401 || status === 400) {
                     setError("Email ou mot de passe incorrect")
                 } else if (status === 429) {
-                    setError(err instanceof Error ? err.message : "Trop de tentatives, réessayez plus tard")
+                    setError(e?.message || "Trop de tentatives, réessayez plus tard")
                 } else {
                     setError("Une erreur est survenue, réessayez.")
                 }
@@ -128,7 +161,7 @@ export default function Login() {
                     {(["login", "signup"] as const).map((m) => (
                         <button
                             key={m}
-                            onClick={() => { setMode(m); setError("") }}
+                            onClick={() => { setMode(m); setError(""); setInfo("") }}
                             style={{
                                 flex: 1,
                                 padding: "10px",
@@ -206,6 +239,13 @@ export default function Login() {
                         </button>
                     </div>
                 </div>
+
+                {/* Info contextuelle (redirection inscription) */}
+                {info && (
+                    <div style={{ marginTop: 12, padding: "10px 14px", backgroundColor: "#fef9e0", border: "1px solid " + C.yellow, borderRadius: 8, fontSize: 13, color: "#7a5c00" }}>
+                        {info}
+                    </div>
+                )}
 
                 {/* Erreur */}
                 {error && (
