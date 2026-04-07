@@ -1,19 +1,21 @@
 "use client"
 
-const PROJECT_STATUSES: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    created:        { label: "En attente de devis", bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    quoted:         { label: "Devis disponible",    bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    validated:      { label: "Commande validée",    bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
-    in_production:  { label: "En production",       bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-    delivered:      { label: "Livré",               bg: "#e0f2f1", color: "#004d40", border: "#80cbc4" },
+type Tone = "success" | "warn" | "info" | "neutral" | "danger" | "prod"
+
+const PROJECT_STATUSES: Record<string, { label: string; tone: Tone }> = {
+    created:        { label: "En attente de devis", tone: "warn" },
+    quoted:         { label: "Devis disponible",    tone: "success" },
+    validated:      { label: "Commande validée",    tone: "info" },
+    in_production:  { label: "En production",       tone: "prod" },
+    delivered:      { label: "Livré",               tone: "success" },
 }
 
-const INVOICE_STATUSES: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    pending:   { label: "En attente",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    sent:      { label: "Envoyée",     bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
-    paid:      { label: "Payée",       bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    overdue:   { label: "En retard",   bg: "#fde8e8", color: "#c0392b", border: "#f5c6c6" },
-    cancelled: { label: "Annulée",     bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" },
+const INVOICE_STATUSES: Record<string, { label: string; tone: Tone }> = {
+    pending:   { label: "En attente",  tone: "warn" },
+    sent:      { label: "Envoyée",     tone: "info" },
+    paid:      { label: "Payée",       tone: "success" },
+    overdue:   { label: "En retard",   tone: "danger" },
+    cancelled: { label: "Annulée",     tone: "neutral" },
 }
 
 interface StatusBadgeProps {
@@ -23,14 +25,15 @@ interface StatusBadgeProps {
 
 export default function StatusBadge({ status, type = "project" }: StatusBadgeProps) {
     const map = type === "invoice" ? INVOICE_STATUSES : PROJECT_STATUSES
-    const config = map[status] || { label: status, bg: "#f0f0ee", color: "#7a8080", border: "#e0e0de" }
+    const config = map[status] || { label: status, tone: "neutral" as Tone }
+    const t = config.tone
 
     return (
         <span style={{
             display: "inline-block",
-            backgroundColor: config.bg,
-            color: config.color,
-            border: "1px solid " + config.border,
+            backgroundColor: `var(--status-${t}-bg)`,
+            color: `var(--status-${t}-fg)`,
+            border: `1px solid var(--status-${t}-bd)`,
             borderRadius: 20,
             padding: "4px 14px",
             fontSize: 13,

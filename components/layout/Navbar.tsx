@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
 import { io, Socket } from "socket.io-client"
-import { Bell, X, Menu, Check, Moon, Sun } from "lucide-react"
+import { Bell, X, Menu, Check, Moon, Sun, User, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 
 interface Notification {
@@ -214,7 +214,7 @@ export default function Navbar() {
                                     display: "flex", justifyContent: "space-between", alignItems: "center",
                                     padding: "14px 16px", borderBottom: "1px solid " + C.border,
                                 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 700, color: "#000000" }}>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>
                                         Notifications {unreadCount > 0 && `(${unreadCount})`}
                                     </span>
                                     {unreadCount > 0 && (
@@ -250,7 +250,7 @@ export default function Navbar() {
                                                         <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: C.yellow, flexShrink: 0, marginTop: 5 }} />
                                                     )}
                                                     <div style={{ flex: 1, paddingLeft: n.read ? 17 : 0 }}>
-                                                        <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: "#000000", marginBottom: 2 }}>
+                                                        <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: C.dark, marginBottom: 2 }}>
                                                             {n.title}
                                                         </div>
                                                         <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{n.message}</div>
@@ -303,15 +303,17 @@ export default function Navbar() {
                                 minWidth: 180, overflow: "hidden", zIndex: 1001,
                             }}>
                                 <div style={{ padding: "12px 16px", borderBottom: "1px solid " + C.border }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#000000" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
                                         {user?.firstName} {user?.lastName}
                                     </div>
                                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{user?.email}</div>
                                 </div>
                                 <Link href="/profil" onClick={() => setProfileOpen(false)} style={{
-                                    display: "block", padding: "11px 16px", fontSize: 14,
-                                    color: "#000000", textDecoration: "none", fontWeight: 500,
+                                    display: "flex", alignItems: "center", gap: 10,
+                                    padding: "11px 16px", fontSize: 14,
+                                    color: C.dark, textDecoration: "none", fontWeight: 500,
                                 }}>
+                                    <User size={16} />
                                     Mon profil
                                 </Link>
                                 <button
@@ -319,7 +321,7 @@ export default function Navbar() {
                                     style={{
                                         display: "flex", width: "100%", textAlign: "left",
                                         alignItems: "center", gap: 10,
-                                        padding: "11px 16px", fontSize: 14, color: "#000000",
+                                        padding: "11px 16px", fontSize: 14, color: C.dark,
                                         fontWeight: 500, border: "none", background: "none",
                                         cursor: "pointer", borderTop: "1px solid " + C.border,
                                     }}
@@ -328,11 +330,13 @@ export default function Navbar() {
                                     {isDark ? "Thème clair" : "Thème sombre"}
                                 </button>
                                 <button onClick={() => { setProfileOpen(false); logout() }} style={{
-                                    display: "block", width: "100%", textAlign: "left",
-                                    padding: "11px 16px", fontSize: 14, color: "#c0392b",
+                                    display: "flex", width: "100%", textAlign: "left",
+                                    alignItems: "center", gap: 10,
+                                    padding: "11px 16px", fontSize: 14, color: "var(--status-danger-fg)",
                                     fontWeight: 500, border: "none", background: "none",
                                     cursor: "pointer", borderTop: "1px solid " + C.border,
                                 }}>
+                                    <LogOut size={16} />
                                     Se déconnecter
                                 </button>
                             </div>

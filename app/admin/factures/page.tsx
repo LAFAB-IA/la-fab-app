@@ -137,10 +137,10 @@ function AdminInvoices() {
 
     const statusBreakdown = useMemo(() => {
         const configs: { key: string; label: string; color: string; bg: string }[] = [
-            { key: "draft", label: "Brouillon", color: "#7a8080", bg: "#e0e0de" },
-            { key: "sent", label: "Envoyée", color: "#3b82f6", bg: "#dbeafe" },
-            { key: "paid", label: "Payée", color: "#16a34a", bg: "#dcfce7" },
-            { key: "overdue", label: "En retard", color: "#dc2626", bg: "#fde8e8" },
+            { key: "draft",   label: "Brouillon", color: "var(--status-neutral-fg)", bg: "var(--status-neutral-bg)" },
+            { key: "sent",    label: "Envoyée",   color: "var(--status-info-fg)",    bg: "var(--status-info-bg)" },
+            { key: "paid",    label: "Payée",     color: "var(--status-success-fg)", bg: "var(--status-success-bg)" },
+            { key: "overdue", label: "En retard", color: "var(--status-danger-fg)",  bg: "var(--status-danger-bg)" },
         ]
         return configs.map(c => {
             const items = invoices.filter(i => c.key === "overdue"

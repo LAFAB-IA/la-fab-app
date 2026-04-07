@@ -20,6 +20,26 @@
   --c-surface: #ffffff;
   --c-surface-hover:  #f5f5f5;
   --c-surface-active: #ebebeb;
+
+  /* Status badges (light) */
+  --status-success-bg:  #e8f8ee;
+  --status-success-fg:  #1a7a3c;
+  --status-success-bd:  #a8dbb8;
+  --status-warn-bg:     #fef9e0;
+  --status-warn-fg:     #b89a00;
+  --status-warn-bd:     #f4cf1588;
+  --status-info-bg:     #e8f0fe;
+  --status-info-fg:     #1a3c7a;
+  --status-info-bd:     #a8b8db;
+  --status-neutral-bg:  #f5f5f5;
+  --status-neutral-fg:  #616161;
+  --status-neutral-bd:  #e0e0e0;
+  --status-danger-bg:   #fde8e8;
+  --status-danger-fg:   #c0392b;
+  --status-danger-bd:   #f5c6c6;
+  --status-prod-bg:     #fff3e0;
+  --status-prod-fg:     #e65100;
+  --status-prod-bd:     #ffcc80;
 }
 
 html.dark {
@@ -32,13 +52,33 @@ html.dark {
   color-scheme: dark;
 
   --c-dark:    #fafafa;
-  --c-white:   #141414;
-  --c-bg:      #0a0a0a;
-  --c-border:  #262626;
+  --c-white:   #111113;
+  --c-bg:      #08080a;
+  --c-border:  #2a2a2e;
   --c-muted:   #8a8a8a;
-  --c-surface: #1c1c1c;
-  --c-surface-hover:  #242424;
-  --c-surface-active: #2c2c2c;
+  --c-surface: #1a1a1d;
+  --c-surface-hover:  #222226;
+  --c-surface-active: #2a2a2e;
+
+  /* Status badges (dark) */
+  --status-success-bg:  #14532d;
+  --status-success-fg:  #4ade80;
+  --status-success-bd:  #166534;
+  --status-warn-bg:     #422006;
+  --status-warn-fg:     #facc15;
+  --status-warn-bd:     #713f12;
+  --status-info-bg:     #0c2a4a;
+  --status-info-fg:     #60a5fa;
+  --status-info-bd:     #1e3a5f;
+  --status-neutral-bg:  #1c1c1c;
+  --status-neutral-fg:  #a3a3a3;
+  --status-neutral-bd:  #262626;
+  --status-danger-bg:   #450a0a;
+  --status-danger-fg:   #f87171;
+  --status-danger-bd:   #7f1d1d;
+  --status-prod-bg:     #431407;
+  --status-prod-fg:     #fb923c;
+  --status-prod-bd:     #7c2d12;
 }
 
 html.light {

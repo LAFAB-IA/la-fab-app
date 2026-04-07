@@ -12,16 +12,16 @@ import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    draft:   { label: "Brouillon",      bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
-    pending: { label: "À payer",        bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    paid:    { label: "Payée",          bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    overdue: { label: "En retard",      bg: "#fee",    color: "#c0392b", border: "#f5c6c6" },
+    draft:   { label: "Brouillon", bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" },
+    pending: { label: "À payer",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)",    border: "var(--status-warn-bd)" },
+    paid:    { label: "Payée",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "var(--status-success-bd)" },
+    overdue: { label: "En retard", bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)",  border: "var(--status-danger-bd)" },
 }
 
 const STATUS_ORDER = ["draft", "pending", "overdue", "paid"]
 
 function StatusBadge({ status }: { status: string }) {
-    const sc = STATUS_CONFIG[status] || { label: status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
+    const sc = STATUS_CONFIG[status] || { label: status, bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" }
     return (
         <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: sc.bg, color: sc.color, border: "1px solid " + sc.border, whiteSpace: "nowrap" }}>
             {sc.label}
@@ -30,15 +30,16 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function SplitBadge({ label, color }: { label: string; color: string }) {
+    const tone = color === "green" ? "success" : "warn"
     return (
-        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: color === "green" ? "#e8f8ee" : "#fef9e0", color: color === "green" ? "#1a7a3c" : "#b89a00", border: "1px solid " + (color === "green" ? "#a8dbb8" : "#f4cf1588"), whiteSpace: "nowrap" }}>
+        <span style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, backgroundColor: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`, border: `1px solid var(--status-${tone}-bd)`, whiteSpace: "nowrap" }}>
             {label}
         </span>
     )
 }
 
 function InvoiceGridCard({ invoice, onClick }: { invoice: any; onClick: () => void }) {
-    const sc = STATUS_CONFIG[invoice.status] || { label: invoice.status, bg: "#f5f5f5", color: "#333", border: "#e0e0e0" }
+    const sc = STATUS_CONFIG[invoice.status] || { label: invoice.status, bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" }
 
     return (
         <div
@@ -354,7 +355,7 @@ export default function InvoiceList() {
 
                                         {/* Paid badge */}
                                         {invoice.status === "paid" && (
-                                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: "#e8f8ee", color: "#1a7a3c", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", backgroundColor: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "1px solid var(--status-success-bd)", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
                                                 <CheckCircle2 size={14} />Paiement reçu
                                             </div>
                                         )}
