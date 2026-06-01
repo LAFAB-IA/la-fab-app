@@ -5,88 +5,252 @@ import { API_URL, C } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
 import { useAuth } from "@/components/AuthProvider"
 import { formatPrice, formatDate } from "@/lib/format"
+import { StatsCards, StatItem } from "@/components/admin/StatsCards"
 import {
-    ArrowLeft, Send, Loader2, CheckCircle2, Clock, FileText, Inbox,
-    SearchX, ChevronDown
+    Send, Loader2, CheckCircle2, Clock, FileText, Inbox,
+    SearchX, ChevronDown, Upload, X, MessageSquare,
+    TrendingUp, Star,
 } from "lucide-react"
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
 
-const { useState, useEffect, useMemo } = React
+const { useState, useEffect, useMemo, useRef } = React
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface SupplierProfile {
+    id: string
+    name: string
+    partner_tier?: string
+}
+
+// ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-    pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00" },
-    replied: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
-    responded: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c" },
-    validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a" },
+    sent:      { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)" },
+    pending:   { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)" },
+    accepted:  { label: "Acceptée",     bg: "var(--status-info-bg)",    color: "var(--status-info-fg)" },
+    quoted:    { label: "Devis envoyé", bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
+    replied:   { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
+    responded: { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
+    validated: { label: "Validée",      bg: "var(--status-info-bg)",    color: "var(--status-info-fg)" },
+    refused:   { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
+    rejected:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
+    declined:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
 }
-const STATUS_ORDER_C = ["sent", "pending", "replied", "responded", "validated"]
+const STATUS_ORDER = ["sent", "pending", "accepted", "quoted", "replied", "responded", "validated", "refused", "rejected", "declined"]
 
-const KPI_SLOTS: { label: string; statuses: string[]; borderColor: string }[] = [
-    { label: "En attente",  statuses: ["sent", "pending"],              borderColor: "#F4CF15" },
-    { label: "Devis envoyé", statuses: ["replied", "responded"],        borderColor: "#7a8080" },
-    { label: "Acceptée",    statuses: ["validated", "accepted"],        borderColor: "#000000" },
-    { label: "Refusée",     statuses: ["refused", "rejected", "declined"], borderColor: "#e0e0de" },
-]
+// ─── Tier badge ───────────────────────────────────────────────────────────────
 
-function ConsultationKPIRow({ consultations }: { consultations: any[] }) {
-    const counts = useMemo(() => {
-        const map: Record<string, number> = {}
-        for (const c of consultations) {
-            const s = c.status || "pending"
-            map[s] = (map[s] || 0) + 1
+const TIER_CFG: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    gold:     { label: "Gold",     bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
+    silver:   { label: "Silver",   bg: "#f5f5f5", color: "#616161", border: "#e0e0e0" },
+    bronze:   { label: "Bronze",   bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+    premium:  { label: "Premium",  bg: "#fce8ff", color: "#7a1a7a", border: "#d8a8db" },
+    standard: { label: "Standard", bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" },
+}
+
+function TierBadge({ tier }: { tier?: string }) {
+    if (!tier) return null
+    const t = TIER_CFG[tier.toLowerCase()] ?? TIER_CFG.standard
+    return (
+        <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+            backgroundColor: t.bg, color: t.color, border: `1px solid ${t.border}`,
+            textTransform: "capitalize" as const,
+        }}>
+            <Star size={10} />
+            {t.label}
+        </span>
+    )
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+    const cfg = STATUS_CFG[status] ?? { label: status, bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)" }
+    const isRefused = ["refused", "rejected", "declined"].includes(status)
+    const isDone    = ["quoted", "replied", "responded", "validated", "accepted"].includes(status)
+    return (
+        <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+            backgroundColor: cfg.bg, color: cfg.color,
+        }}>
+            {!isRefused && isDone  ? <CheckCircle2 size={12} /> : null}
+            {!isRefused && !isDone ? <Clock size={12} /> : null}
+            {cfg.label}
+        </span>
+    )
+}
+
+// ─── Quote upload modal ───────────────────────────────────────────────────────
+
+interface QuoteModalProps {
+    consultationId: string
+    onClose: () => void
+    onSuccess: (id: string) => void
+}
+
+function QuoteModal({ consultationId, onClose, onSuccess }: QuoteModalProps) {
+    const [file, setFile] = useState<File | null>(null)
+    const [price, setPrice] = useState("")
+    const [days, setDays] = useState("")
+    const [submitting, setSubmitting] = useState(false)
+    const [error, setError] = useState("")
+    const fileRef = useRef<HTMLInputElement>(null)
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        if (!file) { setError("Le fichier PDF est obligatoire"); return }
+        setSubmitting(true)
+        setError("")
+        try {
+            const fd = new FormData()
+            fd.append("file", file)
+            if (price) fd.append("proposed_price", price)
+            if (days)  fd.append("lead_time_days", days)
+
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${consultationId}/quote-upload`, {
+                method: "POST",
+                body: fd,
+            })
+            const data = await r.json()
+            if (data.ok) {
+                onSuccess(consultationId)
+            } else {
+                setError(data.error || "Erreur lors de l'envoi")
+            }
+        } catch {
+            setError("Erreur réseau")
         }
-        return map
-    }, [consultations])
+        setSubmitting(false)
+    }
 
     return (
-        <div style={{
-            display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4,
-            marginBottom: 20, scrollbarWidth: "none",
-        }}>
-            {KPI_SLOTS.map((slot) => {
-                const count = slot.statuses.reduce((acc, s) => acc + (counts[s] || 0), 0)
-                return (
-                    <div
-                        key={slot.label}
-                        style={{
-                            flex: "0 0 auto", minWidth: 130,
-                            backgroundColor: "#FAFFFD",
-                            border: "1px solid #e0e0de",
-                            borderLeft: `4px solid ${slot.borderColor}`,
-                            borderRadius: 10,
-                            padding: "14px 18px",
-                        }}
-                    >
-                        <div style={{ fontSize: 28, fontWeight: 800, color: "#000", lineHeight: 1 }}>
-                            {count}
+        <div
+            style={{
+                position: "fixed", inset: 0, zIndex: 2000,
+                backgroundColor: "rgba(0,0,0,0.45)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+        >
+            <div style={{
+                backgroundColor: C.white, borderRadius: 16, width: "100%", maxWidth: 480,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.18)", overflow: "hidden",
+            }}>
+                {/* Header */}
+                <div style={{
+                    padding: "18px 24px", borderBottom: "1px solid " + C.border,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Upload size={16} color={C.muted} />
+                        <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Envoyer un devis</span>
+                    </div>
+                    <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: 4 }}>
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+                    {/* File drop zone */}
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: "block", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>
+                            Fichier PDF *
+                        </label>
+                        <div
+                            onClick={() => fileRef.current?.click()}
+                            style={{
+                                border: `2px dashed ${file ? C.yellow : C.border}`,
+                                borderRadius: 10, padding: "20px 16px", textAlign: "center" as const,
+                                cursor: "pointer",
+                                backgroundColor: file ? "rgba(244,207,21,0.06)" : C.surface,
+                                transition: "border-color 0.15s",
+                            }}
+                        >
+                            <Upload size={20} color={file ? C.dark : C.muted} style={{ marginBottom: 6 }} />
+                            <div style={{ fontSize: 13, color: file ? C.dark : C.muted, fontWeight: file ? 600 : 400 }}>
+                                {file ? file.name : "Cliquer pour sélectionner un PDF"}
+                            </div>
+                            {file && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{(file.size / 1024).toFixed(0)} KB</div>}
                         </div>
-                        <div style={{ fontSize: 11, color: "#7a8080", marginTop: 5, fontWeight: 500, lineHeight: 1.3 }}>
-                            {slot.label}
+                        <input
+                            ref={fileRef} type="file" accept=".pdf,application/pdf"
+                            style={{ display: "none" }}
+                            onChange={e => setFile(e.target.files?.[0] ?? null)}
+                        />
+                    </div>
+
+                    {/* Price + days */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                        <div>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: "block", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>
+                                Prix HT (€)
+                            </label>
+                            <input
+                                type="number" min={0} step={0.01} value={price}
+                                onChange={e => setPrice(e.target.value)} placeholder="0.00"
+                                style={{ width: "100%", padding: "9px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" as const }}
+                            />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: "block", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>
+                                Délai (jours)
+                            </label>
+                            <input
+                                type="number" min={1} value={days}
+                                onChange={e => setDays(e.target.value)} placeholder="15"
+                                style={{ width: "100%", padding: "9px 12px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" as const }}
+                            />
                         </div>
                     </div>
-                )
-            })}
+
+                    {error && (
+                        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, backgroundColor: "var(--status-danger-bg)", color: "var(--status-danger-fg)", border: "1px solid var(--status-danger-bd)" }}>
+                            {error}
+                        </div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                        <button type="button" onClick={onClose}
+                            style={{ padding: "9px 18px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                            Annuler
+                        </button>
+                        <button type="submit" disabled={submitting}
+                            style={{ padding: "9px 20px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            {submitting ? <Loader2 size={14} style={{ animation: "sc-spin 1s linear infinite" }} /> : <Send size={14} />}
+                            Envoyer
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     )
 }
+
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export default function SupplierConsultations() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [consultations, setConsultations] = useState<any[]>([])
+    const [supplier, setSupplier] = useState<SupplierProfile | null>(null)
 
-    /* reply form state per consultation */
-    const [replyData, setReplyData] = useState<Record<string, { response: string; price: string; delay: string; notes: string }>>({})
-    const [sending, setSending] = useState<Record<string, boolean>>({})
-    const [msgs, setMsgs] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
+    const [responding, setResponding] = useState<Record<string, boolean>>({})
+    const [quoteModal, setQuoteModal] = useState<string | null>(null)
+    const [actionMsgs, setActionMsgs] = useState<Record<string, { type: "ok" | "err"; text: string }>>({})
+
     const lv = useListView(consultations, {
         storageKey: "consultations_view_mode",
         defaultViewMode: "list",
-        searchFields: (c) => [c.project_id, c.specifications, c.brief_description, c.response_text],
-        statusOptions: STATUS_ORDER_C.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i })),
+        searchFields: (c) => [c.project_id, c.specifications, c.brief_description, c.service],
+        statusOptions: STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i })),
         getItemStatus: (c) => c.status || "pending",
         getItemDate: (c) => c.sent_at || c.created_at,
         sortOptions: [
@@ -94,190 +258,214 @@ export default function SupplierConsultations() {
             { key: "status", label: "Statut" },
         ],
         getSortValue: (c, key) => {
-            switch (key) {
-                case "date": return new Date(c.sent_at || c.created_at).getTime()
-                case "status": return STATUS_ORDER_C.indexOf(c.status) === -1 ? 99 : STATUS_ORDER_C.indexOf(c.status)
-                default: return 0
-            }
+            if (key === "date") return new Date(c.sent_at || c.created_at).getTime()
+            if (key === "status") { const i = STATUS_ORDER.indexOf(c.status); return i === -1 ? 99 : i }
+            return 0
         },
         defaultSortKey: "date",
         defaultSortDir: "desc",
     })
 
+    // Derived stats
+    const stats = useMemo(() => {
+        const pending  = consultations.filter(c => ["sent", "pending"].includes(c.status)).length
+        const quoted   = consultations.filter(c => ["quoted", "replied", "responded"].includes(c.status)).length
+        const accepted = consultations.filter(c => ["validated", "accepted"].includes(c.status)).length
+        const total    = consultations.length
+        const responseRate = total ? Math.round(((quoted + accepted) / total) * 100) : 0
+        return { total, pending, quoted, accepted, responseRate }
+    }, [consultations])
+
+    const statItems: StatItem[] = [
+        { icon: MessageSquare, label: "Total",          value: String(stats.total) },
+        { icon: Clock,         label: "En attente",     value: String(stats.pending) },
+        { icon: FileText,      label: "Devis envoyés",  value: String(stats.quoted) },
+        { icon: TrendingUp,    label: "Taux de réponse", value: `${stats.responseRate} %` },
+    ]
+
     useEffect(() => {
         if (authLoading) return
-        if (!isAuthenticated) { setError("Non authentifie"); setLoading(false); return }
-        fetchWithAuth(`${API_URL}/api/supplier-portal/consultations`)
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.ok) setConsultations(data.consultations || [])
-                else if (data.code === "SUPPLIER_NOT_FOUND" || data.error === "SUPPLIER_NOT_FOUND") {
-                    setConsultations([])
-                } else setError(data.error || "Erreur serveur")
-                setLoading(false)
-            })
-            .catch(() => { setError("Erreur reseau"); setLoading(false) })
+        if (!isAuthenticated) { setError("Non authentifié"); setLoading(false); return }
+        Promise.all([
+            fetchWithAuth(`${API_URL}/api/supplier/me`).then(r => r.json()).catch(() => null),
+            fetchWithAuth(`${API_URL}/api/supplier-portal/consultations`).then(r => r.json()),
+        ]).then(([meData, consultData]) => {
+            if (meData?.ok && meData.supplier) setSupplier(meData.supplier)
+            if (consultData.ok) {
+                setConsultations(consultData.consultations || [])
+            } else if (!["SUPPLIER_NOT_FOUND"].includes(consultData.code)) {
+                setError(consultData.error || "Erreur serveur")
+            }
+        }).catch(() => setError("Erreur réseau"))
+        .finally(() => setLoading(false))
     }, [isAuthenticated, authLoading])
 
-    function getReply(id: string) {
-        return replyData[id] || { response: "", price: "", delay: "", notes: "" }
-    }
-
-    function updateReply(id: string, field: string, value: string) {
-        setReplyData((prev) => ({
-            ...prev,
-            [id]: { ...getReply(id), [field]: value },
-        }))
-    }
-
-    async function sendReply(consultationId: string) {
-        const rd = getReply(consultationId)
-        if (!rd.response.trim()) {
-            setMsgs((p) => ({ ...p, [consultationId]: { type: "err", text: "La proposition est obligatoire" } }))
-            return
-        }
-        setSending((p) => ({ ...p, [consultationId]: true }))
+    async function handleRespond(consultationId: string, action: "accept" | "refuse") {
+        setResponding(p => ({ ...p, [consultationId]: true }))
         try {
-            const r = await fetchWithAuth(`${API_URL}/api/supplier-portal/consultations/${consultationId}/reply`, {
+            const r = await fetchWithAuth(`${API_URL}/api/consultation/${consultationId}/respond`, {
                 method: "POST",
-                body: JSON.stringify({
-                    response_text: rd.response,
-                    proposed_price: rd.price ? Number(rd.price) : undefined,
-                }),
+                body: JSON.stringify({ action }),
             })
             const data = await r.json()
             if (data.ok) {
-                setMsgs((p) => ({ ...p, [consultationId]: { type: "ok", text: "Reponse envoyee" } }))
-                setConsultations((prev) => prev.map((c) =>
-                    (c.consultation_id || c.id) === consultationId
-                        ? { ...c, status: "replied", response_text: rd.response, proposed_price: rd.price ? Number(rd.price) : null }
-                        : c
+                const newStatus = action === "accept" ? "accepted" : "refused"
+                setConsultations(prev => prev.map(c =>
+                    (c.consultation_id || c.id) === consultationId ? { ...c, status: newStatus } : c
                 ))
+                setActionMsgs(p => ({
+                    ...p,
+                    [consultationId]: { type: "ok", text: action === "accept" ? "Consultation acceptée" : "Consultation refusée" },
+                }))
             } else {
-                setMsgs((p) => ({ ...p, [consultationId]: { type: "err", text: data.error || "Erreur" } }))
+                setActionMsgs(p => ({ ...p, [consultationId]: { type: "err", text: data.error || "Erreur" } }))
             }
         } catch {
-            setMsgs((p) => ({ ...p, [consultationId]: { type: "err", text: "Erreur reseau" } }))
+            setActionMsgs(p => ({ ...p, [consultationId]: { type: "err", text: "Erreur réseau" } }))
         }
-        setSending((p) => ({ ...p, [consultationId]: false }))
+        setResponding(p => ({ ...p, [consultationId]: false }))
     }
 
-    if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: C.muted }}>Chargement des consultations...</p>
+    function handleQuoteSuccess(consultationId: string) {
+        setConsultations(prev => prev.map(c =>
+            (c.consultation_id || c.id) === consultationId ? { ...c, status: "quoted" } : c
+        ))
+        setQuoteModal(null)
+        setActionMsgs(p => ({ ...p, [consultationId]: { type: "ok", text: "Devis envoyé avec succès" } }))
+    }
+
+    if (loading || authLoading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+            <Loader2 size={24} color={C.muted} style={{ animation: "sc-spin 1s linear infinite" }} />
+            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
         </div>
     )
-
     if (error) return (
-        <div style={{ fontFamily: "Inter, sans-serif", padding: 40 }}>
-            <p style={{ color: "#c0392b" }}>{error}</p>
-        </div>
+        <div style={{ padding: 40, color: "var(--status-danger-fg)", fontFamily: "Inter, sans-serif" }}>{error}</div>
     )
 
     function renderCard(c: any) {
-        const cId = c.consultation_id || c.id
-        const isPending = c.status === "sent" || c.status === "pending"
-        const isReplied = c.status === "replied" || c.status === "responded"
-        const isSending = sending[cId]
-        const msg = msgs[cId]
-        const rd = getReply(cId)
+        const cId       = c.consultation_id || c.id
+        const isPending = ["sent", "pending"].includes(c.status)
+        const isAccepted = c.status === "accepted"
+        const isQuoted  = ["quoted", "replied", "responded", "validated"].includes(c.status)
+        const isResponding = responding[cId]
+        const msg       = actionMsgs[cId]
 
         return (
             <div key={cId} style={{
-                background: C.white, borderRadius: 12,
+                backgroundColor: C.white, borderRadius: 12,
                 border: "1px solid " + C.border,
                 boxShadow: "0 1px 3px rgba(58,64,64,0.06)",
                 overflow: "hidden",
             }}>
                 {/* Card header */}
-                <div style={{ padding: "18px 22px", borderBottom: "1px solid " + C.border }}>
+                <div style={{ padding: "16px 20px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-                        <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                <FileText size={16} color={C.muted} />
-                                <span style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>
-                                    Projet {(c.project_id || "").slice(0, 12)}...
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                                <FileText size={15} color={C.muted} />
+                                <span style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>
+                                    Consultation #{(cId || "").slice(-8)}
                                 </span>
+                                {c.service && (
+                                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, backgroundColor: C.surface, color: C.muted, border: "1px solid " + C.border, fontWeight: 500 }}>
+                                        {c.service}
+                                    </span>
+                                )}
                             </div>
                             <div style={{ fontSize: 12, color: C.muted }}>
-                                Envoye le {formatDate(c.sent_at || c.created_at)}
+                                Reçue le {formatDate(c.sent_at || c.created_at)}
                             </div>
                         </div>
-                        {renderStatus(c.status)}
+                        <StatusBadge status={c.status} />
                     </div>
-                    {c.specifications && (
-                        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Specifications demandees</div>
-                            {c.specifications}
+
+                    {/* Specs / brief */}
+                    {(c.specifications || c.brief_description) && (
+                        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, backgroundColor: C.surface, border: "1px solid " + C.border }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>
+                                {c.specifications ? "Spécifications" : "Description"}
+                            </div>
+                            <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.55 }}>
+                                {c.specifications || c.brief_description}
+                            </div>
                         </div>
                     )}
-                    {c.brief_description && !c.specifications && (
-                        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f8f8f6", fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: "uppercase" }}>Description du brief</div>
-                            {c.brief_description}
+
+                    {/* Quote summary (quoted/validated) */}
+                    {isQuoted && (c.proposed_price != null || c.lead_time_days || c.responded_at) && (
+                        <div style={{ marginTop: 12, display: "flex", gap: 20, flexWrap: "wrap" }}>
+                            {c.proposed_price != null && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>Prix proposé HT</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>{formatPrice(Number(c.proposed_price))}</div>
+                                </div>
+                            )}
+                            {c.lead_time_days && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>Délai</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>{c.lead_time_days} j</div>
+                                </div>
+                            )}
+                            {c.responded_at && (
+                                <div>
+                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 0.4 }}>Répondu le</div>
+                                    <div style={{ fontSize: 13, fontWeight: 500, color: C.dark }}>{formatDate(c.responded_at)}</div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
-                {/* Reply form for pending */}
-                {isPending && (
-                    <div style={{ padding: "18px 22px", background: "#fefce8" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 12 }}>Votre reponse</div>
-                        <textarea value={rd.response} onChange={(e) => updateReply(cId, "response", e.target.value)} placeholder="Votre proposition..." rows={4}
-                            style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical", outline: "none", boxSizing: "border-box", marginBottom: 10, fontFamily: "Inter, sans-serif" }} />
-                        <div className="supplier-reply-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Prix propose HT</label>
-                                <input type="number" value={rd.price} onChange={(e) => updateReply(cId, "price", e.target.value)} placeholder="0.00" min={0} step={0.01}
-                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: C.muted, display: "block", marginBottom: 4 }}>Delai de livraison (jours)</label>
-                                <input type="number" value={rd.delay} onChange={(e) => updateReply(cId, "delay", e.target.value)} placeholder="15" min={1}
-                                    style={{ width: "100%", padding: "8px 12px", border: "1px solid " + C.border, borderRadius: 6, fontSize: 13, color: C.dark, outline: "none", boxSizing: "border-box" }} />
-                            </div>
-                        </div>
-                        <textarea value={rd.notes} onChange={(e) => updateReply(cId, "notes", e.target.value)} placeholder="Notes complementaires (optionnel)..." rows={2}
-                            style={{ width: "100%", padding: "10px 14px", border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, color: C.dark, resize: "vertical", outline: "none", boxSizing: "border-box", marginBottom: 12, fontFamily: "Inter, sans-serif" }} />
-                        <button onClick={() => sendReply(cId)} disabled={isSending}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", background: C.yellow, color: C.dark, cursor: isSending ? "not-allowed" : "pointer", opacity: isSending ? 0.6 : 1 }}>
-                            {isSending ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
-                            Envoyer ma reponse
-                        </button>
+
+                {/* Action zone — pending or accepted */}
+                {(isPending || isAccepted) && (
+                    <div style={{
+                        padding: "12px 20px", borderTop: "1px solid " + C.bg,
+                        backgroundColor: C.surface,
+                        display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
+                    }}>
+                        {isPending && (
+                            <>
+                                <button
+                                    onClick={() => setQuoteModal(cId)}
+                                    disabled={isResponding}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                                >
+                                    <Upload size={14} /> Envoyer un devis
+                                </button>
+                                <button
+                                    onClick={() => handleRespond(cId, "refuse")}
+                                    disabled={isResponding}
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid var(--status-danger-bd)", backgroundColor: "var(--status-danger-bg)", color: "var(--status-danger-fg)", fontSize: 13, fontWeight: 600, cursor: isResponding ? "not-allowed" : "pointer", opacity: isResponding ? 0.6 : 1 }}
+                                >
+                                    {isResponding ? <Loader2 size={13} style={{ animation: "sc-spin 1s linear infinite" }} /> : null}
+                                    Décliner
+                                </button>
+                            </>
+                        )}
+                        {isAccepted && (
+                            <button
+                                onClick={() => setQuoteModal(cId)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                            >
+                                <Upload size={14} /> Uploader le devis PDF
+                            </button>
+                        )}
                         {msg && (
-                            <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, background: msg.type === "ok" ? "#f0fdf4" : "#fef2f2", color: msg.type === "ok" ? "#166534" : "#991b1b", border: "1px solid " + (msg.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
+                            <div style={{ fontSize: 12, fontWeight: 500, color: msg.type === "ok" ? "var(--status-success-fg)" : "var(--status-danger-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                                {msg.type === "ok" ? <CheckCircle2 size={13} /> : null}
                                 {msg.text}
                             </div>
                         )}
                     </div>
                 )}
-                {/* Read-only reply for responded */}
-                {isReplied && (
-                    <div style={{ padding: "18px 22px", background: "#f0fdf4" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                            <CheckCircle2 size={15} color="#1a7a3c" />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#1a7a3c" }}>Reponse envoyee</span>
-                        </div>
-                        {c.response_text && <div style={{ fontSize: 13, color: C.dark, marginBottom: 8, lineHeight: 1.5 }}>{c.response_text}</div>}
-                        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                            {c.proposed_price != null && (
-                                <div>
-                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Prix propose</div>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{formatPrice(Number(c.proposed_price))}</div>
-                                </div>
-                            )}
-                            {c.lead_time_days && (
-                                <div>
-                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Delai</div>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{c.lead_time_days} jours</div>
-                                </div>
-                            )}
-                            {c.responded_at && (
-                                <div>
-                                    <div style={{ fontSize: 11, color: C.muted, textTransform: "uppercase" }}>Date de reponse</div>
-                                    <div style={{ fontSize: 14, fontWeight: 500, color: C.dark }}>{formatDate(c.responded_at)}</div>
-                                </div>
-                            )}
-                        </div>
+
+                {/* Inline feedback for quoted/refused states */}
+                {!isPending && !isAccepted && msg && (
+                    <div style={{ padding: "10px 20px", borderTop: "1px solid " + C.bg, fontSize: 12, fontWeight: 500, color: msg.type === "ok" ? "var(--status-success-fg)" : "var(--status-danger-fg)", display: "flex", alignItems: "center", gap: 4 }}>
+                        {msg.type === "ok" ? <CheckCircle2 size={13} /> : null}
+                        {msg.text}
                     </div>
                 )}
             </div>
@@ -286,26 +474,22 @@ export default function SupplierConsultations() {
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 900, margin: "0 auto" }}>
-            {/* Header */}
-            <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>Mes consultations</h1>
-                    <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{consultations.length} consultation{consultations.length > 1 ? "s" : ""}</p>
+
+            {/* ── Header ── */}
+            <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+                    <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: 0 }}>Consultations</h1>
+                    {supplier && <TierBadge tier={supplier.partner_tier} />}
                 </div>
-                <a href="/supplier/dashboard" style={{
-                    padding: "9px 18px", background: C.white, color: C.dark,
-                    border: "1px solid " + C.border, borderRadius: 8, fontSize: 13,
-                    fontWeight: 600, textDecoration: "none", display: "inline-flex",
-                    alignItems: "center", gap: 8,
-                }}>
-                    <ArrowLeft size={14} /> Dashboard
-                </a>
+                {supplier && (
+                    <div style={{ fontSize: 14, color: C.muted }}>{supplier.name}</div>
+                )}
             </div>
 
-            {/* KPI counters */}
-            {consultations.length > 0 && <ConsultationKPIRow consultations={consultations} />}
+            {/* ── Stats cards ── */}
+            <StatsCards items={statItems} loading={false} />
 
-            {/* Toolbar */}
+            {/* ── Toolbar ── */}
             <ListToolbar
                 search={lv.search}
                 onSearchChange={lv.setSearch}
@@ -317,39 +501,35 @@ export default function SupplierConsultations() {
                 onFiltersChange={lv.setFilters}
                 onFiltersReset={lv.resetFilters}
                 activeFilterCount={lv.activeFilterCount}
-                statusOptions={STATUS_ORDER_C.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i }))}
+                statusOptions={STATUS_ORDER.map((s, i) => ({ value: s, label: STATUS_CFG[s]?.label || s, order: i }))}
                 showDateFilter
-                sortOptions={[
-                    { key: "date", label: "Date" },
-                    { key: "status", label: "Statut" },
-                ]}
+                sortOptions={[{ key: "date", label: "Date" }, { key: "status", label: "Statut" }]}
                 sortKey={lv.sortKey}
                 sortDir={lv.sortDir}
                 onSortKeyChange={lv.setSortKey}
                 onSortDirToggle={() => lv.setSortDir(lv.sortDir === "asc" ? "desc" : "asc")}
             />
 
-            {/* No search results */}
-            {consultations.length > 0 && lv.filtered.length === 0 && (
-                <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
-                    <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
-                    <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation ne correspond a votre recherche</div>
-                </div>
-            )}
-
-            {lv.filtered.length === 0 && consultations.length === 0 && (
+            {/* ── Empty states ── */}
+            {consultations.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
                     <Inbox size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Aucune consultation</div>
-                    <div style={{ fontSize: 14 }}>Vous n'avez pas encore recu de demandes de consultation.</div>
+                    <div style={{ fontSize: 14 }}>Vous n'avez pas encore reçu de demandes.</div>
+                </div>
+            )}
+            {consultations.length > 0 && lv.filtered.length === 0 && (
+                <div style={{ textAlign: "center", padding: "60px 20px", color: C.muted }}>
+                    <SearchX size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
+                    <div style={{ fontSize: 16, fontWeight: 600, color: C.dark }}>Aucune consultation ne correspond</div>
                 </div>
             )}
 
-            {/* Always grouped view */}
+            {/* ── Grouped list ── */}
             {lv.filtered.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 16 }}>
                     {lv.sortedGroupKeys.map(status => {
-                        const sc = STATUS_CFG[status] || { label: status, bg: "#f5f5f5", color: "#616161" }
+                        const sc = STATUS_CFG[status] || { label: status, bg: C.surface, color: C.muted }
                         const items = lv.grouped[status]
                         const isCollapsed = !!lv.collapsed[status]
                         return (
@@ -359,7 +539,9 @@ export default function SupplierConsultations() {
                                     style={{
                                         display: "flex", alignItems: "center", gap: 10,
                                         padding: "10px 16px", borderRadius: 10,
-                                        backgroundColor: sc.bg, cursor: "pointer", userSelect: "none",
+                                        backgroundColor: sc.bg, cursor: "pointer",
+                                        userSelect: "none" as const,
+                                        marginBottom: isCollapsed ? 0 : 10,
                                     }}
                                 >
                                     <ChevronDown size={16} style={{ color: sc.color, transition: "transform 0.2s", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }} />
@@ -367,7 +549,7 @@ export default function SupplierConsultations() {
                                     <span style={{ padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 700, backgroundColor: sc.color, color: "#fff" }}>{items.length}</span>
                                 </div>
                                 {!isCollapsed && (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 10 }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                                         {items.map(renderCard)}
                                     </div>
                                 )}
@@ -377,28 +559,16 @@ export default function SupplierConsultations() {
                 </div>
             )}
 
-            <style>{`
-                @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-                @media (max-width: 768px) {
-                    .supplier-reply-fields { grid-template-columns: 1fr !important; }
-                }
-            `}</style>
-        </div>
-    )
-}
+            {/* ── Quote upload modal ── */}
+            {quoteModal && (
+                <QuoteModal
+                    consultationId={quoteModal}
+                    onClose={() => setQuoteModal(null)}
+                    onSuccess={handleQuoteSuccess}
+                />
+            )}
 
-function renderStatus(status: string) {
-    const cfg: Record<string, { label: string; bg: string; color: string; icon: React.ReactNode }> = {
-        sent: { label: "En attente", bg: "#fef9e0", color: "#b89a00", icon: <Clock size={12} /> },
-        pending: { label: "En attente", bg: "#fef9e0", color: "#b89a00", icon: <Clock size={12} /> },
-        replied: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c", icon: <CheckCircle2 size={12} /> },
-        responded: { label: "Repondue", bg: "#e8f8ee", color: "#1a7a3c", icon: <CheckCircle2 size={12} /> },
-        validated: { label: "Validee", bg: "#e8f0fe", color: "#1a3c7a", icon: <CheckCircle2 size={12} /> },
-    }
-    const c = cfg[status] || { label: status, bg: "#f5f5f5", color: "#616161", icon: null }
-    return (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>
-            {c.icon} {c.label}
-        </span>
+            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+        </div>
     )
 }
