@@ -8,6 +8,7 @@ import { fetchWithAuth } from "@/lib/api"
 import AuthGuard from "@/components/AuthGuard"
 import StatusBadge from "@/components/shared/StatusBadge"
 import ProjectTimeline, { TimelineEntry } from "@/components/client/ProjectTimeline"
+import ProductionPlan, { ProductionPlanData } from "@/components/client/ProductionPlan"
 import InterlocutorCard from "@/components/client/InterlocutorCard"
 import ProjectDocs from "@/components/client/ProjectDocs"
 import { formatPrice, formatDate, projectDisplayName } from "@/lib/format"
@@ -35,6 +36,8 @@ function ClientProjectPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [timeline, setTimeline] = useState<TimelineEntry[] | null>(null)
     const [timelineLoading, setTimelineLoading] = useState(true)
+    const [productionPlan, setProductionPlan] = useState<ProductionPlanData | null>(null)
+    const [planLoading, setPlanLoading] = useState(true)
 
     // Fetch project
     useEffect(() => {
@@ -60,6 +63,20 @@ function ClientProjectPage() {
                 if (data.ok) setInvoices(data.invoices || [])
             })
             .catch(() => {})
+    }, [token, projectId, project])
+
+    // Fetch production plan
+    useEffect(() => {
+        if (!token || !projectId || !project) return
+        setPlanLoading(true)
+        fetchWithAuth(`${API_URL}/api/project/${projectId}/production-plan`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok && data.plan) setProductionPlan(data.plan)
+                else setProductionPlan(null)
+            })
+            .catch(() => setProductionPlan(null))
+            .finally(() => setPlanLoading(false))
     }, [token, projectId, project])
 
     // Fetch timeline from backend
@@ -141,6 +158,16 @@ function ClientProjectPage() {
                     loading={timelineLoading}
                     currentStatus={project.status}
                     deliveryEstimate={deliveryEstimate}
+                />
+            </section>
+
+            {/* Production plan */}
+            <section style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 16 }}>Plan de production</h2>
+                <ProductionPlan
+                    plan={productionPlan}
+                    loading={planLoading}
+                    projectStatus={project.status}
                 />
             </section>
 
