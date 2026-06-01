@@ -2,12 +2,13 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, FolderKanban, Factory, FileText, ClipboardList, Webhook } from "lucide-react"
+import { LayoutDashboard, FolderKanban, Factory, FileText, ClipboardList, Webhook, Users } from "lucide-react"
 
 const LINKS: { href: string; label: string; icon: React.ReactNode }[] = [
     { href: "/admin/dashboard",    label: "Dashboard",    icon: <LayoutDashboard size={18} /> },
     { href: "/admin/projets",      label: "Projets",      icon: <FolderKanban size={18} /> },
     { href: "/admin/fournisseurs", label: "Fournisseurs", icon: <Factory size={18} /> },
+    { href: "/admin/clients",      label: "Clients",      icon: <Users size={18} /> },
     { href: "/admin/factures",     label: "Factures",     icon: <FileText size={18} /> },
     { href: "/admin/audit",        label: "Audit",        icon: <ClipboardList size={18} /> },
     { href: "/admin/webhooks",     label: "Webhooks",     icon: <Webhook size={18} /> },
