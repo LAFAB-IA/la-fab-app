@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import AuthGuard from "@/components/AuthGuard"
 import StatusBadge from "@/components/shared/StatusBadge"
-import ProjectTimeline from "@/components/client/ProjectTimeline"
+import ProjectTimeline, { TimelineEntry } from "@/components/client/ProjectTimeline"
 import InterlocutorCard from "@/components/client/InterlocutorCard"
 import ProjectDocs from "@/components/client/ProjectDocs"
 import { formatPrice, formatDate, projectDisplayName } from "@/lib/format"
@@ -33,6 +33,8 @@ function ClientProjectPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [invoices, setInvoices] = useState<Invoice[]>([])
+    const [timeline, setTimeline] = useState<TimelineEntry[] | null>(null)
+    const [timelineLoading, setTimelineLoading] = useState(true)
 
     // Fetch project
     useEffect(() => {
@@ -58,6 +60,23 @@ function ClientProjectPage() {
                 if (data.ok) setInvoices(data.invoices || [])
             })
             .catch(() => {})
+    }, [token, projectId, project])
+
+    // Fetch timeline from backend
+    useEffect(() => {
+        if (!token || !projectId || !project) return
+        setTimelineLoading(true)
+        fetchWithAuth(`${API_URL}/api/project/${projectId}/timeline`)
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.ok && Array.isArray(data.timeline)) {
+                    setTimeline(data.timeline)
+                } else {
+                    setTimeline([])
+                }
+            })
+            .catch(() => setTimeline(null))
+            .finally(() => setTimelineLoading(false))
     }, [token, projectId, project])
 
     if (loading || authLoading) {
@@ -116,8 +135,13 @@ function ClientProjectPage() {
 
             {/* Timeline */}
             <section style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 12 }}>Avancement</h2>
-                <ProjectTimeline currentStatus={project.status} deliveryEstimate={deliveryEstimate} />
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 16 }}>Suivi de votre projet</h2>
+                <ProjectTimeline
+                    timeline={timeline}
+                    loading={timelineLoading}
+                    currentStatus={project.status}
+                    deliveryEstimate={deliveryEstimate}
+                />
             </section>
 
             {/* Interlocutor */}
