@@ -17,6 +17,7 @@ import useToast from "@/hooks/useToast"
 import useFocusTrap from "@/hooks/useFocusTrap"
 import { ExportButton } from "@/components/admin/ExportButton"
 import { StatsCards, StatItem } from "@/components/admin/StatsCards"
+import { ProjectSearchBar, ProjectSearchFilters } from "@/components/admin/ProjectSearchBar"
 
 const { useEffect, useState, useRef } = React
 
@@ -66,6 +67,13 @@ export default function AdminProjects() {
     // KPI stats from backend
     const [projectStats, setProjectStats] = useState<any>(null)
     const [projectStatsLoading, setProjectStatsLoading] = useState(true)
+
+    // Advanced search (server-side)
+    const [searchActive, setSearchActive] = useState(false)
+    const [searchResults, setSearchResults] = useState<any[]>([])
+    const [searchLoading, setSearchLoading] = useState(false)
+    const [searchMeta, setSearchMeta] = useState({ total: 0, page: 1, total_pages: 1, per_page: 20 })
+    const [searchCurrentFilters, setSearchCurrentFilters] = useState<ProjectSearchFilters>({ q: "", status: "", priority: "", tag: "" })
 
     // AI Assistant panel
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -272,6 +280,36 @@ export default function AdminProjects() {
         setBulkStatusDropdown(false)
     }
 
+    async function handleSearch(filters: ProjectSearchFilters, page = 1) {
+        const isEmpty = !filters.q && !filters.status && !filters.priority && !filters.tag
+        if (isEmpty) {
+            setSearchActive(false)
+            setSearchResults([])
+            return
+        }
+        setSearchActive(true)
+        setSearchLoading(true)
+        try {
+            const params = new URLSearchParams()
+            if (filters.q) params.set("q", filters.q)
+            if (filters.status) params.set("status", filters.status)
+            if (filters.priority) params.set("priority", filters.priority)
+            if (filters.tag) params.set("tag", filters.tag)
+            params.set("page", String(page))
+            params.set("per_page", "20")
+            const r = await fetchWithAuth(`${API_URL}/api/admin/projects/search?${params}`)
+            const data = await r.json()
+            if (data.ok) {
+                setSearchResults(data.items || [])
+                setSearchMeta({ total: data.total ?? 0, page: data.page ?? 1, total_pages: data.total_pages ?? 1, per_page: data.per_page ?? 20 })
+            }
+        } catch (e) {
+            console.error("[search]", e)
+        } finally {
+            setSearchLoading(false)
+        }
+    }
+
     async function bulkAction(action: string, extra?: Record<string, string>) {
         if (selectedIds.size === 0) return
         setBulkActioning(true)
@@ -358,6 +396,8 @@ export default function AdminProjects() {
         }
         return sortDir === "asc" ? cmp : -cmp
     })
+
+    const displayItems = searchActive ? searchResults : sorted
 
     const counts = Object.fromEntries(
         STATUS_OPTIONS.map((s) => [s, projects.filter((p) => p.status === s).length])
@@ -524,8 +564,19 @@ export default function AdminProjects() {
                     showPriceFilter
                 />
 
+                {/* Advanced server-side search */}
+                <ProjectSearchBar
+                    onSearch={filters => { setSearchCurrentFilters(filters); handleSearch(filters, 1) }}
+                    loading={searchLoading}
+                />
+
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span>{sorted.length} projet{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""}</span>
+                    <span>
+                        {searchActive
+                            ? `${searchMeta.total} résultat${searchMeta.total > 1 ? "s" : ""} — page ${searchMeta.page}/${searchMeta.total_pages}`
+                            : `${sorted.length} projet${sorted.length > 1 ? "s" : ""} affiché${sorted.length > 1 ? "s" : ""}`
+                        }
+                    </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         {bulkMode && (
                             <span style={{ fontWeight: 600, color: selectedIds.size > 0 ? "#000000" : C.muted }}>
@@ -617,7 +668,16 @@ export default function AdminProjects() {
                             </tr>
                         </thead>
                         <tbody>
-                            {sorted.map((project) => {
+                            {searchLoading && (
+                                <tr>
+                                    <td colSpan={columnOrder.length + 1} style={{ padding: 32, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                                        <Loader2 size={18} style={{ display: "inline-block", animation: "spin 1s linear infinite", verticalAlign: "middle", marginRight: 8 }} />
+                                        Recherche en cours...
+                                        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                                    </td>
+                                </tr>
+                            )}
+                            {!searchLoading && displayItems.map((project) => {
                                 const isChanging = statusChanging === project.project_id
                                 const productLabel = project.product?.label || project.brief_analysis?.product_type || "—"
                                 const quantity = project.quantity || project.brief_analysis?.quantity_detected || ""
@@ -714,12 +774,35 @@ export default function AdminProjects() {
                         </tbody>
                     </table>
 
-                    {sorted.length === 0 && (
+                    {!searchLoading && displayItems.length === 0 && (
                         <div style={{ textAlign: "center", padding: 40, color: C.muted, fontSize: 14 }}>
-                            Aucun projet trouve
+                            {searchActive ? "Aucun projet ne correspond à ces critères." : "Aucun projet trouvé."}
                         </div>
                     )}
                 </div>
+
+                {/* Search pagination */}
+                {searchActive && searchMeta.total_pages > 1 && (
+                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 20 }}>
+                        <button
+                            onClick={() => handleSearch(searchCurrentFilters, searchMeta.page - 1)}
+                            disabled={searchMeta.page <= 1 || searchLoading}
+                            style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid " + C.border, backgroundColor: C.white, fontSize: 13, fontWeight: 600, cursor: searchMeta.page <= 1 ? "not-allowed" : "pointer", opacity: searchMeta.page <= 1 ? 0.4 : 1 }}
+                        >
+                            Précédent
+                        </button>
+                        <span style={{ fontSize: 13, color: C.muted, padding: "0 8px" }}>
+                            Page {searchMeta.page} / {searchMeta.total_pages}
+                        </span>
+                        <button
+                            onClick={() => handleSearch(searchCurrentFilters, searchMeta.page + 1)}
+                            disabled={searchMeta.page >= searchMeta.total_pages || searchLoading}
+                            style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid " + C.border, backgroundColor: C.white, fontSize: 13, fontWeight: 600, cursor: searchMeta.page >= searchMeta.total_pages ? "not-allowed" : "pointer", opacity: searchMeta.page >= searchMeta.total_pages ? 0.4 : 1 }}
+                        >
+                            Suivant
+                        </button>
+                    </div>
+                )}
 
                 {/* Single delete confirmation modal */}
                 {deleteConfirmId && (
