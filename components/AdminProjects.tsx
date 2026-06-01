@@ -5,7 +5,7 @@ import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
 import { formatPrice, formatDate } from "@/lib/format"
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Trash2, Pencil, Brain, Send, Loader2, Archive, RefreshCw, Download, CheckSquare, FolderOpen, TrendingUp, BarChart3, AlertTriangle } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import AdminProjectFlow from "@/components/AdminProjectFlow"
 import Drawer from "@/components/shared/Drawer"
@@ -15,6 +15,8 @@ import ListToolbar from "@/components/ListToolbar"
 import Toast from "@/components/shared/Toast"
 import useToast from "@/hooks/useToast"
 import useFocusTrap from "@/hooks/useFocusTrap"
+import { ExportButton } from "@/components/admin/ExportButton"
+import { StatsCards, StatItem } from "@/components/admin/StatsCards"
 
 const { useEffect, useState, useRef } = React
 
@@ -60,6 +62,10 @@ export default function AdminProjects() {
     const bulkDeleteModalRef = useRef<HTMLDivElement>(null)
     useFocusTrap(!!deleteConfirmId, deleteModalRef, () => setDeleteConfirmId(null))
     useFocusTrap(bulkDeleteConfirm, bulkDeleteModalRef, () => setBulkDeleteConfirm(false))
+
+    // KPI stats from backend
+    const [projectStats, setProjectStats] = useState<any>(null)
+    const [projectStatsLoading, setProjectStatsLoading] = useState(true)
 
     // AI Assistant panel
     const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -138,6 +144,10 @@ export default function AdminProjects() {
                 setLoading(false)
             })
             .catch(() => { setError("Erreur reseau"); setLoading(false) })
+        fetchWithAuth(`${API_URL}/api/admin/projects/stats`)
+            .then((r) => r.json())
+            .then((data) => { setProjectStats(data); setProjectStatsLoading(false) })
+            .catch(() => { setProjectStatsLoading(false) })
     }, [isAuthenticated, authLoading])
 
     function handleStatusChange(projectId: string, newStatus: string) {
@@ -429,6 +439,7 @@ export default function AdminProjects() {
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>{projects.length} projet{projects.length > 1 ? "s" : ""} au total</p>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
+                        <ExportButton endpoint="/api/admin/projects/export" filename="projets" label="Exporter CSV" />
                         {bulkMode ? (
                             <button
                                 onClick={exitBulkMode}
@@ -453,6 +464,22 @@ export default function AdminProjects() {
                         </a>
                     </div>
                 </div>
+
+                {/* Stats KPI from backend */}
+                {(() => {
+                    const statsItems: StatItem[] = projectStats ? [
+                        { icon: FolderOpen, label: "Total projets", value: String(projectStats.total ?? 0) },
+                        { icon: TrendingUp, label: "Revenu total", value: formatPrice(Number(projectStats.total_revenue ?? 0)) },
+                        { icon: BarChart3, label: "Valeur moyenne", value: formatPrice(Number(projectStats.avg_value ?? 0)) },
+                        { icon: AlertTriangle, label: "En retard", value: String(projectStats.overdue_count ?? 0), sub: projectStats.overdue_count > 0 ? "projet(s) en retard" : undefined },
+                    ] : []
+                    return <StatsCards items={statsItems.length > 0 ? statsItems : [
+                        { icon: FolderOpen, label: "Total projets", value: "—" },
+                        { icon: TrendingUp, label: "Revenu total", value: "—" },
+                        { icon: BarChart3, label: "Valeur moyenne", value: "—" },
+                        { icon: AlertTriangle, label: "En retard", value: "—" },
+                    ]} loading={projectStatsLoading} />
+                })()}
 
                 {/* KPI row */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 28 }}>

@@ -4,9 +4,11 @@ import * as React from "react"
 import { API_URL, C } from "@/lib/constants"
 import { useAuth } from "@/components/AuthProvider"
 import { fetchWithAuth } from "@/lib/api"
-import { XCircle, Mail, Copy, MapPin, ChevronDown, Eye } from "lucide-react"
+import { XCircle, Mail, Copy, MapPin, ChevronDown, Eye, Users, CheckCircle2, MessageSquare, TrendingUp } from "lucide-react"
 import { formatPrice } from "@/lib/format"
 import SupplierDetailDrawer from "@/components/admin/SupplierDetailDrawer"
+import { ExportButton } from "@/components/admin/ExportButton"
+import { StatsCards, StatItem } from "@/components/admin/StatsCards"
 
 const { useEffect, useState, useMemo } = React
 
@@ -394,27 +396,25 @@ export default function AdminSuppliers() {
                 {/* ── Header ── */}
                 <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
                     <div>
+                        <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>Gestion des fournisseurs</h1>
                         <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Tableau de bord fournisseurs</p>
                     </div>
-                    <a href="/admin/dashboard" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>← Dashboard</a>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <ExportButton endpoint="/api/admin/suppliers/export" filename="fournisseurs" label="Exporter CSV" />
+                        <a href="/admin/dashboard" style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>← Dashboard</a>
+                    </div>
                 </div>
 
                 {/* ── KPI Cards ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 32 }}>
-                    {[
-                        { label: "Total fournisseurs", value: String(backendStats.total), color: C.dark },
-                        { label: "Actifs", value: String(backendStats.active), color: "#1a7a3c" },
-                        { label: "Confiance moy.", value: avgTrust + "%", color: "#b89a00" },
-                        { label: "Consultations", value: String(totalConsReceived), color: C.dark },
-                        { label: "Réponses", value: totalConsReplied + " (" + globalResponseRate + "%)", color: "#1a3c7a" },
-                        { label: "CA estimé", value: formatPrice(totalRevenue), color: "#e65100" },
-                    ].map((kpi) => (
-                        <div key={kpi.label} style={{ background: C.white, borderRadius: 12, padding: "14px 10px", textAlign: "center", border: "1px solid " + C.border, boxShadow: "0 1px 3px rgba(58,64,64,0.08)" }}>
-                            <div style={{ fontSize: 18, fontWeight: 600, color: kpi.color }}>{kpi.value}</div>
-                            <div style={{ fontSize: 10, color: C.muted, marginTop: 4, lineHeight: 1.3 }}>{kpi.label}</div>
-                        </div>
-                    ))}
-                </div>
+                {(() => {
+                    const suppStatsItems: StatItem[] = [
+                        { icon: Users, label: "Total fournisseurs", value: String(backendStats.total), sub: backendStats.active + " actif(s)" },
+                        { icon: CheckCircle2, label: "Actifs", value: String(backendStats.active), sub: backendStats.total > 0 ? Math.round((backendStats.active / backendStats.total) * 100) + "% du total" : undefined },
+                        { icon: MessageSquare, label: "Taux de réponse", value: globalResponseRate + "%", sub: totalConsReplied + " réponses / " + totalConsReceived + " consultations" },
+                        { icon: TrendingUp, label: "CA estimé", value: formatPrice(totalRevenue) },
+                    ]
+                    return <StatsCards items={suppStatsItems} />
+                })()}
 
                 {/* ── Charts ── */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>

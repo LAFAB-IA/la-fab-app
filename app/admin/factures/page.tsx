@@ -12,6 +12,7 @@ import {
     Search, ChevronDown, FileText, Download, ExternalLink, BarChart3,
     Users, XCircle, Loader2, Send, Eye, ChevronLeft, ChevronRight,
 } from "lucide-react"
+import { ExportButton } from "@/components/admin/ExportButton"
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
 
 const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
@@ -246,6 +247,15 @@ function AdminInvoices() {
     return (
         <div style={{ fontFamily: "Inter, sans-serif", boxSizing: "border-box" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+
+                {/* ── Header ── */}
+                <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
+                    <div>
+                        <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, margin: "0 0 4px 0" }}>Factures</h1>
+                        <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Suivi financier et encaissements</p>
+                    </div>
+                    <ExportButton endpoint="/api/admin/invoices/export" filename="factures" label="Exporter CSV" />
+                </div>
 
                 {/* ══════════════════════════════════════════════════════════════
                     SECTION 1 — KPIs financiers (3×2)
