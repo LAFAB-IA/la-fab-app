@@ -26,7 +26,8 @@ async function tryRefreshToken(): Promise<string | null> {
 
 export async function fetchWithAuth(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  _retry = false                     // anti-loop guard: true on the replayed request
 ): Promise<Response> {
   const token = getToken();
   const isFormData = options.body instanceof FormData;
@@ -46,30 +47,39 @@ export async function fetchWithAuth(
 
   console.log('[fetchWithAuth]', url, 'token:', token ? token.slice(0, 20) + '...' : 'NONE');
 
-  let res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers });
 
-  if (res.status === 401 || res.status === 403) {
+  // Only attempt refresh once — _retry=true on the replayed call prevents a second refresh loop
+  if (!_retry && (res.status === 401 || res.status === 403)) {
     console.warn('[fetchWithAuth]', res.status, url);
     const body = await res.clone().json().catch(() => ({}));
-    if (body.code === "TOKEN_EXPIRED" || body.error === "INVALID_TOKEN" || res.status === 403) {
+    if (
+      body.code === "TOKEN_EXPIRED" ||
+      body.error === "INVALID_TOKEN" ||
+      body.error === "MISSING_AUTH_TOKEN" ||
+      res.status === 403
+    ) {
       // Deduplicate concurrent refreshes
       if (!refreshPromise) {
         refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
       }
       const newToken = await refreshPromise;
       if (newToken) {
-        headers.set("Authorization", `Bearer ${newToken}`);
-        res = await fetch(url, { ...options, headers });
-        console.log('[fetchWithAuth] retried after refresh:', res.status, url);
+        // Notify React auth state of the new token, then replay with fresh credentials
         window.dispatchEvent(new CustomEvent("token-refreshed", { detail: newToken }));
-        return res;
+        const retried = await fetchWithAuth(url, options, true);
+        console.log('[fetchWithAuth] retried after refresh:', retried.status, url);
+        // Fresh token still rejected → last resort logout
+        if (retried.status === 401) {
+          clearToken();
+          window.location.href = "/login";
+        }
+        return retried;
       }
     }
-    // Refresh failed or other 401 → logout
-    if (res.status === 401) {
-      clearToken();
-      window.location.href = "/login";
-    }
+    // Refresh failed or unrecoverable 401 → last resort logout
+    clearToken();
+    window.location.href = "/login";
   }
 
   return res;
