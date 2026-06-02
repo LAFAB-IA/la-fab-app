@@ -29,10 +29,18 @@ export async function fetchWithAuth(
   options: RequestInit = {}
 ): Promise<Response> {
   const token = getToken();
+  const isFormData = options.body instanceof FormData;
   const headers = new Headers(options.headers);
+
+  // Authorization: always set when a token is available
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  // Don't override Content-Type for FormData
-  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+
+  // Content-Type: for FormData, delete any preset value so the browser sets
+  // multipart/form-data with the correct boundary automatically.
+  // For everything else, default to application/json if not already specified.
+  if (isFormData) {
+    headers.delete("Content-Type");
+  } else if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
