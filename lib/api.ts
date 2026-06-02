@@ -45,7 +45,11 @@ export async function fetchWithAuth(
     headers.set("Content-Type", "application/json");
   }
 
-  console.log('[fetchWithAuth]', url, 'token:', token ? token.slice(0, 20) + '...' : 'NONE');
+  console.log(
+    '[fetchWithAuth]', url,
+    '| token:', token ? token.slice(0, 20) + '...' : 'NULL ⚠️',
+    '| Authorization:', headers.get('Authorization') ? 'SET' : 'ABSENT ⚠️',
+  );
 
   const res = await fetch(url, { ...options, headers });
 
@@ -76,10 +80,14 @@ export async function fetchWithAuth(
         }
         return retried;
       }
+      // Refresh attempted but failed (no new token) → last resort logout
+      console.warn('[fetchWithAuth] clearToken déclenché — refresh échoué sur:', url, '| body:', JSON.stringify(body));
+      clearToken();
+      window.location.href = "/login";
+    } else {
+      // Unrecognized 401/403 code — return response without clearing token
+      console.warn('[fetchWithAuth] 401/403 non reconnu — code:', body.code, 'error:', body.error, 'url:', url, '→ token PRÉSERVÉ');
     }
-    // Refresh failed or unrecoverable 401 → last resort logout
-    clearToken();
-    window.location.href = "/login";
   }
 
   return res;
