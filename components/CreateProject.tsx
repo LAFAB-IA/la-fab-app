@@ -171,13 +171,13 @@ export default function CreateProject() {
             })
             const data = await res.json()
             console.log('[submitBrief] create response', data)
-            if (!data.project?.project_id) {
+            const projectId = data.project_id || data.project?.project_id
+            if (!data.ok || !projectId) {
                 setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
                 setUploadProgress(null)
                 return
             }
-            const projectId = data.project.project_id
 
             // 2. Upload each file sequentially
             for (let i = 0; i < briefFiles.length; i++) {
@@ -235,12 +235,12 @@ export default function CreateProject() {
                 }),
             })
             const data = await res.json()
-            if (!data.project?.project_id) {
+            const projId = data.project_id || data.project?.project_id
+            if (!data.ok || !projId) {
                 setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
                 return
             }
-            const projId = data.project.project_id
 
             // 2. Upload briefs if files selected
             if (descFiles.length > 0 && projId) {
