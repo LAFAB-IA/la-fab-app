@@ -170,13 +170,14 @@ export default function CreateProject() {
                 body: JSON.stringify({ product_id: "BRIEF-UPLOAD", qty: 1, spec: "Brief uploadé" }),
             })
             const data = await res.json()
-            if (!data.ok && !data.project_id) {
+            console.log('[submitBrief] create response', data)
+            if (!data.project?.id) {
                 setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
                 setUploadProgress(null)
                 return
             }
-            const projectId = data.project_id
+            const projectId = data.project.id
 
             // 2. Upload each file sequentially
             for (let i = 0; i < briefFiles.length; i++) {
@@ -188,7 +189,8 @@ export default function CreateProject() {
                     body: formData,
                 })
                 const uploadData = await uploadRes.json()
-                if (!uploadRes.ok && !uploadData.ok) {
+                console.log('[submitBrief] upload status', uploadData)
+                if (!uploadRes.ok || !uploadData.ok) {
                     setSubmitError(uploadData.message || `Erreur upload fichier ${i + 1}.`)
                     setSubmitting(false)
                     setUploadProgress(null)
@@ -233,12 +235,12 @@ export default function CreateProject() {
                 }),
             })
             const data = await res.json()
-            if (!data.ok && !data.project_id) {
+            if (!data.project?.id) {
                 setSubmitError(data.error || "Erreur lors de la création du projet.")
                 setSubmitting(false)
                 return
             }
-            const projId = data.project_id
+            const projId = data.project.id
 
             // 2. Upload briefs if files selected
             if (descFiles.length > 0 && projId) {
@@ -246,10 +248,17 @@ export default function CreateProject() {
                     setUploadProgress({ current: i + 1, total: descFiles.length, status: `Upload ${i + 1}/${descFiles.length}...` })
                     const formData = new FormData()
                     formData.append("file", descFiles[i])
-                    await fetchWithAuth(`${API_URL}/api/project/${projId}/upload-brief`, {
+                    const uploadRes = await fetchWithAuth(`${API_URL}/api/project/${projId}/upload-brief`, {
                         method: "POST",
                         body: formData,
                     })
+                    const uploadData = await uploadRes.json()
+                    if (!uploadRes.ok || !uploadData.ok) {
+                        setSubmitError(uploadData.message || `Erreur upload fichier ${i + 1}.`)
+                        setSubmitting(false)
+                        setUploadProgress(null)
+                        return
+                    }
                 }
                 setUploadProgress({ current: descFiles.length, total: descFiles.length, status: "Analyse IA en cours..." })
             }
