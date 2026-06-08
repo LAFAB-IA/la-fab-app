@@ -696,11 +696,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                                         Fournisseur : <strong style={{ color: C.dark }}>{lot.supplier_name || lot.recommended_supplier}</strong>
                                                     </div>
                                                 )}
-                                                {lot.total_estimated_ht != null && (
-                                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
-                                                        {formatPrice(lot.total_estimated_ht)} HT
-                                                    </div>
-                                                )}
                                                 {isClient && (
                                                     <div style={{ fontSize: 12, color: C.muted }}>
                                                         MAD souhaitee : <strong style={{ color: C.dark }}>
@@ -717,13 +712,6 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                         )
                                     })}
                                 </div>
-
-                                {/* Global total */}
-                                {plan.total_estimated_ht != null && (
-                                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-                                        <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Total estime : {formatPrice(plan.total_estimated_ht)} HT</span>
-                                    </div>
-                                )}
 
                                 {/* Risks */}
                                 {plan.risks?.length > 0 && (
@@ -744,9 +732,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                         const products = brief_analysis?.products
                         const hasProducts = Array.isArray(products) && products.length > 0
                         const plan = brief_analysis?.production_plan
-                        const estimatedHT = plan?.total_estimated_ht
                         const hasRealPricing = pricing?.total_net != null && Number(pricing.total_net) > 0
-                        const showEstimate = !hasRealPricing && estimatedHT != null
 
                         // Build product recap lines
                         const productLines: Array<{ name: string; qty: string }> = []
@@ -765,14 +751,7 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
 
                         return (
                             <>
-                                <div style={{ ...sec, display: "flex", alignItems: "center", gap: 8 }}>
-                                    {showEstimate ? "Notre estimation" : "Informations"}
-                                    {showEstimate && (
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: C.dark, backgroundColor: C.yellow, padding: "2px 8px", borderRadius: 4 }}>
-                                            Estimation
-                                        </span>
-                                    )}
-                                </div>
+                                <div style={sec}>Informations</div>
 
                                 {/* Product recap — line by line */}
                                 {productLines.length > 0 && (
@@ -808,32 +787,15 @@ export default function ProjectDetail({ projectId: propId, onClose }: ProjectDet
                                             <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>
                                         </div>
                                     </div>
-                                ) : showEstimate ? (
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
-                                        <div>
-                                            <div style={lbl}>Estimation HT</div>
-                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 600 }}>{formatPrice(estimatedHT)}</div>
-                                        </div>
-                                        <div>
-                                            <div style={lbl}>TVA estimee (20%)</div>
-                                            <div style={{ fontSize: 16, color: C.dark, fontWeight: 500 }}>{formatPrice(estimatedHT * 0.2)}</div>
-                                        </div>
-                                        <div>
-                                            <div style={lbl}>Total TTC estime</div>
-                                            <div style={{ fontSize: 20, color: C.dark, fontWeight: 700 }}>{formatPrice(estimatedHT * 1.2)}</div>
-                                        </div>
-                                        <div>
-                                            <div style={lbl}>Date de creation</div>
-                                            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>
-                                        </div>
-                                    </div>
                                 ) : (
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
-                                        {productLines.length === 0 && (
-                                            <div style={{ gridColumn: "1 / -1" }}>
-                                                <div style={{ fontSize: 14, color: C.muted, fontStyle: "italic" }}>En attente de devis</div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                        <div style={{ padding: "14px 18px", backgroundColor: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+                                            <Clock size={16} color={C.muted} />
+                                            <div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>DEVIS EN COURS D'ÉTABLISSEMENT</div>
+                                                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Notre équipe consulte les fournisseurs partenaires.</div>
                                             </div>
-                                        )}
+                                        </div>
                                         <div>
                                             <div style={lbl}>Date de creation</div>
                                             <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{formatDate(created_at)}</div>

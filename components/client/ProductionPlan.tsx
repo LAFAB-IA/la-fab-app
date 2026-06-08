@@ -22,7 +22,7 @@ export interface PlanLot {
     service: string
     qty: number
     status: string
-    estimated_total_ht: number
+    estimated_total_ht?: number | null
     estimated_lead_time_days: number
     milestones: Milestone[]
     // supplier_name / supplier_id intentionally absent — NEVER rendered
@@ -31,7 +31,7 @@ export interface PlanLot {
 export interface ProductionPlanData {
     lots: PlanLot[]
     is_amalgame: boolean
-    estimated_total_ht: number
+    estimated_total_ht?: number | null
     estimated_lead_time_days: number
 }
 
@@ -159,10 +159,7 @@ function LotCard({ lot }: { lot: PlanLot }) {
                         </div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>
-                            {formatPrice(lot.estimated_total_ht)}
-                        </div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
+                        <div style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
                             <Clock size={10} /> {lot.estimated_lead_time_days} j
                         </div>
                     </div>
@@ -272,7 +269,7 @@ export default function ProductionPlan({ plan, loading = false, projectStatus }:
                 <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: "uppercase" as const, letterSpacing: 0.5 }}>
-                            Estimation globale
+                            Plan de production
                         </span>
                         {plan.is_amalgame && (
                             <span style={{
@@ -291,12 +288,6 @@ export default function ProductionPlan({ plan, loading = false, projectStatus }:
                 </div>
 
                 <div style={{ display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Total HT estimé</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, color: C.dark }}>
-                            {formatPrice(plan.estimated_total_ht)}
-                        </div>
-                    </div>
                     <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 11, color: C.muted, marginBottom: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                             <Clock size={11} /> Délai estimé
