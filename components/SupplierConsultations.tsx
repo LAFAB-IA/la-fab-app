@@ -14,7 +14,7 @@ import {
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
 
-const { useState, useEffect, useMemo, useRef } = React
+const { useState, useEffect, useMemo, useRef, useCallback } = React
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,19 +24,34 @@ interface SupplierProfile {
     partner_tier?: string
 }
 
+interface Consultation {
+    consultation_id?: string
+    id?: string
+    status: string
+    service?: string
+    sent_at?: string
+    created_at: string
+    specifications?: string
+    brief_description?: string
+    proposed_price?: number | null
+    lead_time_days?: number | null
+    responded_at?: string
+    project_id?: string
+}
+
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
-    sent:      { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)" },
-    pending:   { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)" },
-    accepted:  { label: "Acceptée",     bg: "var(--status-info-bg)",    color: "var(--status-info-fg)" },
-    quoted:    { label: "Devis envoyé", bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
-    replied:   { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
-    responded: { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)" },
-    validated: { label: "Validée",      bg: "var(--status-info-bg)",    color: "var(--status-info-fg)" },
-    refused:   { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
-    rejected:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
-    declined:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)" },
+const STATUS_CFG: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    sent:      { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)",    border: "var(--status-warn-bd)" },
+    pending:   { label: "En attente",   bg: "var(--status-warn-bg)",    color: "var(--status-warn-fg)",    border: "var(--status-warn-bd)" },
+    accepted:  { label: "Acceptée",     bg: "var(--status-info-bg)",    color: "var(--status-info-fg)",    border: "var(--status-info-bd)" },
+    quoted:    { label: "Devis envoyé", bg: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "var(--status-success-bd)" },
+    replied:   { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "var(--status-success-bd)" },
+    responded: { label: "Répondue",     bg: "var(--status-success-bg)", color: "var(--status-success-fg)", border: "var(--status-success-bd)" },
+    validated: { label: "Validée",      bg: "var(--status-info-bg)",    color: "var(--status-info-fg)",    border: "var(--status-info-bd)" },
+    refused:   { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)",  border: "var(--status-danger-bd)" },
+    rejected:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)",  border: "var(--status-danger-bd)" },
+    declined:  { label: "Refusée",      bg: "var(--status-danger-bg)",  color: "var(--status-danger-fg)",  border: "var(--status-danger-bd)" },
 }
 const STATUS_ORDER = ["sent", "pending", "accepted", "quoted", "replied", "responded", "validated", "refused", "rejected", "declined"]
 
@@ -69,14 +84,14 @@ function TierBadge({ tier }: { tier?: string }) {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-    const cfg = STATUS_CFG[status] ?? { label: status, bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)" }
+    const cfg = STATUS_CFG[status] ?? { label: status, bg: "var(--status-neutral-bg)", color: "var(--status-neutral-fg)", border: "var(--status-neutral-bd)" }
     const isRefused = ["refused", "rejected", "declined"].includes(status)
     const isDone    = ["quoted", "replied", "responded", "validated", "accepted"].includes(status)
     return (
         <span style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-            backgroundColor: cfg.bg, color: cfg.color,
+            backgroundColor: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
         }}>
             {!isRefused && isDone  ? <CheckCircle2 size={12} /> : null}
             {!isRefused && !isDone ? <Clock size={12} /> : null}
@@ -239,7 +254,7 @@ export default function SupplierConsultations() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
-    const [consultations, setConsultations] = useState<any[]>([])
+    const [consultations, setConsultations] = useState<Consultation[]>([])
     const [supplier, setSupplier] = useState<SupplierProfile | null>(null)
 
     const [responding, setResponding] = useState<Record<string, boolean>>({})
@@ -334,23 +349,13 @@ export default function SupplierConsultations() {
         setActionMsgs(p => ({ ...p, [consultationId]: { type: "ok", text: "Devis envoyé avec succès" } }))
     }
 
-    if (loading || authLoading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
-            <Loader2 size={24} color={C.muted} style={{ animation: "sc-spin 1s linear infinite" }} />
-            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
-        </div>
-    )
-    if (error) return (
-        <div style={{ padding: 40, color: "var(--status-danger-fg)", fontFamily: "Inter, sans-serif" }}>{error}</div>
-    )
-
-    function renderCard(c: any) {
+    const renderCard = useCallback((c: Consultation) => {
         const cId       = c.consultation_id || c.id
         const isPending = ["sent", "pending"].includes(c.status)
         const isAccepted = c.status === "accepted"
         const isQuoted  = ["quoted", "replied", "responded", "validated"].includes(c.status)
-        const isResponding = responding[cId]
-        const msg       = actionMsgs[cId]
+        const isResponding = responding[cId!]
+        const msg       = actionMsgs[cId!]
 
         return (
             <div key={cId} style={{
@@ -428,14 +433,14 @@ export default function SupplierConsultations() {
                         {isPending && (
                             <>
                                 <button
-                                    onClick={() => setQuoteModal(cId)}
+                                    onClick={() => setQuoteModal(cId!)}
                                     disabled={isResponding}
                                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                                 >
                                     <Upload size={14} /> Envoyer un devis
                                 </button>
                                 <button
-                                    onClick={() => handleRespond(cId, "refuse")}
+                                    onClick={() => handleRespond(cId!, "refuse")}
                                     disabled={isResponding}
                                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid var(--status-danger-bd)", backgroundColor: "var(--status-danger-bg)", color: "var(--status-danger-fg)", fontSize: 13, fontWeight: 600, cursor: isResponding ? "not-allowed" : "pointer", opacity: isResponding ? 0.6 : 1 }}
                                 >
@@ -446,7 +451,7 @@ export default function SupplierConsultations() {
                         )}
                         {isAccepted && (
                             <button
-                                onClick={() => setQuoteModal(cId)}
+                                onClick={() => setQuoteModal(cId!)}
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                             >
                                 <Upload size={14} /> Uploader le devis PDF
@@ -470,7 +475,17 @@ export default function SupplierConsultations() {
                 )}
             </div>
         )
-    }
+    }, [responding, actionMsgs, handleRespond, setQuoteModal])
+
+    if (loading || authLoading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+            <Loader2 size={24} color={C.muted} style={{ animation: "sc-spin 1s linear infinite" }} />
+            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+        </div>
+    )
+    if (error) return (
+        <div style={{ padding: 40, color: "var(--status-danger-fg)", fontFamily: "Inter, sans-serif" }}>{error}</div>
+    )
 
     return (
         <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 900, margin: "0 auto" }}>

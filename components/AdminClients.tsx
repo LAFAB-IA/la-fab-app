@@ -137,7 +137,7 @@ export default function AdminClients() {
 
         fetchWithAuth(`${API_URL}/api/admin/clients/stats`)
             .then(r => r.json())
-            .then(data => { setStats(data); setStatsLoading(false) })
+            .then(data => { if (data.ok && data.stats) setStats(data.stats); setStatsLoading(false) })
             .catch(() => setStatsLoading(false))
     }, [isAuthenticated, authLoading])
 
