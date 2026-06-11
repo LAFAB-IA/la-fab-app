@@ -56,7 +56,7 @@ function ActiveSwitch({ active, disabled, onChange }: { active: boolean; disable
             <span style={{
                 position: "absolute", top: 2, left: active ? 18 : 2,
                 width: 16, height: 16, borderRadius: "50%",
-                backgroundColor: "#ffffff",
+                backgroundColor: "#FAFFFD",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
                 transition: "left 0.15s ease",
             }} />
@@ -237,7 +237,7 @@ export default function AdminClients() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, fontFamily: "Inter, sans-serif", gap: 10, color: C.muted }}>
             <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
             Chargement clients...
-            <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            <style>{`@keyframes spin { to { transform: rotate(360deg) } } .ac-row:hover { background-color: #f0f0ee !important; }`}</style>
         </div>
     )
 
@@ -355,9 +355,7 @@ export default function AdminClients() {
                         const isChanging = changingId === client.id
 
                         return (
-                            <div key={client.id} style={{ display: "flex", gap: 8, padding: "12px 16px", alignItems: "center", backgroundColor: C.white, borderBottom: "1px solid " + C.bg, transition: "background-color 0.12s" }}
-                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#fafaf8")}
-                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = C.white)}
+                            <div key={client.id} className="ac-row" style={{ display: "flex", gap: 8, padding: "12px 16px", alignItems: "center", backgroundColor: C.white, borderBottom: "1px solid " + C.bg, transition: "background-color 0.12s" }}
                             >
                                 {/* Nom */}
                                 <div style={{ width: 170, fontSize: 13, fontWeight: 600, color: C.dark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
@@ -493,7 +491,7 @@ export default function AdminClients() {
                             </button>
                             <button
                                 onClick={confirmStatusToggle}
-                                style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: confirmToggle.next ? "var(--status-success-fg)" : "#991b1b", color: "#ffffff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                                style={{ padding: "8px 20px", borderRadius: 8, border: "none", backgroundColor: confirmToggle.next ? "var(--status-success-fg)" : "#000000", color: "#FAFFFD", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                             >
                                 Confirmer
                             </button>

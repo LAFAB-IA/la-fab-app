@@ -38,14 +38,14 @@ export interface ProductionPlanData {
 // ─── Service badge palette ────────────────────────────────────────────────────
 
 const SERVICE_PALETTE: Record<string, { bg: string; color: string; border: string }> = {
-    impression:  { bg: "#e8f0fe", color: "#1a3c7a", border: "#a8b8db" },
-    menuiserie:  { bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
-    packaging:   { bg: "#e8f8ee", color: "#1a7a3c", border: "#a8dbb8" },
-    broderie:    { bg: "#fce8ff", color: "#7a1a7a", border: "#d8a8db" },
-    sérigraphie: { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-    gravure:     { bg: "#e0f2f1", color: "#004d40", border: "#80cbc4" },
-    découpe:     { bg: "#fde8e8", color: "#c0392b", border: "#f5c6c6" },
-    finition:    { bg: "#f0f0fe", color: "#3c1a7a", border: "#b8a8db" },
+    impression:  { bg: "#F4CF15", color: "#000000", border: "#000000" },
+    menuiserie:  { bg: "#FAFFFD", color: "#000000", border: "#F4CF15" },
+    packaging:   { bg: "#f0f0ee", color: "#000000", border: "#e0e0de" },
+    broderie:    { bg: "#000000", color: "#FAFFFD", border: "#000000" },
+    sérigraphie: { bg: "#FAFFFD", color: "#7a8080", border: "#e0e0de" },
+    gravure:     { bg: "#f0f0ee", color: "#7a8080", border: "#7a8080" },
+    découpe:     { bg: "#f0f0ee", color: "#000000", border: "#000000" },
+    finition:    { bg: "#FAFFFD", color: "#000000", border: "#e0e0de" },
 }
 
 function serviceBadge(service: string) {
@@ -173,9 +173,9 @@ function LotCard({ lot }: { lot: PlanLot }) {
                         onClick={() => setOpen(!open)}
                         style={{
                             width: "100%", padding: "8px 18px",
+                            background: "none",
+                            border: "none",
                             borderTop: "1px solid " + C.bg,
-                            backgroundColor: "transparent", border: "none",
-                            borderTopColor: C.bg, borderTopStyle: "solid", borderTopWidth: 1,
                             display: "flex", alignItems: "center", gap: 6,
                             fontSize: 12, fontWeight: 500, color: C.muted,
                             cursor: "pointer", textAlign: "left" as const,
@@ -186,7 +186,7 @@ function LotCard({ lot }: { lot: PlanLot }) {
                     </button>
 
                     {open && (
-                        <div style={{ padding: "12px 18px 16px", borderTop: "1px solid " + C.bg, backgroundColor: "#fafaf8" }}>
+                        <div style={{ padding: "12px 18px 16px", borderTop: "1px solid " + C.bg, backgroundColor: "#f0f0ee" }}>
                             {lot.milestones.map((m, i) => (
                                 <MilestoneRow key={i} m={m} isLast={i === lot.milestones.length - 1} />
                             ))}

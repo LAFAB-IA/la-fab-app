@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { API_URL } from "@/lib/constants"
 import { fetchWithAuth } from "@/lib/api"
+import { useAuth } from "@/components/AuthProvider"
 import {
     ShieldCheck, ShieldOff, KeyRound, Loader2, Check, XCircle,
 } from "lucide-react"
@@ -17,7 +18,7 @@ interface MFAFactor {
 
 type Phase = "loading" | "disabled" | "enrolling" | "enabled"
 
-// ─── Section card (matches Profil.tsx Section visually) ───────────────────────
+// ─── Section card ─────────────────────────────────────────────────────────────
 
 function SectionCard({ children }: { children: React.ReactNode }) {
     return (
@@ -42,41 +43,30 @@ function ConfirmModal({
 }) {
     return (
         <div
-            style={{
-                position: "fixed", inset: 0, zIndex: 2000,
-                backgroundColor: "rgba(0,0,0,0.45)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                padding: 16,
-            }}
+            className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center p-4"
             onClick={e => { if (e.target === e.currentTarget) onCancel() }}
         >
-            <div style={{
-                backgroundColor: "var(--c-white)", borderRadius: 16,
-                width: "100%", maxWidth: 400, padding: 28,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                    <ShieldOff size={20} color="var(--status-danger-fg, #c0392b)" />
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--c-dark)", margin: 0 }}>
-                        Désactiver la 2FA ?
-                    </h3>
+            <div className="bg-[#FAFFFD] rounded-2xl w-full max-w-[400px] p-7 shadow-2xl">
+                <div className="flex items-center gap-2.5 mb-3">
+                    <ShieldOff size={20} className="text-[#c0392b] shrink-0" />
+                    <h3 className="text-[16px] font-bold text-black m-0">Désactiver la 2FA ?</h3>
                 </div>
-                <p style={{ fontSize: 13, color: "var(--c-muted)", margin: "0 0 24px 0", lineHeight: 1.6 }}>
+                <p className="text-[13px] text-[#7a8080] m-0 mb-6 leading-relaxed">
                     Votre compte sera moins protégé. Vous pourrez réactiver la double authentification à tout moment.
                 </p>
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <div className="flex gap-2.5 justify-end">
                     <button
                         onClick={onCancel}
-                        style={{ padding: "9px 18px", borderRadius: 8, border: "1px solid var(--c-border)", backgroundColor: "var(--c-bg)", color: "var(--c-dark)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                        className="px-[18px] py-[9px] rounded-lg border border-[#e0e0de] bg-[#f0f0ee] text-black text-[13px] font-semibold cursor-pointer"
                     >
                         Annuler
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={loading}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, border: "none", backgroundColor: "var(--status-danger-bg, #fef2f2)", color: "var(--status-danger-fg, #c0392b)", border: "1px solid var(--status-danger-bd, #fecaca)", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 } as React.CSSProperties}
+                        className="inline-flex items-center gap-1.5 px-[18px] py-[9px] rounded-lg border border-[#e0e0de] bg-[#f0f0ee] text-black text-[13px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        {loading ? <Loader2 size={14} style={{ animation: "tf2fa-spin 1s linear infinite" }} /> : <ShieldOff size={14} />}
+                        {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />}
                         Désactiver
                     </button>
                 </div>
@@ -89,10 +79,10 @@ function ConfirmModal({
 
 function TwoFASkeleton() {
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ height: 14, width: "70%", borderRadius: 6, backgroundColor: "var(--c-bg)", animation: "tf2fa-pulse 1.5s ease-in-out infinite" }} />
-            <div style={{ height: 14, width: "50%", borderRadius: 6, backgroundColor: "var(--c-bg)", animation: "tf2fa-pulse 1.5s ease-in-out infinite", animationDelay: "0.1s" }} />
-            <div style={{ height: 36, width: 200, borderRadius: 8, backgroundColor: "var(--c-bg)", marginTop: 8, animation: "tf2fa-pulse 1.5s ease-in-out infinite", animationDelay: "0.2s" }} />
+        <div className="flex flex-col gap-2.5">
+            <div className="h-3.5 w-[70%] rounded-md bg-[#f0f0ee] animate-pulse" />
+            <div className="h-3.5 w-1/2 rounded-md bg-[#f0f0ee] animate-pulse" />
+            <div className="h-9 w-[200px] rounded-lg bg-[#f0f0ee] mt-2 animate-pulse" />
         </div>
     )
 }
@@ -104,9 +94,9 @@ interface TwoFactorSectionProps {
 }
 
 export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
+    const { isAuthenticated, isLoading } = useAuth()
     const [phase, setPhase] = useState<Phase>("loading")
     const [factor, setFactor] = useState<MFAFactor | null>(null)
-    const [factorId, setFactorId] = useState<string | null>(null)
     const [challengeId, setChallengeId] = useState<string | null>(null)
     const [qrCode, setQrCode] = useState<string | null>(null)
     const [secret, setSecret] = useState<string | null>(null)
@@ -119,23 +109,25 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
     // ── Fetch MFA status on mount ────────────────────────────────────────────
 
     useEffect(() => {
+        if (isLoading) return
+        if (!isAuthenticated) { setPhase("disabled"); return }
         fetchWithAuth(`${API_URL}/api/auth/mfa/status`)
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.enrolled && data.factors?.length > 0) {
                     setFactor(data.factors[0])
-                    setFactorId(data.factors[0].id)
                     setPhase("enabled")
                 } else {
                     setPhase("disabled")
                 }
             })
             .catch(() => setPhase("disabled"))
-    }, [])
+    }, [isAuthenticated, isLoading])
 
     // ── Enroll: POST /enroll → POST /challenge ───────────────────────────────
 
     async function handleEnroll() {
+        if (!isAuthenticated) return
         setLoading(true)
         setError("")
         try {
@@ -151,7 +143,7 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
             }
 
             const fid: string = enrollData.factor_id
-            setFactorId(fid)
+            setFactor({ id: fid })
             setQrCode(enrollData.qr_code)
             setSecret(enrollData.secret)
 
@@ -179,13 +171,13 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
 
     async function handleVerify() {
         if (code.length !== 6) { setError("Saisissez les 6 chiffres."); return }
-        if (!factorId || !challengeId) return
+        if (!factor?.id || !challengeId) return
         setLoading(true)
         setError("")
         try {
             const data = await fetchWithAuth(`${API_URL}/api/auth/mfa/verify`, {
                 method: "POST",
-                body: JSON.stringify({ factor_id: factorId, challenge_id: challengeId, code }),
+                body: JSON.stringify({ factor_id: factor.id, challenge_id: challengeId, code }),
             }).then(r => r.json())
 
             if (!data.ok) {
@@ -194,8 +186,7 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
                 return
             }
 
-            const newFactor: MFAFactor = { id: factorId, created_at: new Date().toISOString() }
-            setFactor(newFactor)
+            setFactor({ id: factor.id, created_at: new Date().toISOString() })
             setPhase("enabled")
             setQrCode(null); setSecret(null); setChallengeId(null); setCode("")
             onToast?.("success", "Double authentification activée")
@@ -208,13 +199,13 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
     // ── Unenroll: POST /unenroll ─────────────────────────────────────────────
 
     async function handleUnenroll() {
-        if (!factorId) return
+        if (!factor?.id) return
         setLoading(true)
         setError("")
         try {
             const data = await fetchWithAuth(`${API_URL}/api/auth/mfa/unenroll`, {
                 method: "POST",
-                body: JSON.stringify({ factor_id: factorId }),
+                body: JSON.stringify({ factor_id: factor.id }),
             }).then(r => r.json())
 
             if (!data.ok) {
@@ -224,7 +215,7 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
             }
 
             setPhase("disabled")
-            setFactor(null); setFactorId(null); setQrCode(null); setSecret(null)
+            setFactor(null); setQrCode(null); setSecret(null)
             setShowConfirm(false)
             onToast?.("success", "Double authentification désactivée")
         } catch {
@@ -280,7 +271,7 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
 
                         <div className="flex flex-col items-center gap-3 mb-5">
                             {/* QR code image — backend returns data URI (SVG or base64 PNG) */}
-                            <div className="p-3 bg-white border border-[#e0e0de] rounded-xl inline-block">
+                            <div className="p-3 bg-[#FAFFFD] border border-[#e0e0de] rounded-xl inline-block">
                                 <img src={qrCode} alt="QR code 2FA" width={180} height={180} className="block" />
                             </div>
 
@@ -353,9 +344,9 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
                     <div>
                         {/* Active badge */}
                         <div className="flex items-center gap-3 mb-5">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#e8f8ee] border border-[#a8dbb8] rounded-full">
-                                <ShieldCheck size={14} className="text-[#1a7a3c]" />
-                                <span className="text-[12px] font-bold text-[#1a7a3c]">Activée</span>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFFFD] border border-black rounded-full">
+                                <ShieldCheck size={14} />
+                                <span className="text-[12px] font-bold text-black">Activée</span>
                             </div>
                             <span className="text-[13px] text-[#7a8080]">Votre compte est protégé par la 2FA.</span>
                         </div>
@@ -384,7 +375,7 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
                         <button
                             onClick={() => setShowConfirm(true)}
                             disabled={loading}
-                            className="flex items-center gap-2 px-4 py-[9px] bg-[#fef2f2] text-[#c0392b] border border-[#fecaca] rounded-lg text-[13px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                            className="flex items-center gap-2 px-4 py-[9px] bg-[#f0f0ee] text-black border border-[#e0e0de] rounded-lg text-[13px] font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                         >
                             {loading
                                 ? <Loader2 size={14} className="animate-spin" />
@@ -406,11 +397,6 @@ export default function TwoFactorSection({ onToast }: TwoFactorSectionProps) {
                     loading={loading}
                 />
             )}
-
-            <style>{`
-                @keyframes tf2fa-spin  { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-                @keyframes tf2fa-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-            `}</style>
         </>
     )
 }
