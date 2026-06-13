@@ -56,11 +56,11 @@ async function seedClients(count: number): Promise<RegisteredClient[]> {
         const email = faker.internet.email({ firstName, lastName, provider: "lafab-seed.dev" })
 
         try {
-            const data = await post<{ account_id?: string; user?: { id: string } }>("/api/auth/register", {
-                firstName,
-                lastName,
+            const data = await post<{ account_id?: string; user?: { id: string } }>("/api/auth/signup", {
                 email,
                 password: SEED_PASSWORD,
+                firstName,
+                lastName,
             })
             const account_id = data.account_id ?? data.user?.id ?? ""
             clients.push({ account_id, email })
@@ -90,10 +90,11 @@ async function seedSuppliers(count: number): Promise<RegisteredSupplier[]> {
         const email = faker.internet.email({ provider: "fournisseur-seed.dev" })
 
         try {
-            const data = await post<{ supplier_id?: string; id?: string }>("/api/supplier/register", {
-                companyName,
-                métier,
-                contactEmail: email,
+            const data = await post<{ supplier_id?: string; id?: string }>("/api/supplier-portal/register", {
+                email,
+                password: SEED_PASSWORD,
+                company_name: companyName,
+                trades: [métier],
             })
             const supplier_id = data.supplier_id ?? data.id ?? ""
             suppliers.push({ supplier_id, email })
