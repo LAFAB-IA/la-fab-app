@@ -76,14 +76,14 @@ export async function fetchWithAuth(
         // Fresh token still rejected → last resort logout
         if (retried.status === 401) {
           clearToken();
-          window.location.href = "/login";
+          window.location.href = "/login?reason=session_expired";
         }
         return retried;
       }
       // Refresh attempted but failed (no new token) → last resort logout
       console.warn('[fetchWithAuth] clearToken déclenché — refresh échoué sur:', url, '| body:', JSON.stringify(body));
       clearToken();
-      window.location.href = "/login";
+      window.location.href = "/login?reason=session_expired";
     } else {
       // Unrecognized 401/403 code — return response without clearing token
       console.warn('[fetchWithAuth] 401/403 non reconnu — code:', body.code, 'error:', body.error, 'url:', url, '→ token PRÉSERVÉ');

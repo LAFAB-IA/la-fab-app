@@ -19,6 +19,12 @@ export default function Login() {
     const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null)
     const [error, setError] = useState("")
     const [info, setInfo] = useState("")
+    const [sessionExpired, setSessionExpired] = useState(false)
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("reason") === "session_expired") setSessionExpired(true)
+    }, [])
 
     async function handleSubmit() {
         setError(""); setInfo("")
@@ -135,6 +141,19 @@ export default function Login() {
                 padding: 40,
                 boxShadow: "0 1px 3px rgba(58,64,64,0.08)",
             }}>
+
+                {/* Bannière session expirée */}
+                {sessionExpired && (
+                    <div style={{
+                        marginBottom: 24, padding: "10px 14px",
+                        backgroundColor: "#fef9e0", border: "1px solid " + C.yellow,
+                        borderRadius: 8, fontSize: 13, color: "#7a5c00",
+                        display: "flex", alignItems: "center", gap: 8,
+                    }}>
+                        <Clock size={14} style={{ flexShrink: 0 }} />
+                        Votre session a expiré. Veuillez vous reconnecter.
+                    </div>
+                )}
 
                 {/* Logo / titre */}
                 <div style={{ textAlign: "center", marginBottom: 32 }}>
