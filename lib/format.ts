@@ -17,11 +17,13 @@ const dateShortFormatter = new Intl.DateTimeFormat("fr-FR", {
     year: "numeric",
 })
 
-export function formatPrice(amount: number): string {
+export function formatPrice(amount: number | null | undefined): string {
+    if (amount == null) return "—"
     return priceFormatter.format(amount)
 }
 
-export function formatDate(date: string): string {
+export function formatDate(date: string | null | undefined): string {
+    if (!date) return "—"
     return dateFormatter.format(new Date(date))
 }
 
