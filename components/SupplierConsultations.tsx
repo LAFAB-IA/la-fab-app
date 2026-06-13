@@ -233,10 +233,12 @@ function QuoteModal({ consultationId, onClose, onSuccess }: QuoteModalProps) {
 
                     <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                         <button type="button" onClick={onClose}
+                            className="sc-btn-secondary"
                             style={{ padding: "9px 18px", borderRadius: 8, border: "1px solid " + C.border, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                             Annuler
                         </button>
                         <button type="submit" disabled={submitting}
+                            className="sc-btn-yellow"
                             style={{ padding: "9px 20px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}>
                             {submitting ? <Loader2 size={14} style={{ animation: "sc-spin 1s linear infinite" }} /> : <Send size={14} />}
                             Envoyer
@@ -358,7 +360,7 @@ export default function SupplierConsultations() {
         const msg       = actionMsgs[cId!]
 
         return (
-            <div key={cId} style={{
+            <div key={cId} className="sc-card" style={{
                 backgroundColor: C.white, borderRadius: 12,
                 border: "1px solid " + C.border,
                 boxShadow: "0 1px 3px rgba(58,64,64,0.06)",
@@ -435,6 +437,7 @@ export default function SupplierConsultations() {
                                 <button
                                     onClick={() => setQuoteModal(cId!)}
                                     disabled={isResponding}
+                                    className="sc-btn-yellow"
                                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                                 >
                                     <Upload size={14} /> Envoyer un devis
@@ -442,6 +445,7 @@ export default function SupplierConsultations() {
                                 <button
                                     onClick={() => handleRespond(cId!, "refuse")}
                                     disabled={isResponding}
+                                    className="sc-btn-danger"
                                     style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid var(--status-danger-bd)", backgroundColor: "var(--status-danger-bg)", color: "var(--status-danger-fg)", fontSize: 13, fontWeight: 600, cursor: isResponding ? "not-allowed" : "pointer", opacity: isResponding ? 0.6 : 1 }}
                                 >
                                     {isResponding ? <Loader2 size={13} style={{ animation: "sc-spin 1s linear infinite" }} /> : null}
@@ -452,6 +456,7 @@ export default function SupplierConsultations() {
                         {isAccepted && (
                             <button
                                 onClick={() => setQuoteModal(cId!)}
+                                className="sc-btn-yellow"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", backgroundColor: C.yellow, color: C.dark, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                             >
                                 <Upload size={14} /> Uploader le devis PDF
@@ -551,6 +556,7 @@ export default function SupplierConsultations() {
                             <div key={status}>
                                 <div
                                     onClick={() => lv.toggleCollapsed(status)}
+                                    className="sc-group-header"
                                     style={{
                                         display: "flex", alignItems: "center", gap: 10,
                                         padding: "10px 16px", borderRadius: 10,
@@ -583,7 +589,18 @@ export default function SupplierConsultations() {
                 />
             )}
 
-            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+            <style>{`@keyframes sc-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+                .sc-card { transition: box-shadow 0.15s, transform 0.15s; }
+                .sc-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; transform: translateY(-1px); }
+                .sc-btn-yellow { transition: filter 0.15s; }
+                .sc-btn-yellow:not(:disabled):hover { filter: brightness(0.92); }
+                .sc-btn-danger { transition: filter 0.15s; }
+                .sc-btn-danger:not(:disabled):hover { filter: brightness(0.88); }
+                .sc-btn-secondary { transition: background-color 0.15s; }
+                .sc-btn-secondary:hover { background-color: #f0f0ee !important; }
+                .sc-group-header { transition: opacity 0.15s; }
+                .sc-group-header:hover { opacity: 0.85; }
+            `}</style>
         </div>
     )
 }

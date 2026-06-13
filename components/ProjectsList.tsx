@@ -254,6 +254,8 @@ export default function ProjectsList() {
                     -webkit-overflow-scrolling: touch;
                 }
                 .projects-kpi-row::-webkit-scrollbar { display: none; }
+                .row-hover { transition: box-shadow 0.15s, transform 0.15s; }
+                .row-hover:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; transform: translateY(-1px); }
                 .list-grid-3col {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
@@ -279,7 +281,7 @@ export default function ProjectsList() {
                     </div>
                     <a
                         href="/projet/nouveau"
-                        className="btn-primary projects-header-cta px-5 py-[10px] bg-[#F4CF15] text-black rounded-lg text-[13px] font-bold no-underline"
+                        className="btn-primary projects-header-cta px-5 py-[10px] bg-[#F4CF15] text-black rounded-lg text-[13px] font-bold no-underline transition-all duration-150 hover:brightness-[0.92]"
                     >
                         + Nouveau projet
                     </a>
@@ -325,7 +327,7 @@ export default function ProjectsList() {
                         <div className="text-sm text-[#7a8080] mb-6">Deposez votre premier brief pour obtenir un devis.</div>
                         <a
                             href="/projet/nouveau"
-                            className="btn-primary px-6 py-3 bg-[#F4CF15] text-black rounded-lg text-sm font-bold no-underline"
+                            className="btn-primary px-6 py-3 bg-[#F4CF15] text-black rounded-lg text-sm font-bold no-underline transition-all duration-150 hover:brightness-[0.92]"
                         >
                             Deposer un brief
                         </a>
@@ -352,7 +354,7 @@ export default function ProjectsList() {
                                 <div key={status}>
                                     <div
                                         onClick={() => lv.toggleCollapsed(status)}
-                                        className="flex items-center gap-2.5 px-4 py-[10px] rounded-[10px] cursor-pointer select-none"
+                                        className="flex items-center gap-2.5 px-4 py-[10px] rounded-[10px] cursor-pointer select-none transition-opacity duration-150 hover:opacity-80"
                                         style={{ backgroundColor: sc.bg }}
                                     >
                                         <ChevronDown
@@ -402,7 +404,7 @@ export default function ProjectsList() {
                 headerActions={selectedProjectId ? (
                     <a
                         href={`/projet/${selectedProjectId}`}
-                        className="inline-flex items-center gap-[5px] px-3 py-[5px] rounded-md text-xs font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black no-underline"
+                        className="inline-flex items-center gap-[5px] px-3 py-[5px] rounded-md text-xs font-semibold border border-[#e0e0de] bg-[#FAFFFD] text-black no-underline transition-colors duration-150 hover:bg-[#f0f0ee]"
                     >
                         <ExternalLink size={13} /> Pleine page
                     </a>

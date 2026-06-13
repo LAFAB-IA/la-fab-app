@@ -483,6 +483,7 @@ export default function AdminProjects() {
                         {bulkMode ? (
                             <button
                                 onClick={exitBulkMode}
+                                className="ap-header-btn"
                                 style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
                             >
                                 Annuler
@@ -490,6 +491,7 @@ export default function AdminProjects() {
                         ) : (
                             <button
                                 onClick={() => setBulkMode(true)}
+                                className="ap-header-btn"
                                 style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
                             >
                                 <CheckSquare size={14} /> Selectionner
@@ -497,6 +499,7 @@ export default function AdminProjects() {
                         )}
                         <a
                             href="/admin/dashboard"
+                            className="ap-header-btn"
                             style={{ padding: "9px 18px", background: C.white, color: C.dark, border: "1px solid " + C.border, borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}
                         >
                             <ArrowLeft size={14} />
@@ -529,6 +532,7 @@ export default function AdminProjects() {
                         return (
                             <div
                                 key={key}
+                                className="ap-kpi-card"
                                 onClick={() => setFilterStatus(filterStatus === key ? "all" : key)}
                                 style={{
                                     background: isActive ? sc.bg : C.white,
@@ -586,6 +590,7 @@ export default function AdminProjects() {
                         <button
                             onClick={exportCSV}
                             disabled={sorted.length === 0}
+                            className="ap-export-btn"
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: 6,
                                 padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
@@ -739,7 +744,7 @@ export default function AdminProjects() {
                                                 if (bulkMode) { toggleSelect(project.project_id); return }
                                                 setExpandedProject(isExpanded ? null : project.project_id)
                                             }}
-                                            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "#fafaf8" }}
+                                            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "#f0f0ee" }}
                                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isSelected ? "#FAFFFD" : "" }}
                                         >
                                             {bulkMode && (
@@ -787,6 +792,7 @@ export default function AdminProjects() {
                         <button
                             onClick={() => handleSearch(searchCurrentFilters, searchMeta.page - 1)}
                             disabled={searchMeta.page <= 1 || searchLoading}
+                            className="ap-page-btn"
                             style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid " + C.border, backgroundColor: C.white, fontSize: 13, fontWeight: 600, cursor: searchMeta.page <= 1 ? "not-allowed" : "pointer", opacity: searchMeta.page <= 1 ? 0.4 : 1 }}
                         >
                             Précédent
@@ -797,6 +803,7 @@ export default function AdminProjects() {
                         <button
                             onClick={() => handleSearch(searchCurrentFilters, searchMeta.page + 1)}
                             disabled={searchMeta.page >= searchMeta.total_pages || searchLoading}
+                            className="ap-page-btn"
                             style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid " + C.border, backgroundColor: C.white, fontSize: 13, fontWeight: 600, cursor: searchMeta.page >= searchMeta.total_pages ? "not-allowed" : "pointer", opacity: searchMeta.page >= searchMeta.total_pages ? 0.4 : 1 }}
                         >
                             Suivant
@@ -842,7 +849,7 @@ export default function AdminProjects() {
                     </span>
                     <div style={{ width: 1, height: 20, backgroundColor: "rgba(250,255,253,0.2)" }} />
 
-                    <button disabled={bulkActioning} onClick={() => bulkAction("archive")} style={{
+                    <button disabled={bulkActioning} onClick={() => bulkAction("archive")} className="ap-bulk-btn" style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
                         border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#FAFFFD",
                         fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
@@ -850,7 +857,7 @@ export default function AdminProjects() {
                         <Archive size={14} /> Archiver
                     </button>
 
-                    <button disabled={bulkActioning} onClick={() => setBulkDeleteConfirm(true)} style={{
+                    <button disabled={bulkActioning} onClick={() => setBulkDeleteConfirm(true)} className="ap-bulk-btn" style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
                         border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#fca5a5",
                         fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
@@ -860,7 +867,7 @@ export default function AdminProjects() {
 
                     {/* Status dropdown */}
                     <div style={{ position: "relative" }}>
-                        <button disabled={bulkActioning} onClick={() => setBulkStatusDropdown(v => !v)} style={{
+                        <button disabled={bulkActioning} onClick={() => setBulkStatusDropdown(v => !v)} className="ap-bulk-btn" style={{
                             display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
                             border: "1px solid rgba(250,255,253,0.2)", background: "transparent", color: "#FAFFFD",
                             fontSize: 13, fontWeight: 500, cursor: bulkActioning ? "not-allowed" : "pointer",
@@ -893,7 +900,7 @@ export default function AdminProjects() {
                         )}
                     </div>
 
-                    <button disabled={bulkActioning} onClick={() => bulkAction("export")} style={{
+                    <button disabled={bulkActioning} onClick={() => bulkAction("export")} className="ap-bulk-yellow" style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8,
                         border: "none", background: "#F4CF15", color: "#000000",
                         fontSize: 13, fontWeight: 600, cursor: bulkActioning ? "not-allowed" : "pointer",
@@ -926,6 +933,30 @@ export default function AdminProjects() {
             {toast && (
                 <Toast message={toast.message} type={toast.type} onDismiss={hideToast} />
             )}
+
+            <style>{`
+                .btn-icon { transition: background-color 0.15s, border-color 0.15s; }
+                .btn-icon:hover { background-color: #f0f0ee !important; border-color: #7a8080 !important; }
+                .btn-danger { transition: filter 0.15s; }
+                .btn-danger:hover { filter: brightness(0.88); }
+                .btn-secondary { transition: background-color 0.15s; }
+                .btn-secondary:hover { background-color: #f0f0ee !important; }
+                .btn-primary { transition: filter 0.15s; }
+                .btn-primary:hover:not(:disabled) { filter: brightness(0.92); }
+                .ap-kpi-card { transition: box-shadow 0.15s, transform 0.15s; }
+                .ap-kpi-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; transform: translateY(-1px); }
+                .ap-header-btn { transition: background-color 0.15s; }
+                .ap-header-btn:hover { background-color: #f0f0ee !important; }
+                .ap-export-btn { transition: opacity 0.15s; }
+                .ap-export-btn:not(:disabled):hover { opacity: 0.85; }
+                .ap-page-btn { transition: background-color 0.15s; }
+                .ap-page-btn:not(:disabled):hover { background-color: #f0f0ee !important; }
+                .ap-bulk-btn { transition: opacity 0.15s; }
+                .ap-bulk-btn:not(:disabled):hover { opacity: 0.7; }
+                .ap-bulk-yellow { transition: filter 0.15s; }
+                .ap-bulk-yellow:not(:disabled):hover { filter: brightness(0.92); }
+                @keyframes spin { to { transform: rotate(360deg) } }
+            `}</style>
 
             {/* Project detail drawer */}
             <Drawer

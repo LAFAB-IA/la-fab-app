@@ -264,7 +264,7 @@ export default function Dashboard() {
                             {/* Bouton Voir le devis */}
                             <button
                                 onClick={() => setPdfModal({ url: adminValidatedQuote.quote_url, title: `Devis ${adminValidatedQuote.quote_number}` })}
-                                className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg border border-[#e0e0de] bg-[#FAFFFD] text-black text-sm font-semibold cursor-pointer mb-2.5"
+                                className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg border border-[#e0e0de] bg-[#FAFFFD] text-black text-sm font-semibold cursor-pointer mb-2.5 transition-colors duration-150 hover:bg-[#f0f0ee]"
                             >
                                 <Eye size={16} /> Voir le devis
                             </button>
@@ -394,6 +394,12 @@ export default function Dashboard() {
             )}
 
             <style>{`
+                .nav-link { transition: color 0.15s; }
+                .nav-link:hover { color: #000000; text-decoration: underline; }
+                .btn-secondary { transition: background-color 0.15s; }
+                .btn-secondary:hover { background-color: #e0e0de !important; }
+                .btn-primary { transition: filter 0.15s; }
+                .btn-primary:hover:not(:disabled):not(.cursor-wait) { filter: brightness(0.92); }
                 @media (max-width: 768px) {
                     .dash-grid { grid-template-columns: 1fr !important; gap: 12px 0 !important; }
                     .dash-card { padding: 20px 16px !important; }
