@@ -8,6 +8,7 @@ import { fetchWithAuth } from "@/lib/api"
 import { X, Menu, Moon, Sun, User, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import NotificationBell from "@/components/NotificationBell"
+import useFocusTrap from "@/hooks/useFocusTrap"
 
 export default function Navbar() {
     const { user, token, isAuthenticated, isLoading, logout } = useAuth()
@@ -21,7 +22,10 @@ export default function Navbar() {
     const [profileOpen, setProfileOpen] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+    const [logoutModalOpen, setLogoutModalOpen] = useState(false)
     const profileRef = useRef<HTMLDivElement>(null)
+    const logoutModalRef = useRef<HTMLDivElement>(null)
+    useFocusTrap(logoutModalOpen, logoutModalRef, () => setLogoutModalOpen(false))
 
     // ── Fetch avatar from /me ─────────────────────────────────────────────────
     useEffect(() => {
@@ -160,7 +164,7 @@ export default function Navbar() {
                                     {isDark ? <Sun size={16} /> : <Moon size={16} />}
                                     {isDark ? "Thème clair" : "Thème sombre"}
                                 </button>
-                                <button onClick={() => { setProfileOpen(false); logout() }} style={{
+                                <button onClick={() => { setProfileOpen(false); setLogoutModalOpen(true) }} style={{
                                     display: "flex", width: "100%", textAlign: "left",
                                     alignItems: "center", gap: 10,
                                     padding: "11px 16px", fontSize: 14, color: "var(--status-danger-fg)",
@@ -220,6 +224,73 @@ export default function Navbar() {
                             {link.label}
                         </Link>
                     ))}
+                </div>
+            )}
+
+            {/* ── Modale confirmation déconnexion ── */}
+            {logoutModalOpen && (
+                <div
+                    onClick={() => setLogoutModalOpen(false)}
+                    style={{
+                        position: "fixed", inset: 0, zIndex: 2000,
+                        backgroundColor: "rgba(0,0,0,0.5)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                >
+                    <div
+                        ref={logoutModalRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="logout-modal-title"
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            backgroundColor: "#FAFFFD", borderRadius: 12,
+                            padding: "28px 32px", maxWidth: 380, width: "100%",
+                            margin: "0 16px",
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+                        }}
+                    >
+                        <h2 id="logout-modal-title" style={{
+                            fontSize: 18, fontWeight: 700, color: "#000000",
+                            margin: "0 0 10px 0", letterSpacing: "-0.2px",
+                        }}>
+                            Déconnexion
+                        </h2>
+                        <p style={{
+                            fontSize: 14, color: "#7a8080",
+                            margin: "0 0 28px 0", lineHeight: 1.6,
+                        }}>
+                            Voulez-vous vraiment vous déconnecter ?
+                        </p>
+                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                            <button
+                                onClick={() => setLogoutModalOpen(false)}
+                                style={{
+                                    padding: "10px 20px", borderRadius: 8,
+                                    backgroundColor: "#f0f0ee", color: "#000000",
+                                    fontSize: 14, fontWeight: 600, border: "none",
+                                    cursor: "pointer", fontFamily: "Inter, sans-serif",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "#e0e0de" }}
+                                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "#f0f0ee" }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => { setLogoutModalOpen(false); logout() }}
+                                style={{
+                                    padding: "10px 20px", borderRadius: 8,
+                                    backgroundColor: "#000000", color: "#FAFFFD",
+                                    fontSize: 14, fontWeight: 600, border: "none",
+                                    cursor: "pointer", fontFamily: "Inter, sans-serif",
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
+                            >
+                                Se déconnecter
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
