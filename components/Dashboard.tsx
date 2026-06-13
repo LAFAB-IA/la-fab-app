@@ -10,6 +10,7 @@ import { Clock, XCircle, FileText, CheckCircle, ClipboardList, Link2, FolderOpen
 import PdfViewerModal from "@/components/ui/PdfViewerModal"
 import useFocusTrap from "@/hooks/useFocusTrap"
 import { formatPrice, formatDate, formatDateShort } from "@/lib/format"
+import { SkeletonBlock, SkeletonText } from "@/components/shared/Skeleton"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -110,8 +111,27 @@ export default function Dashboard() {
 
     if (loading) return (
         <div className="font-[Inter,_sans-serif]">
-            <div className={`${card} text-center text-[#7a8080] flex items-center justify-center gap-2`}>
-                <Clock size={16} /> Chargement...
+            <div className="max-w-[720px] mx-auto mb-4">
+                <SkeletonBlock width={90} height={13} />
+            </div>
+            <div className={card}>
+                {/* En-tête projet */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                        <SkeletonBlock height={22} width="55%" />
+                        <SkeletonBlock height={13} width="38%" />
+                    </div>
+                    <SkeletonBlock height={26} width={110} style={{ borderRadius: 6 }} />
+                </div>
+                {/* Timeline */}
+                <SkeletonBlock height={52} style={{ marginBottom: 28, borderRadius: 8 }} />
+                {/* Sections */}
+                <SkeletonText lines={4} gap={12} />
+                <div style={{ margin: "24px 0 0" }}>
+                    <SkeletonText lines={2} gap={12} />
+                </div>
+                {/* CTA */}
+                <SkeletonBlock height={46} style={{ marginTop: 28, borderRadius: 10 }} />
             </div>
         </div>
     )

@@ -10,6 +10,7 @@ import Drawer from "@/components/shared/Drawer"
 import ProjectDetail from "@/components/ProjectDetail"
 import useListView from "@/hooks/useListView"
 import ListToolbar from "@/components/ListToolbar"
+import { SkeletonCard } from "@/components/shared/Skeleton"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
     created:       { label: "En attente de devis",  bg: "#fef9e0", color: "#b89a00", border: "#f4cf1588" },
@@ -230,8 +231,12 @@ export default function ProjectsList() {
     }
 
     if (loading) return (
-        <div className="flex items-center justify-center min-h-[200px] font-[Inter,_sans-serif]">
-            <p className="text-[#7a8080]">Chargement de vos projets...</p>
+        <div className="font-[Inter,_sans-serif] box-border max-w-[720px] mx-auto">
+            <div className="flex flex-col gap-3">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+            </div>
         </div>
     )
 

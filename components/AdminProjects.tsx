@@ -18,6 +18,7 @@ import useFocusTrap from "@/hooks/useFocusTrap"
 import { ExportButton } from "@/components/admin/ExportButton"
 import { StatsCards, StatItem } from "@/components/admin/StatsCards"
 import { ProjectSearchBar, ProjectSearchFilters } from "@/components/admin/ProjectSearchBar"
+import { SkeletonTable } from "@/components/shared/Skeleton"
 
 const { useEffect, useState, useRef } = React
 
@@ -434,8 +435,8 @@ export default function AdminProjects() {
     }
 
     if (loading) return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, fontFamily: "Inter, sans-serif" }}>
-            <p style={{ color: C.muted }}>Chargement des projets...</p>
+        <div style={{ fontFamily: "Inter, sans-serif", maxWidth: 1100, margin: "0 auto" }}>
+            <SkeletonTable rows={7} cols={5} />
         </div>
     )
 
