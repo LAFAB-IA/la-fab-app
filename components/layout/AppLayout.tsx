@@ -1,7 +1,7 @@
 "use client"
 
-import React from "react"
-import { usePathname } from "next/navigation"
+import React, { useEffect } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import Navbar from "@/components/layout/Navbar"
 import Sidebar from "@/components/layout/Sidebar"
@@ -10,13 +10,28 @@ import SupplierSidebar from "@/components/layout/SupplierSidebar"
 import RoleSwitcher from "@/components/layout/RoleSwitcher"
 import { C } from "@/lib/constants"
 
-const BARE_PATHS = ["/", "/login", "/supplier/register", "/auth/callback"]
+const BARE_PATHS = ["/", "/login", "/supplier/register", "/auth/callback", "/onboarding"]
 
 const CLIENT_PATHS = ["/projets", "/factures", "/planning", "/profil", "/dashboard", "/notifications"]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
+    const router = useRouter()
     const { isAuthenticated, user } = useAuth()
+
+    useEffect(() => {
+        if (
+            isAuthenticated &&
+            user?.role === "client" &&
+            pathname !== "/onboarding" &&
+            !localStorage.getItem("onboarding_done")
+        ) {
+            const createdAt = user.created_at ? new Date(user.created_at).getTime() : null
+            if (createdAt !== null && createdAt >= Date.now() - 5 * 60 * 1000) {
+                router.push("/onboarding")
+            }
+        }
+    }, [isAuthenticated, user, pathname])
 
     if (BARE_PATHS.includes(pathname)) {
         return <>{children}</>
